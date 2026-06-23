@@ -326,7 +326,18 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
   - done: feature tests — open link renders the apply page with the unit's fields; revoked /
     expired / not-accepting renders the closed state; unknown token 404s.
 
-- [ ] Build the public application page (dynamic form render)
+- [x] Build the public application page (dynamic form render)
+  - note: Added `resources/js/pages/screening/Apply.vue` rendering each schema field by `FieldType`
+    (short_text/number/currency/date → `Input`; long_text → styled `<textarea>`; single_choice →
+    radios; multi_choice → `Checkbox` list with array toggle; boolean/consent → `Checkbox`;
+    reference → name/email/phone/relationship block; file → native file input). `useForm` over
+    `{ answers: {...} }` seeded per-type, posts multipart (`forceFormData`) to the current page URL
+    (`screening.store` lands next task), with required markers, per-field help, and inline errors
+    keyed `answers.{key}`. Added a minimal chrome-free `PublicScreeningLayout.vue` (logo header +
+    footer) wired in `app.ts` for `screening/Apply`+`screening/Submitted`; closed links render a
+    friendly "no longer accepting" state. Dropped the `ensure_pages_exist=false` skip from
+    `PublicScreeningControllerTest` so it now proves the page resolves (5 passed). vue-tsc, ESLint,
+    build, Pint all clean.
   - context: new `resources/js/pages/screening/Apply.vue`. Do NOT use `AppLayout` (that's the
     authenticated sidebar shell) — create/use a minimal public layout (check
     `resources/js/layouts/auth` for a lightweight pattern) so there's no app chrome. Render each

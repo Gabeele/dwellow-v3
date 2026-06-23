@@ -9,8 +9,6 @@ use Inertia\Testing\AssertableInertia as Assert;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    // The screening/Apply page is built in a later task; don't fail on a missing page component.
-    config()->set('inertia.testing.ensure_pages_exist', false);
     $this->withoutVite();
 });
 

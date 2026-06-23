@@ -8,6 +8,7 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { initializeTheme } from '@/composables/useAppearance';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
+import PublicScreeningLayout from '@/layouts/PublicScreeningLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 
@@ -19,6 +20,10 @@ createInertiaApp({
         switch (true) {
             case name === 'Welcome':
                 return null;
+            // Public applicant pages have no account and no app chrome.
+            case name === 'screening/Apply':
+            case name === 'screening/Submitted':
+                return PublicScreeningLayout;
             case name.startsWith('auth/'):
                 return AuthLayout;
             case name.startsWith('settings/'):
