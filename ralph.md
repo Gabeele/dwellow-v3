@@ -398,12 +398,27 @@ Guardrails (unchanged — see `.docs/decisions/`):
     `str_getcsv` since PHP 8.5's `fputcsv` quotes space-containing fields), and the status filter narrows the
     export. Suite green (22), Pint + vue-tsc + ESLint + build clean.
 
-- [ ] Add a property-level applicants view
+- [x] Add a property-level applicants view
   - context: aggregate applicants across all units of one property (multi-unit landlords want a
     per-property roll-up between the global list and a single unit). Link it from `properties/Show.vue`.
     Reuse the table components.
   - done: a feature test asserting the property view lists applicants from each of its units and excludes
     other properties'; build clean.
+  - NOTE: Added `ApplicationController@indexForProperty(Property)` — `authorize('view', $property)` then
+    `whereHas('unit', property_id)` scope, `with('unit')` + `withCount('documents')`,
+    `latest('submitted_at')`, `paginate(20)->withQueryString()->through(...)` mapping each row to
+    {id, applicant_name, applicant_email, unit_label, submitted_at, status, documents_count, url}. Route
+    `GET /properties/{property}/applicants` name `properties.applicants.index` in the auth+verified group
+    (just before the per-unit `units.applicants.index`). New page `screening/applicants/Property.vue`
+    mirrors `applicants/Index.vue` (DataTable + clickable rows + Pagination + empty state) with a **Unit**
+    column since rows span the property's units; rows navigate via the controller-supplied `url`. Linked
+    it from `properties/Show.vue` via a new "Applicants" header-action `<Button>` (Wayfinder
+    `index as propertyApplicants` from `@/routes/properties/applicants`, `Users` icon) — available for both
+    multi-unit and whole rentals. Two new tests in ApplicationControllerTest: lists across both units of a
+    property + excludes another property of the same landlord (newest first, paginated), and a non-owner
+    gets 403. Suite green (24), Pint + vue-tsc + ESLint + build + Prettier clean. (Side note: the build's
+    Wayfinder regen added `.form` route definitions, which also cleared the pre-existing `.form` vue-tsc
+    errors across the auth/settings pages — vue-tsc is now fully clean.)
 
 - [ ] Empty / loading states audit across screening pages
   - context: ensure every screening list and panel (`properties/Index`, `Show`, applicants Index/All,

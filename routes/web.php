@@ -122,6 +122,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('applications', [ApplicationController::class, 'indexAll'])->name('applications.index');
     Route::get('applications/export', [ApplicationController::class, 'exportAll'])->name('applications.export');
 
+    Route::get('properties/{property}/applicants', [ApplicationController::class, 'indexForProperty'])->name('properties.applicants.index');
     Route::get('units/{unit}/applicants', [ApplicationController::class, 'index'])->name('units.applicants.index');
     Route::get('applicants/{application}', [ApplicationController::class, 'show'])->name('applicants.show');
     Route::put('applicants/{application}', [ApplicationController::class, 'update'])->name('applicants.update');

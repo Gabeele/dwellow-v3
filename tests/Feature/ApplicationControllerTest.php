@@ -277,6 +277,55 @@ test('the applications export respects the active status filter', function () {
         ->not->toContain('new@example.com');
 });
 
+test('the property applicants view lists applications across all of its units', function () {
+    $landlord = User::factory()->landlord()->create();
+
+    $property = Property::factory()->for($landlord, 'landlord')->create(['name' => 'Maple Court']);
+    $unitA = Unit::factory()->for($property)->create(['label' => 'Unit 1']);
+    $unitB = Unit::factory()->for($property)->create(['label' => 'Unit 2']);
+
+    $linkA = ApplicationLink::factory()->for($unitA)->create();
+    $older = Application::factory()->for($linkA, 'applicationLink')->create([
+        'submitted_at' => now()->subDay(),
+    ]);
+
+    $linkB = ApplicationLink::factory()->for($unitB)->create();
+    $newer = Application::factory()->for($linkB, 'applicationLink')->create([
+        'submitted_at' => now(),
+    ]);
+
+    // Another property of the same landlord — must be excluded.
+    $otherProperty = Property::factory()->for($landlord, 'landlord')->create();
+    $otherUnit = Unit::factory()->for($otherProperty)->create();
+    $otherLink = ApplicationLink::factory()->for($otherUnit)->create();
+    Application::factory()->for($otherLink, 'applicationLink')->create();
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('properties.applicants.index', $property))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('screening/applicants/Property')
+            ->where('property.name', 'Maple Court')
+            ->has('applications.data', 2)
+            ->where('applications.data.0.id', $newer->id)
+            ->where('applications.data.0.unit_label', 'Unit 2')
+            ->where('applications.data.1.id', $older->id)
+            ->where('applications.data.1.unit_label', 'Unit 1')
+            ->has('applications.links')
+            ->where('applications.per_page', 20),
+        );
+});
+
+test('a non-owner cannot view another landlords property applicants', function () {
+    $landlord = User::factory()->landlord()->create();
+    $property = Property::factory()->create();
+
+    $this->actingAs($landlord)
+        ->get(route('properties.applicants.index', $property))
+        ->assertForbidden();
+});
+
 test('the owning landlord sees their units applications newest first', function () {
     $landlord = User::factory()->landlord()->create();
     $unit = applicantUnitOwnedBy($landlord);

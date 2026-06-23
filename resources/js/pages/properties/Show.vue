@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ChevronDown, Link2, Pencil, Plus, Trash2 } from '@lucide/vue';
+import { ChevronDown, Link2, Pencil, Plus, Trash2, Users } from '@lucide/vue';
 import { computed, reactive } from 'vue';
 import PropertyController from '@/actions/App/Http/Controllers/PropertyController';
 import UnitController from '@/actions/App/Http/Controllers/UnitController';
@@ -12,6 +12,7 @@ import TableRow from '@/components/TableRow.vue';
 import { Button } from '@/components/ui/button';
 import UnitScreeningPanel from '@/components/UnitScreeningPanel.vue';
 import { edit, index } from '@/routes/properties';
+import { index as propertyApplicants } from '@/routes/properties/applicants';
 import { create as createUnit } from '@/routes/properties/units';
 import { edit as editUnit } from '@/routes/units';
 import type { Property, Unit } from '@/types/property';
@@ -135,6 +136,11 @@ function toggleScreening(unit: Unit): void {
             :back="{ label: 'All properties', href: index() }"
         >
             <template #actions>
+                <Button as-child variant="outline">
+                    <Link :href="propertyApplicants(property.id)">
+                        <Users />Applicants
+                    </Link>
+                </Button>
                 <Button as-child variant="outline">
                     <Link :href="edit(property.id)"><Pencil />Edit</Link>
                 </Button>

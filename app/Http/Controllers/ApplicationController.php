@@ -138,6 +138,42 @@ class ApplicationController extends Controller
     }
 
     /**
+     * List every application across all units of a single property (newest first),
+     * paginated — the per-property roll-up between the portfolio-wide list and a
+     * single unit's applicants.
+     */
+    public function indexForProperty(Property $property): Response
+    {
+        $this->authorize('view', $property);
+
+        $applications = Application::query()
+            ->whereHas('unit', fn ($query) => $query->where('property_id', $property->id))
+            ->with('unit')
+            ->withCount('documents')
+            ->latest('submitted_at')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn (Application $application): array => [
+                'id' => $application->id,
+                'applicant_name' => trim("{$application->applicant_first_name} {$application->applicant_last_name}"),
+                'applicant_email' => $application->applicant_email,
+                'unit_label' => $application->unit->label,
+                'submitted_at' => $application->submitted_at,
+                'status' => $application->status,
+                'documents_count' => $application->documents_count,
+                'url' => route('applicants.show', $application),
+            ]);
+
+        return Inertia::render('screening/applicants/Property', [
+            'property' => [
+                'id' => $property->id,
+                'name' => $property->name ?? $property->address_line1,
+            ],
+            'applications' => $applications,
+        ]);
+    }
+
+    /**
      * List the applications submitted for a unit (newest first), paginated for
      * units that collect many applicants.
      */
