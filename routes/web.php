@@ -113,6 +113,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('units/{unit}/form', [ApplicationFormController::class, 'update'])->name('units.form.update');
 
     Route::get('units/{unit}/applicants', [ApplicationController::class, 'index'])->name('units.applicants.index');
+    Route::get('applicants/{application}', [ApplicationController::class, 'show'])->name('applicants.show');
 
     Route::post('units/{unit}/links', [ApplicationLinkController::class, 'store'])->name('units.links.store');
     Route::put('links/{link}', [ApplicationLinkController::class, 'update'])->name('links.update');

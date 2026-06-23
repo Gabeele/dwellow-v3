@@ -7,6 +7,7 @@ import PageHeader from '@/components/PageHeader.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import TableRow from '@/components/TableRow.vue';
 import { applicationStatusBadge } from '@/lib/applicationStatus';
+import { show as showApplicant } from '@/routes/applicants';
 import { index, show } from '@/routes/properties';
 import type { Application, Property, Unit } from '@/types/property';
 
@@ -88,6 +89,8 @@ const unitContext = computed(() =>
             <TableRow
                 v-for="application in applications"
                 :key="application.id"
+                clickable
+                @click="$inertia.visit(showApplicant(application.id).url)"
             >
                 <td class="px-4 py-3">
                     <div class="flex flex-col">

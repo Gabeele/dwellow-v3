@@ -88,3 +88,44 @@ test('a non-owner cannot view another landlords applicants', function () {
         ->get(route('units.applicants.index', $unit))
         ->assertForbidden();
 });
+
+test('the owning landlord sees an applications snapshot and documents', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+
+    $application = Application::factory()->for($link, 'applicationLink')->create([
+        'applicant_first_name' => 'Priya',
+        'applicant_email' => 'priya@example.com',
+        'form_snapshot' => [
+            ['key' => 'first_name', 'type' => 'short_text', 'label' => 'First name', 'required' => true, 'help' => null, 'options' => null],
+            ['key' => 'photo_id', 'type' => 'file', 'label' => 'Photo ID', 'required' => true, 'help' => null, 'options' => null],
+        ],
+        'answers' => ['first_name' => 'Priya', 'photo_id' => 'id.png'],
+    ]);
+    $document = Document::factory()->for($application)->create(['field_key' => 'photo_id']);
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applicants.show', $application))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('screening/applicants/Show')
+            ->where('application.id', $application->id)
+            ->has('application.form_snapshot', 2)
+            ->where('application.answers.first_name', 'Priya')
+            ->has('documents', 1)
+            ->where('documents.0.id', $document->id),
+        );
+});
+
+test('a non-owner cannot view another landlords application detail', function () {
+    $landlord = User::factory()->landlord()->create();
+    $otherUnit = Unit::factory()->create();
+    $otherLink = ApplicationLink::factory()->for($otherUnit)->create();
+    $application = Application::factory()->for($otherLink, 'applicationLink')->create();
+
+    $this->actingAs($landlord)
+        ->get(route('applicants.show', $application))
+        ->assertForbidden();
+});

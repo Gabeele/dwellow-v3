@@ -14,6 +14,43 @@ export interface ApplicationLink {
 
 export type ApplicationStatus = 'new' | 'reviewing' | 'approved' | 'rejected';
 
+export interface FormSnapshotField {
+    key: string;
+    type: string;
+    label: string;
+    required: boolean;
+    help: string | null;
+    options: string[] | null;
+}
+
+export interface ReferenceAnswer {
+    name: string;
+    email: string;
+    phone: string;
+    relationship: string;
+}
+
+export type AnswerValue =
+    | string
+    | number
+    | boolean
+    | string[]
+    | ReferenceAnswer
+    | null;
+
+export interface Document {
+    id: number;
+    application_id: number;
+    field_key: string;
+    disk: string;
+    path: string;
+    original_name: string;
+    mime_type: string | null;
+    size: number | null;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface Application {
     id: number;
     application_link_id: number;
@@ -22,6 +59,8 @@ export interface Application {
     applicant_last_name: string;
     applicant_email: string;
     applicant_phone: string;
+    answers?: Record<string, AnswerValue>;
+    form_snapshot?: FormSnapshotField[];
     status: ApplicationStatus;
     landlord_notes: string | null;
     documents_count?: number;

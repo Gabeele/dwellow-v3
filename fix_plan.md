@@ -401,7 +401,18 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
   - done: a feature test asserting the owning landlord sees their unit's applications and not
     another unit's; non-owner 403.
 
-- [ ] Application detail page (render from snapshot)
+- [x] Application detail page (render from snapshot)
+  - note: Added `ApplicationController@show(Application $application)` (route `applicants.show` =
+    `GET applicants/{application}`, auth+verified) authorizing via `ApplicationPolicy::view`;
+    eager-loads `documents` + `unit.property`, passing `property`/`unit`/`application`/`documents`.
+    Built `screening/applicants/Show.vue` rendering each `form_snapshot` field's label + answer
+    (reference block, booleans as Yes/No, multi_choice joined, file fields list their matching
+    `Document`s by `field_key` — download wiring is the later "Secure document download" task, so
+    no link yet), an "applicant-provided / unverified" `Alert` banner, contact card, and a status
+    badge. Added `Document`/`FormSnapshotField`/`ReferenceAnswer`/`AnswerValue` TS types and made
+    `answers`/`form_snapshot` optional on `Application`. Made the applicants Index rows `clickable`
+    → visit the show page. `ApplicationControllerTest` grew 2 tests (now 6 passed, 49 assertions);
+    Pint, vue-tsc, ESLint, build all clean. Regenerated Wayfinder with `--with-form`.
   - context: `ApplicationController@show` → `screening/applicants/Show.vue`. Render the submitted
     answers using the application's **`form_snapshot`** (so later form edits don't change history
     — see data-model). Show applicant contact, every field's label + answer, the reference block,
