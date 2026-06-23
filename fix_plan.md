@@ -54,10 +54,11 @@
 
 ### Filament — properties
 
-- [ ] Add a Filament resource for viewing properties
+- [x] Add a Filament resource for viewing properties
   - context: no Property resource exists yet (only `app/Filament/Resources/Users/`). Generate/create a `PropertyResource` for the `Property` model with a list table (name/address/city, type, rental_type, status, landlord) and a view/detail page. Read-focused is fine; mirror the structure of the existing Users resource.
   - context: enums for columns are `App\Enums\PropertyType`, `RentalType`, `OccupancyStatus`.
   - done: feature test asserting an admin can load the property list page and it renders an existing property (use `Property` factory).
+  - note: Added read-only `PropertyResource` (mirrors `SentEmailResource`: `canCreate`/`canEdit` false, index+view pages) with `PropertiesTable` (name/address/city + type/rental_type/status badges via `->formatStateUsing(label())` + landlord) and `PropertyInfolist`. The existing `PropertyPolicy` is landlord/ownership-scoped and denied admins (403), so overrode `canViewAny()`/`canView()` to `true` on the resource — panel access is already admin-gated by `canAccessPanel()`. Added `Filament/PropertyResourceTest` (list + view). Full suite (100) green.
 
 - [ ] Show a property's units in Filament
   - context: `Property hasMany Unit` (see `app/Models/Property.php`). Add a Units relation manager to the `PropertyResource` so an admin can see the units under a property (label, bedrooms, bathrooms, rent_amount, status).
