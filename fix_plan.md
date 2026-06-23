@@ -453,13 +453,19 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
     `ApplicationControllerTest` grew 2 tests (now 11 passed, 63 assertions) using `Storage::fake('local')`
     to prove the file + document row are removed; Pint, vue-tsc, ESLint, build all clean.
 
-- [ ] Secure document download for landlords
+- [x] Secure document download for landlords
   - context: `DocumentController@download` (auth+verified) streams a `Document` from the private
     disk only to the owning landlord (authorize via `DocumentPolicy`). Use
     `Storage::disk($document->disk)->download($document->path, $document->original_name)`.
     Never serve these from a public URL.
   - done: a feature test (`Storage::fake()`) asserting the owner downloads the file (200 +
     correct filename) and a different landlord is denied (403).
+  - note: Added `DocumentController@download` (authorizes via `DocumentPolicy::download`, streams
+    off the private `$document->disk` with the `original_name` as the attachment filename) on route
+    `documents.download` (GET, auth+verified). Wired the previously-deferred download links into
+    `screening/applicants/Show.vue` — each file field's documents now render as an `<a>` to the
+    Wayfinder `DocumentController.download.url(document)`. `DocumentControllerTest` (2 tests,
+    3 assertions) green; full app/document suite 13 passed; Pint, ESLint, vue-tsc, build all clean.
 
 ### Integration & polish
 

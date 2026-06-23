@@ -3,6 +3,7 @@ import { Head, router, useForm } from '@inertiajs/vue3';
 import { FileText, ShieldAlert, Trash2 } from '@lucide/vue';
 import { computed } from 'vue';
 import ApplicationController from '@/actions/App/Http/Controllers/ApplicationController';
+import DocumentController from '@/actions/App/Http/Controllers/DocumentController';
 import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
@@ -329,7 +330,12 @@ function formatSize(bytes: number | null): string {
                                 <FileText
                                     class="size-4 shrink-0 text-muted-foreground"
                                 />
-                                <span>{{ document.original_name }}</span>
+                                <a
+                                    :href="DocumentController.download.url(document)"
+                                    class="font-medium text-primary underline-offset-4 hover:underline"
+                                >
+                                    {{ document.original_name }}
+                                </a>
                                 <span
                                     v-if="formatSize(document.size)"
                                     class="text-13 text-muted-foreground"

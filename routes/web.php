@@ -4,6 +4,7 @@ use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\ApplicationFormController;
 use App\Http\Controllers\ApplicationLinkController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\PublicScreeningController;
 use App\Http\Controllers\UnitController;
@@ -116,6 +117,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('applicants/{application}', [ApplicationController::class, 'show'])->name('applicants.show');
     Route::put('applicants/{application}', [ApplicationController::class, 'update'])->name('applicants.update');
     Route::delete('applicants/{application}', [ApplicationController::class, 'destroy'])->name('applicants.destroy');
+
+    Route::get('documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
 
     Route::post('units/{unit}/links', [ApplicationLinkController::class, 'store'])->name('units.links.store');
     Route::put('links/{link}', [ApplicationLinkController::class, 'update'])->name('links.update');
