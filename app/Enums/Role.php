@@ -6,6 +6,7 @@ enum Role: string
 {
     case Landlord = 'landlord';
     case Tenant = 'tenant';
+    case Admin = 'admin';
 
     /**
      * Human-readable label for display in the UI.
@@ -15,6 +16,7 @@ enum Role: string
         return match ($this) {
             self::Landlord => 'Landlord',
             self::Tenant => 'Tenant',
+            self::Admin => 'Admin',
         };
     }
 }

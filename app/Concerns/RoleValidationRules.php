@@ -17,7 +17,7 @@ trait RoleValidationRules
     {
         return [
             'roles' => ['nullable', 'array'],
-            'roles.*' => [Rule::enum(Role::class)],
+            'roles.*' => [Rule::enum(Role::class)->only([Role::Landlord, Role::Tenant])],
         ];
     }
 }

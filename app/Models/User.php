@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Concerns\HasRoles;
+use App\Notifications\VerifyEmailNotification;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -31,7 +32,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  */
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
@@ -39,12 +40,12 @@ class User extends Authenticatable implements FilamentUser
     /**
      * Determine whether the user may access the Filament admin panel.
      *
-     * The panel is for developers and founders only — access is restricted to
-     * the email allowlist in config/admin.php (set via ADMIN_EMAILS).
+     * Access is granted to users holding the Admin role, with the email
+     * allowlist in config/admin.php (set via ADMIN_EMAILS) as a fallback.
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        return in_array($this->email, config('admin.emails'), true);
+        return $this->isAdmin() || in_array($this->email, config('admin.emails'), true);
     }
 
     /**
@@ -59,6 +60,14 @@ class User extends Authenticatable implements FilamentUser
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Send the branded Dwellow email verification notification.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new VerifyEmailNotification);
     }
 
     /**

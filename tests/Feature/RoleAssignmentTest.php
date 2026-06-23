@@ -52,6 +52,22 @@ test('registration assigns the chosen roles', function () {
         ->and($user->isTenant())->toBeTrue();
 });
 
+test('registration rejects the admin role', function () {
+    $this->skipUnlessFortifyHas(Features::registration());
+
+    $response = $this->post(route('register.store'), [
+        'name' => 'Sneaky Admin',
+        'email' => 'sneaky@example.com',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+        'roles' => ['admin'],
+    ]);
+
+    $response->assertSessionHasErrors('roles.0');
+
+    expect(User::where('email', 'sneaky@example.com')->exists())->toBeFalse();
+});
+
 test('registration without a role choice defaults to tenant', function () {
     $this->skipUnlessFortifyHas(Features::registration());
 

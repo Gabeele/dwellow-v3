@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
+use App\Enums\Role;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -22,6 +23,11 @@ class UsersTable
                     ->label('Email address')
                     ->searchable()
                     ->copyable(),
+                TextColumn::make('roles.role')
+                    ->label('Roles')
+                    ->badge()
+                    ->formatStateUsing(fn (Role $state): string => $state->label())
+                    ->placeholder('No roles'),
                 IconColumn::make('email_verified_at')
                     ->label('Verified')
                     ->boolean(),

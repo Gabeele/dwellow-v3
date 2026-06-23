@@ -64,6 +64,14 @@ class UserFactory extends Factory
     }
 
     /**
+     * Indicate that the user holds the admin role.
+     */
+    public function admin(): static
+    {
+        return $this->afterCreating(fn (User $user) => $user->assignRole(Role::Admin));
+    }
+
+    /**
      * Indicate that the model has two-factor authentication configured.
      */
     public function withTwoFactor(): static

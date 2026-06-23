@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
@@ -20,7 +21,7 @@ class UserSeeder extends Seeder
         );
 
         foreach (config('admin.emails') as $email) {
-            User::firstOrCreate(
+            $admin = User::firstOrCreate(
                 ['email' => $email],
                 [
                     'name' => Str::of($email)->before('@')->headline(),
@@ -28,6 +29,8 @@ class UserSeeder extends Seeder
                     'email_verified_at' => now(),
                 ],
             );
+
+            $admin->assignRole(Role::Admin);
         }
 
         User::factory()->count(10)->create();
