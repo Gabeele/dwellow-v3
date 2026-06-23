@@ -315,12 +315,27 @@ Guardrails (unchanged — see `.docs/decisions/`):
     tests to assert the exact `closedReason` and added an open-link `closedReason: null` test
     (PublicScreeningControllerTest 9 green, 104 assertions). Pint + vue-tsc + ESLint + build clean.
 
-- [ ] Client-side polish on the apply form
+- [x] Client-side polish on the apply form
   - context: required-field markers, inline per-field help, friendly file inputs (show chosen filename +
     size, accept hints, clear/remove), disabled submit while uploading with a spinner, and graceful
     display of server validation errors keyed by `answers.{key}`. Accessibility: labels tied to inputs,
     error `aria-describedby`. Activate `inertia-vue-development` + `tailwindcss-development`.
   - done: an inertia/component assertion of the markers/help; `vue-tsc` + build + ESLint clean.
+  - NOTE: Required markers, inline help, file guards, and `answers.{key}` server errors were already in
+    place — this task closed the remaining gaps. Added the accessibility wiring: each control now sets
+    `aria-invalid` when it has an error and `aria-describedby` pointing at its help (`field-{key}-help`)
+    and error (`field-{key}-error`) ids; `InputError` gained an optional `id` prop so the error `<p>` is
+    referenceable. Centralized error lookup in a `fieldError(key)` helper (`fileErrors[key] ?? error(key)`).
+    Made the file input friendly: a `FILE_ACCEPT_HINT` line ("PDF, image…, or Word — up to 10 MB"), a
+    chosen-file chip showing name + size with a "Remove" button (`clearFile` resets the model **and** the
+    native input via a registered `:ref`, since nulling the model alone doesn't clear the browser's picked
+    file). Submit button now shows the shared `Spinner` while `form.processing` (submit already disabled via
+    `canSubmit`). Added a PublicScreeningControllerTest assertion that fields carry `required` + non-null
+    `help` (the data the markers/help render from) — no browser harness exists for a DOM assertion, so the
+    rendered a11y attributes are guarded by vue-tsc/build/ESLint (all clean). PublicScreeningControllerTest
+    green (10), ApplicationSubmissionTest green (15), Pint clean. `Apply.vue`/`InputError.vue` pass Prettier
+    (the format:check warnings are all pre-existing untouched files). Follow-up: the radio/checkbox group
+    containers don't yet carry `aria-describedby`/`role=group` — left for a focused a11y pass if desired.
 
 ---
 

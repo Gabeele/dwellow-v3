@@ -61,6 +61,20 @@ test('each rendered section carries its heading and grouped fields', function ()
         );
 });
 
+test('fields carry the required flag and inline help the form renders', function () {
+    $link = screeningLink();
+
+    // The apply page draws its required-field markers from `required` and its
+    // inline per-field help from `help`; assert both reach the client.
+    $this->get(route('screening.show', $link->token))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('sections.0.fields.0.required', true)
+            ->where('sections.1.fields.4.key', 'previous_landlord')
+            ->where('sections.1.fields.4.help', fn ($help) => filled($help)),
+        );
+});
+
 test('a disabled section is omitted from the public apply payload', function () {
     $link = screeningLink();
 

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 
 interface FormField {
     key: string;
@@ -146,11 +147,43 @@ const error = (key: string): string | undefined =>
 
 const hasErrors = computed<boolean>(() => Object.keys(form.errors).length > 0);
 
+// Stable ids let each control point screen readers at its help text and error
+// message via `aria-describedby`, and flag itself with `aria-invalid`.
+const helpId = (key: string): string => `field-${key}-help`;
+const errorId = (key: string): string => `field-${key}-error`;
+
+const fieldError = (key: string): string | undefined =>
+    fileErrors[key] ?? error(key);
+
+const describedBy = (field: FormField): string | undefined => {
+    const ids: string[] = [];
+
+    if (field.help && field.type !== 'consent') {
+        ids.push(helpId(field.key));
+    }
+
+    if (fieldError(field.key)) {
+        ids.push(errorId(field.key));
+    }
+
+    return ids.length ? ids.join(' ') : undefined;
+};
+
 // Client-side file guards mirror the server rules so applicants learn about an
 // oversized or wrong-type file the moment they pick it, not after submitting.
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const FILE_ACCEPT = '.pdf,.jpg,.jpeg,.png,.heic,.webp,.doc,.docx';
+const FILE_ACCEPT_HINT =
+    'PDF, image (JPG, PNG, HEIC, WEBP), or Word document — up to 10 MB.';
 const fileErrors = reactive<Record<string, string | undefined>>({});
+
+// Keep a handle on each native file input so "Remove" can also clear the
+// browser's own picked-file state (setting the model to null isn't enough).
+const fileInputs: Record<string, HTMLInputElement | null> = {};
+
+const registerFileInput = (key: string, el: unknown): void => {
+    fileInputs[key] = (el as HTMLInputElement | null) ?? null;
+};
 
 const onFileChange = (key: string, event: Event): void => {
     const target = event.target as HTMLInputElement;
@@ -181,6 +214,17 @@ const onFileChange = (key: string, event: Event): void => {
     }
 
     form.answers[key] = file;
+};
+
+const clearFile = (key: string): void => {
+    form.answers[key] = null;
+    fileErrors[key] = undefined;
+
+    const input = fileInputs[key];
+
+    if (input) {
+        input.value = '';
+    }
 };
 
 const reference = (key: string): ReferenceValue =>
@@ -382,6 +426,7 @@ const submit = (): void => {
                     </Label>
                     <p
                         v-if="field.help && field.type !== 'consent'"
+                        :id="helpId(field.key)"
                         class="text-13 text-muted-foreground"
                     >
                         {{ field.help }}
@@ -401,6 +446,8 @@ const submit = (): void => {
                         v-model="form.answers[field.key] as string"
                         :type="textInputType(field.type)"
                         :step="field.type === 'currency' ? '0.01' : undefined"
+                        :aria-describedby="describedBy(field)"
+                        :aria-invalid="fieldError(field.key) ? true : undefined"
                     />
 
                     <!-- Long free-text. -->
@@ -409,6 +456,8 @@ const submit = (): void => {
                         :id="`field-${field.key}`"
                         v-model="form.answers[field.key] as string"
                         rows="4"
+                        :aria-describedby="describedBy(field)"
+                        :aria-invalid="fieldError(field.key) ? true : undefined"
                         class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive md:text-sm dark:bg-input/30"
                     ></textarea>
 
@@ -542,14 +591,48 @@ const submit = (): void => {
                     </div>
 
                     <!-- File upload. -->
-                    <input
+                    <div
                         v-else-if="field.type === 'file'"
-                        :id="`field-${field.key}`"
-                        type="file"
-                        :accept="FILE_ACCEPT"
-                        class="text-sm text-foreground file:mr-3 file:rounded-md file:border file:border-border file:bg-transparent file:px-3 file:py-1.5 file:text-sm file:font-medium"
-                        @change="(event) => onFileChange(field.key, event)"
-                    />
+                        class="flex flex-col gap-2"
+                    >
+                        <input
+                            :id="`field-${field.key}`"
+                            :ref="(el) => registerFileInput(field.key, el)"
+                            type="file"
+                            :accept="FILE_ACCEPT"
+                            :aria-describedby="describedBy(field)"
+                            :aria-invalid="
+                                fieldError(field.key) ? true : undefined
+                            "
+                            class="text-sm text-foreground file:mr-3 file:rounded-md file:border file:border-border file:bg-transparent file:px-3 file:py-1.5 file:text-sm file:font-medium"
+                            @change="(event) => onFileChange(field.key, event)"
+                        />
+                        <p class="text-13 text-muted-foreground">
+                            {{ FILE_ACCEPT_HINT }}
+                        </p>
+                        <div
+                            v-if="attachedFile(field.key)"
+                            class="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2 text-13"
+                        >
+                            <span class="min-w-0 truncate text-foreground">
+                                {{ attachedFile(field.key)?.name }}
+                                <span class="text-muted-foreground">
+                                    ({{
+                                        formatFileSize(
+                                            attachedFile(field.key)!.size,
+                                        )
+                                    }})
+                                </span>
+                            </span>
+                            <button
+                                type="button"
+                                class="shrink-0 font-medium text-destructive hover:underline"
+                                @click="clearFile(field.key)"
+                            >
+                                Remove
+                            </button>
+                        </div>
+                    </div>
 
                     <!-- Consent acknowledgement. -->
                     <label
@@ -564,7 +647,8 @@ const submit = (): void => {
                     </label>
 
                     <InputError
-                        :message="fileErrors[field.key] ?? error(field.key)"
+                        :id="errorId(field.key)"
+                        :message="fieldError(field.key)"
                     />
                 </div>
             </section>
@@ -684,6 +768,7 @@ const submit = (): void => {
                     Edit answers
                 </Button>
                 <Button type="button" :disabled="!canSubmit" @click="submit">
+                    <Spinner v-if="form.processing" />
                     {{ form.processing ? 'Submitting…' : 'Submit application' }}
                 </Button>
             </div>
