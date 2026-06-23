@@ -2,22 +2,18 @@
 
 namespace App\Observers;
 
-use App\Enums\RentalType;
 use App\Models\Property;
+use App\Screening\BackingUnitProvisioner;
 
 class PropertyObserver
 {
     /**
      * Provision a single backing unit for a newly created whole-rental property.
      *
-     * The data model treats a whole rental as a property with exactly one unit
-     * ("screening happens at the unit level"), so every whole property needs a
-     * backing unit to carry its application form, links, and applicants. The
-     * unit's own UnitObserver then auto-provisions the default application form.
-     *
-     * Uses firstOrCreate so a re-fire (or a property that somehow already has a
-     * unit) never produces a second backing unit. Multi-unit properties are
-     * untouched — they create their own units via the UnitController.
+     * Whole rentals screen against exactly one backing unit. The actual
+     * provisioning lives in {@see BackingUnitProvisioner} so the create event,
+     * the controller's show heal, and any backfill all share one source of
+     * truth. Multi-unit properties are untouched — they create their own units.
      */
     public function created(Property $property): void
     {
@@ -27,23 +23,14 @@ class PropertyObserver
     /**
      * Ensure a whole-rental property has its single backing unit.
      *
-     * Idempotent and safe to call outside the created event (e.g. a backfill
-     * for legacy whole rentals): firstOrCreate guarantees at most one unit and
-     * the UnitObserver provisions its default form. A no-op for multi-unit
-     * properties, which carry their own units.
+     * Idempotent and safe to call outside the created event (e.g. the backfill
+     * command for legacy whole rentals). Delegates to {@see BackingUnitProvisioner}
+     * and is a no-op for multi-unit properties.
      */
     public function provisionBackingUnit(Property $property): void
     {
-        if ($property->rental_type !== RentalType::Whole) {
-            return;
+        if (BackingUnitProvisioner::applies($property)) {
+            BackingUnitProvisioner::ensure($property);
         }
-
-        $property->units()->firstOrCreate([], [
-            'label' => $property->name ?? __('Whole property'),
-            'bedrooms' => $property->bedrooms,
-            'bathrooms' => $property->bathrooms,
-            'rent_amount' => $property->rent_amount,
-            'status' => $property->status,
-        ]);
     }
 }

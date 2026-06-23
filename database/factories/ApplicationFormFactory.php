@@ -21,7 +21,7 @@ class ApplicationFormFactory extends Factory
     {
         return [
             'unit_id' => Unit::factory(),
-            'fields' => DefaultApplicationForm::fields(),
+            'sections' => DefaultApplicationForm::sections(),
         ];
     }
 

@@ -6,11 +6,8 @@ use App\Models\ApplicationLink;
 use App\Models\Document;
 use App\Models\Property;
 use App\Models\Unit;
-use App\Notifications\ApplicationVerificationCodeNotification;
-use App\Screening\EmailVerification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
@@ -27,30 +24,6 @@ function openLink(): ApplicationLink
     $unit = Unit::factory()->for(Property::factory())->create();
 
     return ApplicationLink::factory()->for($unit)->create();
-}
-
-/**
- * Issue a real verification code for the link + email and capture it from the
- * (faked) notification, so a test can supply the matching code on submission.
- */
-function issueCodeFor(ApplicationLink $link, string $email): string
-{
-    Notification::fake();
-
-    app(EmailVerification::class)->send($link, $email);
-
-    $captured = '';
-
-    Notification::assertSentOnDemand(
-        ApplicationVerificationCodeNotification::class,
-        function (ApplicationVerificationCodeNotification $notification) use (&$captured): bool {
-            $captured = $notification->code;
-
-            return true;
-        },
-    );
-
-    return $captured;
 }
 
 /**
@@ -83,11 +56,9 @@ test('a valid submission creates an application with a snapshot, answers, and st
     $link = openLink();
 
     $answers = validSubmission();
-    $code = issueCodeFor($link, $answers['email']);
 
     $response = $this->post(route('screening.store', $link->token), [
         'answers' => $answers,
-        'verification_code' => $code,
     ]);
 
     $response->assertRedirect(route('screening.submitted', $link->token));
@@ -102,7 +73,7 @@ test('a valid submission creates an application with a snapshot, answers, and st
     expect($application->applicant_email)->toBe('dana@example.com');
 
     // The schema is snapshotted at submission time.
-    expect($application->form_snapshot)->toBe($link->unit->applicationForm->fields);
+    expect($application->form_snapshot)->toEqual($link->unit->applicationForm->enabledFields());
 
     // Answers persist; file fields record the filename, not the binary.
     expect($application->answers['current_address'])->toBe('1 Old Street, Toronto');
@@ -129,35 +100,35 @@ test('the submitted page renders a confirmation', function () {
         );
 });
 
-test('a submission omitting a disabled field succeeds and the snapshot reflects only active fields', function () {
+test('a submission omitting a disabled section succeeds and the snapshot reflects only active fields', function () {
     Storage::fake('local');
 
     $link = openLink();
 
-    // Disable the required pay_stubs file field so it no longer renders or validates.
-    $fields = array_map(function (array $field): array {
-        if ($field['key'] === 'pay_stubs') {
-            $field['enabled'] = false;
+    // Disable the whole employment & income section (which contains pay_stubs and
+    // the required income fields) so none of its fields render or validate.
+    $sections = array_map(function (array $section): array {
+        if ($section['key'] === 'employment_income') {
+            $section['enabled'] = false;
         }
 
-        return $field;
-    }, $link->unit->applicationForm->fields);
-    $link->unit->applicationForm->update(['fields' => $fields]);
+        return $section;
+    }, $link->unit->applicationForm->sections);
+    $link->unit->applicationForm->update(['sections' => $sections]);
 
     $answers = validSubmission();
-    unset($answers['pay_stubs']);
-
-    $code = issueCodeFor($link, $answers['email']);
+    unset($answers['pay_stubs'], $answers['employer_name'], $answers['gross_monthly_income']);
 
     $this->post(route('screening.store', $link->token), [
         'answers' => $answers,
-        'verification_code' => $code,
     ])->assertRedirect(route('screening.submitted', $link->token));
 
     $application = Application::query()->sole();
 
     // The snapshot captures only the fields that were active at submit time.
-    expect(collect($application->form_snapshot)->pluck('key'))->not->toContain('pay_stubs');
+    expect(collect($application->form_snapshot)->pluck('key'))
+        ->not->toContain('pay_stubs')
+        ->not->toContain('employer_name');
 
     // Only the still-enabled photo_id file is stored as a document.
     expect($application->documents)->toHaveCount(1);
@@ -179,14 +150,17 @@ test('a submission missing a required field is rejected', function () {
     expect(Document::query()->count())->toBe(0);
 });
 
-test('a submission to a closed link is rejected', function () {
+test('a submission to a closed link is sent to the friendly closed page', function () {
     Storage::fake('local');
 
     $unit = Unit::factory()->for(Property::factory())->create();
     $link = ApplicationLink::factory()->for($unit)->revoked()->create();
 
-    $this->post(route('screening.store', $link->token), ['answers' => validSubmission()])
-        ->assertForbidden();
+    // A link that closed after the page loaded redirects back to the apply page,
+    // which renders the closed state — no bare 403.
+    $this->post(route('screening.store', $link->token), [
+        'answers' => validSubmission(),
+    ])->assertRedirect(route('screening.show', $link->token));
 
     expect(Application::query()->count())->toBe(0);
 });

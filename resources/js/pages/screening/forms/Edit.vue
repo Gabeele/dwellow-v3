@@ -1,48 +1,38 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowDown, ArrowUp, Plus, RotateCcw, Trash2 } from '@lucide/vue';
-import { ref } from 'vue';
+import { Check, Lock, RotateCcw } from '@lucide/vue';
+import { computed, reactive } from 'vue';
 import ApplicationFormController from '@/actions/App/Http/Controllers/ApplicationFormController';
 import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { index, show } from '@/routes/properties';
 import type { Property, Unit } from '@/types/property';
 
-interface FormField {
+interface SectionField {
     key: string;
     type: string;
     label: string;
     required: boolean;
-    enabled: boolean;
     help: string | null;
     options: string[] | null;
 }
 
-interface FieldTypeOption {
-    value: string;
+interface FormSection {
+    key: string;
     label: string;
-    expectsOptions: boolean;
-    isFileUpload: boolean;
+    description: string;
+    locked: boolean;
+    enabled: boolean;
+    fields: SectionField[];
 }
 
 const props = defineProps<{
     property: Property;
     unit: Unit;
-    fields: FormField[];
-    fieldTypes: FieldTypeOption[];
-    defaultFields: FormField[];
+    sections: FormSection[];
 }>();
 
 defineOptions({
@@ -54,103 +44,61 @@ defineOptions({
     },
 });
 
-const clone = (fields: FormField[]): FormField[] =>
-    fields.map((field) => ({
-        ...field,
-        // Forms saved before the toggle existed have no `enabled` key — treat them as enabled.
-        enabled: field.enabled ?? true,
-        options: field.options ? [...field.options] : null,
+const clone = (sections: FormSection[]): FormSection[] =>
+    sections.map((section) => ({
+        ...section,
+        // A locked section is always included regardless of what was saved.
+        enabled: section.locked ? true : section.enabled,
+        fields: section.fields.map((field) => ({ ...field })),
     }));
 
-const form = useForm<{ fields: FormField[] }>({ fields: clone(props.fields) });
+// Local, reactive copy drives the toggles; the form payload is just the keys.
+const sections = reactive<FormSection[]>(clone(props.sections));
 
-// Stable keys for v-for so reordering preserves input focus/state.
-let nextUid = 0;
-const uids = ref<number[]>(form.fields.map(() => nextUid++));
+const enabledKeys = (): string[] =>
+    sections
+        .filter((section) => section.locked || section.enabled)
+        .map((section) => section.key);
 
-const typeMeta = (type: string): FieldTypeOption | undefined =>
-    props.fieldTypes.find((option) => option.value === type);
+const form = useForm<{ enabled_sections: string[] }>({
+    enabled_sections: enabledKeys(),
+});
 
-const error = (index: number, attribute: string): string | undefined =>
-    form.errors[`fields.${index}.${attribute}` as keyof typeof form.errors];
+const includedCount = computed<number>(
+    () =>
+        sections.filter((section) => section.locked || section.enabled).length,
+);
 
-const generateKey = (): string => {
-    let counter = form.fields.length + 1;
-    const taken = new Set(form.fields.map((field) => field.key));
+const syncForm = (): void => {
+    form.enabled_sections = enabledKeys();
+};
 
-    while (taken.has(`field_${counter}`)) {
-        counter++;
+const toggle = (section: FormSection): void => {
+    if (section.locked) {
+        return;
     }
 
-    return `field_${counter}`;
-};
-
-const addField = (): void => {
-    form.fields.push({
-        key: generateKey(),
-        type: 'short_text',
-        label: '',
-        required: false,
-        enabled: true,
-        help: null,
-        options: null,
-    });
-    uids.value.push(nextUid++);
-};
-
-const removeField = (index: number): void => {
-    form.fields.splice(index, 1);
-    uids.value.splice(index, 1);
-};
-
-const swap = (a: number, b: number): void => {
-    [form.fields[a], form.fields[b]] = [form.fields[b], form.fields[a]];
-    [uids.value[a], uids.value[b]] = [uids.value[b], uids.value[a]];
-};
-
-const moveUp = (index: number): void => {
-    if (index > 0) {
-        swap(index, index - 1);
-    }
-};
-
-const moveDown = (index: number): void => {
-    if (index < form.fields.length - 1) {
-        swap(index, index + 1);
-    }
-};
-
-const onTypeChange = (field: FormField, value: string): void => {
-    field.type = value;
-
-    if (typeMeta(value)?.expectsOptions) {
-        if (!field.options || field.options.length === 0) {
-            field.options = [''];
-        }
-    } else {
-        field.options = null;
-    }
-};
-
-const addOption = (field: FormField): void => {
-    field.options = [...(field.options ?? []), ''];
-};
-
-const removeOption = (field: FormField, index: number): void => {
-    field.options?.splice(index, 1);
+    section.enabled = !section.enabled;
+    syncForm();
 };
 
 const resetToDefault = (): void => {
-    form.fields = clone(props.defaultFields);
+    sections.forEach((section) => {
+        section.enabled = true;
+    });
     form.clearErrors();
-    uids.value = form.fields.map(() => nextUid++);
+    syncForm();
 };
 
 const submit = (): void => {
+    syncForm();
     form.put(ApplicationFormController.update.url(props.unit.id), {
         preserveScroll: true,
     });
 };
+
+const requiredCount = (section: FormSection): number =>
+    section.fields.filter((field) => field.required).length;
 </script>
 
 <template>
@@ -168,206 +116,115 @@ const submit = (): void => {
             <template #actions>
                 <Button type="button" variant="outline" @click="resetToDefault">
                     <RotateCcw class="size-4" />
-                    Reset to default
+                    Include everything
                 </Button>
             </template>
         </PageHeader>
 
         <p class="text-sm text-muted-foreground">
-            Customize the fields a prospective tenant fills in when applying to
-            this unit. Drag-free reordering, required toggles, and choice
-            options are all here.
+            Choose which sections applicants fill in. Toggle a whole section on
+            or off — the fields inside are tuned for rental screening and stay
+            consistent for every applicant.
+            <span class="font-medium text-foreground"
+                >{{ includedCount }} of {{ sections.length }} sections
+                included.</span
+            >
         </p>
 
         <form class="flex flex-col gap-4" @submit.prevent="submit">
             <div
-                v-for="(field, index) in form.fields"
-                :key="uids[index]"
-                class="rounded-lg border border-border bg-card p-5 shadow-card"
+                v-for="section in sections"
+                :key="section.key"
+                class="rounded-lg border bg-card p-5 shadow-card transition-colors"
+                :class="
+                    section.locked || section.enabled
+                        ? 'border-border'
+                        : 'border-dashed border-border'
+                "
             >
-                <div class="flex items-start justify-between gap-3">
-                    <div class="flex items-center gap-3">
-                        <span class="text-13 font-medium text-muted-foreground">
-                            Field {{ index + 1 }}
-                        </span>
-                        <label
-                            class="flex items-center gap-2 text-13 text-foreground"
-                        >
-                            <Checkbox v-model="field.enabled" />
-                            <span v-if="field.enabled">Included</span>
-                            <span v-else class="text-muted-foreground"
-                                >Hidden from applicants</span
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex flex-col gap-1">
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-15 font-semibold text-foreground">
+                                {{ section.label }}
+                            </h2>
+                            <span
+                                v-if="section.locked"
+                                class="text-11 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 font-medium text-muted-foreground"
                             >
-                        </label>
-                    </div>
-                    <div class="flex items-center gap-1">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            :disabled="index === 0"
-                            aria-label="Move field up"
-                            @click="moveUp(index)"
-                        >
-                            <ArrowUp class="size-4" />
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            :disabled="index === form.fields.length - 1"
-                            aria-label="Move field down"
-                            @click="moveDown(index)"
-                        >
-                            <ArrowDown class="size-4" />
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            class="text-destructive hover:text-destructive"
-                            aria-label="Remove field"
-                            @click="removeField(index)"
-                        >
-                            <Trash2 class="size-4" />
-                        </Button>
-                    </div>
-                </div>
-
-                <div :class="{ 'opacity-60': !field.enabled }">
-                <div class="mt-2 grid gap-4 sm:grid-cols-2">
-                    <div class="grid gap-2">
-                        <Label :for="`label-${index}`" class="text-sm">
-                            Label
-                        </Label>
-                        <Input
-                            :id="`label-${index}`"
-                            v-model="field.label"
-                            placeholder="e.g. First name"
-                        />
-                        <InputError :message="error(index, 'label')" />
+                                <Lock class="size-3" />
+                                Always included
+                            </span>
+                        </div>
+                        <p class="text-13 text-muted-foreground">
+                            {{ section.description }}
+                        </p>
                     </div>
 
-                    <div class="grid gap-2">
-                        <Label :for="`key-${index}`" class="text-sm">
-                            Key
-                        </Label>
-                        <Input
-                            :id="`key-${index}`"
-                            v-model="field.key"
-                            placeholder="e.g. first_name"
-                            class="font-mono text-13"
-                        />
-                        <InputError :message="error(index, 'key')" />
-                    </div>
-
-                    <div class="grid gap-2">
-                        <Label :for="`type-${index}`" class="text-sm">
-                            Type
-                        </Label>
-                        <Select
-                            :model-value="field.type"
-                            @update:model-value="
-                                (value) => onTypeChange(field, value as string)
+                    <label
+                        class="flex shrink-0 items-center gap-2 text-13 font-medium"
+                        :class="
+                            section.locked ? 'cursor-default' : 'cursor-pointer'
+                        "
+                    >
+                        <span
+                            :class="
+                                section.locked || section.enabled
+                                    ? 'text-foreground'
+                                    : 'text-muted-foreground'
                             "
                         >
-                            <SelectTrigger
-                                :id="`type-${index}`"
-                                class="w-full"
-                            >
-                                <SelectValue>
-                                    {{ typeMeta(field.type)?.label }}
-                                </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem
-                                    v-for="option in fieldTypes"
-                                    :key="option.value"
-                                    :value="option.value"
-                                >
-                                    {{ option.label }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <InputError :message="error(index, 'type')" />
-                    </div>
-
-                    <div class="flex items-end pb-2">
-                        <label
-                            class="flex items-center gap-2 text-sm text-foreground"
-                        >
-                            <Checkbox v-model="field.required" />
-                            Required
-                        </label>
-                    </div>
+                            {{
+                                section.locked || section.enabled
+                                    ? 'Included'
+                                    : 'Hidden'
+                            }}
+                        </span>
+                        <Checkbox
+                            :model-value="section.locked || section.enabled"
+                            :disabled="section.locked"
+                            @update:model-value="toggle(section)"
+                        />
+                    </label>
                 </div>
 
-                <div class="mt-4 grid gap-2">
-                    <Label :for="`help-${index}`" class="text-sm">
-                        Help text
-                        <span class="text-muted-foreground">(optional)</span>
-                    </Label>
-                    <Input
-                        :id="`help-${index}`"
-                        :model-value="field.help ?? ''"
-                        placeholder="Shown beneath the field to guide the applicant"
-                        @update:model-value="
-                            (value) => (field.help = (value as string) || null)
-                        "
-                    />
-                    <InputError :message="error(index, 'help')" />
-                </div>
+                <Separator class="my-4" />
 
                 <div
-                    v-if="typeMeta(field.type)?.expectsOptions"
-                    class="mt-4 grid gap-2"
+                    class="flex flex-col gap-2"
+                    :class="{
+                        'opacity-50': !(section.locked || section.enabled),
+                    }"
                 >
-                    <Separator class="mb-1" />
-                    <Label class="text-sm">Choice options</Label>
-                    <div
-                        v-for="(option, optionIndex) in field.options ?? []"
-                        :key="optionIndex"
-                        class="flex items-center gap-2"
+                    <p
+                        class="text-11 font-medium tracking-wide text-muted-foreground uppercase"
                     >
-                        <Input
-                            v-model="field.options![optionIndex]"
-                            placeholder="Option label"
-                        />
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            class="text-destructive hover:text-destructive"
-                            aria-label="Remove option"
-                            @click="removeOption(field, optionIndex)"
+                        {{ section.fields.length }}
+                        {{ section.fields.length === 1 ? 'field' : 'fields' }}
+                        <span v-if="requiredCount(section)">
+                            · {{ requiredCount(section) }} required
+                        </span>
+                    </p>
+                    <ul class="grid gap-1.5 sm:grid-cols-2">
+                        <li
+                            v-for="field in section.fields"
+                            :key="field.key"
+                            class="flex items-center gap-2 text-13 text-foreground"
                         >
-                            <Trash2 class="size-4" />
-                        </Button>
-                    </div>
-                    <InputError :message="error(index, 'options')" />
-                    <div>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            @click="addOption(field)"
-                        >
-                            <Plus class="size-4" />
-                            Add option
-                        </Button>
-                    </div>
-                </div>
+                            <Check class="size-3.5 text-muted-foreground" />
+                            <span>{{ field.label }}</span>
+                            <span
+                                v-if="field.required"
+                                class="text-destructive"
+                                aria-label="Required"
+                                >*</span
+                            >
+                        </li>
+                    </ul>
                 </div>
             </div>
 
-            <InputError :message="form.errors.fields" />
-
-            <div>
-                <Button type="button" variant="outline" @click="addField">
-                    <Plus class="size-4" />
-                    Add field
-                </Button>
-            </div>
+            <InputError :message="form.errors.enabled_sections" />
 
             <Separator />
 

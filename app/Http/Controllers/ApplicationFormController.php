@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\FieldType;
 use App\Http\Requests\UpdateApplicationFormRequest;
 use App\Models\Unit;
 use App\Screening\DefaultApplicationForm;
@@ -18,7 +17,7 @@ class ApplicationFormController extends Controller
     public function edit(Unit $unit): Response
     {
         $form = $unit->applicationForm()->firstOrCreate([], [
-            'fields' => DefaultApplicationForm::fields(),
+            'sections' => DefaultApplicationForm::sections(),
         ]);
 
         $this->authorize('view', $form);
@@ -26,45 +25,33 @@ class ApplicationFormController extends Controller
         return Inertia::render('screening/forms/Edit', [
             'property' => $unit->property,
             'unit' => $unit,
-            'fields' => $form->fields,
-            'fieldTypes' => $this->fieldTypeOptions(),
-            'defaultFields' => DefaultApplicationForm::fields(),
+            'sections' => $form->sections,
         ]);
     }
 
     /**
-     * Persist the edited application-form schema for a unit.
+     * Persist which sections the landlord has chosen to include.
+     *
+     * The landlord only toggles whole sections; the server rebuilds the schema
+     * from the canonical catalog so the stored form can never drift from it or
+     * be tampered with field-by-field.
      */
     public function update(UpdateApplicationFormRequest $request, Unit $unit): RedirectResponse
     {
         $form = $unit->applicationForm()->firstOrCreate([], [
-            'fields' => DefaultApplicationForm::fields(),
+            'sections' => DefaultApplicationForm::sections(),
         ]);
 
         $this->authorize('update', $form);
 
-        $form->update(['fields' => $request->validated()['fields']]);
+        $form->update([
+            'sections' => DefaultApplicationForm::withEnabledSections(
+                $request->validated()['enabled_sections'],
+            ),
+        ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Application form updated.')]);
 
         return to_route('units.form.edit', $unit);
-    }
-
-    /**
-     * Field-type options for the form-builder select.
-     *
-     * @return array<int, array{value: string, label: string, expectsOptions: bool, isFileUpload: bool}>
-     */
-    private function fieldTypeOptions(): array
-    {
-        return array_map(
-            fn (FieldType $type) => [
-                'value' => $type->value,
-                'label' => $type->label(),
-                'expectsOptions' => $type->expectsOptions(),
-                'isFileUpload' => $type->isFileUpload(),
-            ],
-            FieldType::cases(),
-        );
     }
 }

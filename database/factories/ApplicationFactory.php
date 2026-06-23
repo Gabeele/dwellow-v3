@@ -38,7 +38,10 @@ class ApplicationFactory extends Factory
                 'email' => $email,
                 'phone' => $phone,
             ],
-            'form_snapshot' => DefaultApplicationForm::fields(),
+            'form_snapshot' => collect(DefaultApplicationForm::sections())
+                ->flatMap(fn (array $section): array => $section['fields'])
+                ->values()
+                ->all(),
             'status' => ApplicationStatus::New,
             'submitted_at' => now(),
         ];

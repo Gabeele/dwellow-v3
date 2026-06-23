@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('application_forms', function (Blueprint $table) {
             $table->id();
             $table->foreignId('unit_id')->unique()->constrained()->cascadeOnDelete();
-            $table->json('fields');
+            $table->json('sections');
             $table->timestamps();
         });
     }

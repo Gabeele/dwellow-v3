@@ -29,7 +29,7 @@ it('provisions a backing unit with a default form for a unit-less whole rental',
 
     $unit = $property->units()->first();
     expect($unit->applicationForm)->not->toBeNull();
-    expect($unit->applicationForm->fields)->toEqual(DefaultApplicationForm::fields());
+    expect($unit->applicationForm->sections)->toEqual(DefaultApplicationForm::sections());
 });
 
 it('is idempotent — a second run adds no further units', function () {

@@ -10,6 +10,7 @@ use App\Http\Requests\UpdatePropertyRequest;
 use App\Models\ApplicationLink;
 use App\Models\Property;
 use App\Models\Unit;
+use App\Screening\BackingUnitProvisioner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -71,6 +72,13 @@ class PropertyController extends Controller
     public function show(Property $property): Response
     {
         $this->authorize('view', $property);
+
+        // Legacy/edge-case whole rentals can have zero units, which would leave
+        // the screening surface with nothing to attach to. Heal it here so the
+        // screening surface always exists. Idempotent and a no-op otherwise.
+        if (BackingUnitProvisioner::applies($property)) {
+            BackingUnitProvisioner::ensure($property);
+        }
 
         $property->load([
             'units' => fn ($query) => $query

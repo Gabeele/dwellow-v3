@@ -13,21 +13,19 @@ class StoreApplicationRequest extends FormRequest
     /**
      * Determine if the user is authorized to make this request.
      *
-     * A submission is only authorized while the link is open; gating here (rather
-     * than in the controller) rejects a closed link with a 403 before the
-     * schema-driven validation rules run.
+     * We only require a real link here; whether the link is still open is checked
+     * in the controller so a link that closed mid-application can send the
+     * applicant to a friendly "closed" page rather than a bare 403.
      */
     public function authorize(): bool
     {
-        $link = $this->route('link');
-
-        return $link instanceof ApplicationLink && $link->isOpen();
+        return $this->route('link') instanceof ApplicationLink;
     }
 
     /**
      * Build the validation rules from the unit's current application-form schema.
      *
-     * Each field contributes a rule under `answers.{key}` derived from its
+     * Each enabled field contributes a rule under `answers.{key}` derived from its
      * `FieldType` and `required` flag, so the form a landlord configured is the
      * single source of truth for what a submission must contain.
      *
@@ -37,19 +35,12 @@ class StoreApplicationRequest extends FormRequest
     {
         $rules = [
             'answers' => ['present', 'array'],
-            'verification_code' => ['required', 'string'],
         ];
 
         foreach ($this->schemaFields() as $field) {
             $key = $field['key'];
             $type = FieldType::tryFrom($field['type'] ?? '');
             $required = (bool) ($field['required'] ?? false);
-
-            // A disabled field is not rendered, so it contributes no rule.
-            // A field with no `enabled` key is treated as enabled (backward compatible).
-            if (($field['enabled'] ?? true) === false) {
-                continue;
-            }
 
             if ($type === null) {
                 continue;
@@ -60,9 +51,58 @@ class StoreApplicationRequest extends FormRequest
             if ($type === FieldType::MultiChoice) {
                 $rules["answers.{$key}.*"] = ['string', Rule::in($field['options'] ?? [])];
             }
+
+            // A reference is a structured contact: enforce its sub-fields so we
+            // never store a blank name or a malformed email.
+            if ($type === FieldType::Reference) {
+                $rules["answers.{$key}.name"] = [$required ? 'required' : 'nullable', 'string', 'max:255'];
+                $rules["answers.{$key}.email"] = ['nullable', 'email', 'max:255'];
+                $rules["answers.{$key}.phone"] = ['nullable', 'string', 'max:50'];
+                $rules["answers.{$key}.relationship"] = ['nullable', 'string', 'max:255'];
+            }
         }
 
         return $rules;
+    }
+
+    /**
+     * Human-readable attribute names so validation messages read naturally
+     * ("The first name field is required" rather than "answers.first_name…").
+     *
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        $attributes = [];
+
+        foreach ($this->schemaFields() as $field) {
+            $key = $field['key'];
+            $label = mb_strtolower((string) ($field['label'] ?? $key));
+
+            $attributes["answers.{$key}"] = $label;
+
+            if (($field['type'] ?? null) === FieldType::Reference->value) {
+                $attributes["answers.{$key}.name"] = "{$label} name";
+                $attributes["answers.{$key}.email"] = "{$label} email";
+                $attributes["answers.{$key}.phone"] = "{$label} phone";
+                $attributes["answers.{$key}.relationship"] = "{$label} relationship";
+            }
+        }
+
+        return $attributes;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'answers.*.accepted' => __('Please tick this box to continue.'),
+            'answers.*.file' => __('Please choose a file to upload.'),
+            'answers.*.mimes' => __('Use a PDF, image (JPG, PNG, HEIC, WEBP), or Word document.'),
+            'answers.*.max' => __('That file is too large — the limit is 10 MB.'),
+        ];
     }
 
     /**
@@ -91,7 +131,7 @@ class StoreApplicationRequest extends FormRequest
     }
 
     /**
-     * The current field schema for the unit the link belongs to.
+     * The current enabled field schema for the unit the link belongs to.
      *
      * @return list<array<string, mixed>>
      */
@@ -103,6 +143,6 @@ class StoreApplicationRequest extends FormRequest
             return [];
         }
 
-        return $link->unit->applicationForm?->fields ?? [];
+        return $link->unit->applicationForm?->enabledFields() ?? [];
     }
 }

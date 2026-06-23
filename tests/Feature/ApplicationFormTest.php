@@ -16,12 +16,12 @@ it('lets a unit have one application form', function () {
     expect($form->unit->is($unit))->toBeTrue();
 });
 
-it('round-trips the fields json as an array', function () {
+it('round-trips the sections json as an array', function () {
     $form = Unit::factory()->create()->applicationForm;
 
-    expect($form->fresh()->fields)
+    expect($form->fresh()->sections)
         ->toBeArray()
-        ->toEqual(DefaultApplicationForm::fields());
+        ->toEqual(DefaultApplicationForm::sections());
 });
 
 it('enforces one form per unit', function () {

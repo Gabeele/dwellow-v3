@@ -12,7 +12,7 @@ it('provisions the dwellow default application form when a unit is created', fun
     $unit = Unit::factory()->create();
 
     expect($unit->applicationForm)->not->toBeNull();
-    expect($unit->applicationForm->fields)->toEqual(DefaultApplicationForm::fields());
+    expect($unit->applicationForm->sections)->toEqual(DefaultApplicationForm::sections());
 });
 
 it('does not duplicate the form when the created hook fires again', function () {

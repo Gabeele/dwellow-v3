@@ -5,17 +5,12 @@ namespace App\Http\Controllers;
 use App\Enums\ApplicationStatus;
 use App\Enums\FieldType;
 use App\Http\Requests\StoreApplicationRequest;
-use App\Http\Requests\VerifyApplicationEmailRequest;
 use App\Models\ApplicationLink;
-use App\Screening\EmailVerification;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class PublicScreeningController extends Controller
 {
@@ -32,40 +27,11 @@ class PublicScreeningController extends Controller
 
         $isOpen = $link->isOpen();
         $unit = $link->unit;
-        $property = $unit->property;
 
         return Inertia::render('screening/Apply', [
             'isOpen' => $isOpen,
-            'unit' => [
-                'label' => $unit->label,
-                'address' => [
-                    'line1' => $property->address_line1,
-                    'line2' => $property->address_line2,
-                    'city' => $property->city,
-                    'region' => $property->region,
-                    'postal_code' => $property->postal_code,
-                    'country' => $property->country,
-                ],
-            ],
-            'fields' => $isOpen ? $this->enabledFields($unit->applicationForm?->fields ?? []) : [],
-        ]);
-    }
-
-    /**
-     * Email a one-time verification code to the applicant.
-     *
-     * Lightweight, account-free identity check: the applicant requests a code for
-     * their email before they can submit, so the resulting application is tied to a
-     * confirmed address. A closed link cannot issue codes.
-     */
-    public function verify(VerifyApplicationEmailRequest $request, ApplicationLink $link, EmailVerification $verification): JsonResponse
-    {
-        abort_unless($link->isOpen(), HttpResponse::HTTP_FORBIDDEN);
-
-        $verification->send($link, $request->validated()['email']);
-
-        return response()->json([
-            'message' => __('We emailed you a verification code.'),
+            'unit' => $this->unitPayload($link),
+            'sections' => $isOpen ? ($unit->applicationForm?->enabledSections() ?? []) : [],
         ]);
     }
 
@@ -73,27 +39,21 @@ class PublicScreeningController extends Controller
      * Persist a submitted application: snapshot the current form, store answers,
      * and move any uploaded documents onto the private disk.
      *
-     * Validation is driven by the unit's current schema (see StoreApplicationRequest);
-     * a closed link is rejected outright so a paused/expired/revoked link cannot
-     * accept new submissions, and the submission is gated on a matching email code.
+     * Validation is driven by the unit's current schema (see StoreApplicationRequest).
+     * A link that closed after the applicant opened the page sends them to the
+     * friendly closed state instead of erroring.
      */
-    public function store(StoreApplicationRequest $request, ApplicationLink $link, EmailVerification $verification): RedirectResponse
+    public function store(StoreApplicationRequest $request, ApplicationLink $link): RedirectResponse
     {
-        abort_unless($link->isOpen(), HttpResponse::HTTP_FORBIDDEN);
+        if (! $link->isOpen()) {
+            return to_route('screening.show', $link->token);
+        }
 
         $link->load('unit.applicationForm');
 
         // Only fields that were active at submit time render, validate, and snapshot.
-        $fields = $this->enabledFields($link->unit->applicationForm?->fields ?? []);
+        $fields = $link->unit->applicationForm?->enabledFields() ?? [];
         $answers = $request->validated()['answers'] ?? [];
-
-        $email = (string) ($answers['email'] ?? '');
-
-        if (! $verification->verify($link, $email, $request->validated()['verification_code'])) {
-            throw ValidationException::withMessages([
-                'verification_code' => __('That code is incorrect or has expired. Request a new one and try again.'),
-            ]);
-        }
 
         $fileFields = array_filter(
             $fields,
@@ -148,43 +108,37 @@ class PublicScreeningController extends Controller
     }
 
     /**
-     * Keep only the fields a landlord has left enabled.
-     *
-     * A field with no `enabled` key is treated as enabled, so forms saved before
-     * the toggle existed render and validate unchanged.
-     *
-     * @param  array<int, array<string, mixed>>  $fields
-     * @return list<array<string, mixed>>
-     */
-    private function enabledFields(array $fields): array
-    {
-        return array_values(array_filter(
-            $fields,
-            fn (array $field): bool => ($field['enabled'] ?? true) !== false,
-        ));
-    }
-
-    /**
      * Render the post-submission thank-you page for a link.
      */
     public function submitted(ApplicationLink $link): Response
     {
         $link->load('unit.property');
+
+        return Inertia::render('screening/Submitted', [
+            'unit' => $this->unitPayload($link),
+        ]);
+    }
+
+    /**
+     * The unit + address payload shared by the public screening pages.
+     *
+     * @return array<string, mixed>
+     */
+    private function unitPayload(ApplicationLink $link): array
+    {
         $unit = $link->unit;
         $property = $unit->property;
 
-        return Inertia::render('screening/Submitted', [
-            'unit' => [
-                'label' => $unit->label,
-                'address' => [
-                    'line1' => $property->address_line1,
-                    'line2' => $property->address_line2,
-                    'city' => $property->city,
-                    'region' => $property->region,
-                    'postal_code' => $property->postal_code,
-                    'country' => $property->country,
-                ],
+        return [
+            'label' => $unit->label,
+            'address' => [
+                'line1' => $property->address_line1,
+                'line2' => $property->address_line2,
+                'city' => $property->city,
+                'region' => $property->region,
+                'postal_code' => $property->postal_code,
+                'country' => $property->country,
             ],
-        ]);
+        ];
     }
 }

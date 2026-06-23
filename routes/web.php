@@ -99,7 +99,6 @@ Route::get('/', function () {
 
 // Public applicant flow — no account; the link is resolved by its unguessable token.
 Route::get('screening/{link:token}', [PublicScreeningController::class, 'show'])->name('screening.show');
-Route::post('screening/{link:token}/verify', [PublicScreeningController::class, 'verify'])->name('screening.verify');
 Route::post('screening/{link:token}', [PublicScreeningController::class, 'store'])->name('screening.store');
 Route::get('screening/{link:token}/submitted', [PublicScreeningController::class, 'submitted'])->name('screening.submitted');
 

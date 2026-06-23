@@ -16,7 +16,7 @@ class UnitObserver
     public function created(Unit $unit): void
     {
         $unit->applicationForm()->firstOrCreate([], [
-            'fields' => DefaultApplicationForm::fields(),
+            'sections' => DefaultApplicationForm::sections(),
         ]);
     }
 }

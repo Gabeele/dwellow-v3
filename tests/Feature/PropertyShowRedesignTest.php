@@ -46,6 +46,26 @@ test('the property show page exposes each unit application links and applicant c
         );
 });
 
+test('a unit-less whole rental heals its backing unit when its show page is viewed', function () {
+    $landlord = User::factory()->landlord()->create();
+    $property = Property::factory()->whole()->for($landlord, 'landlord')->create();
+
+    // Simulate a legacy whole rental created before the backing unit existed.
+    $property->units()->delete();
+    expect($property->units()->count())->toBe(0);
+
+    $this->actingAs($landlord)
+        ->get(route('properties.show', $property))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('properties/Show')
+            ->has('property.units', 1),
+        );
+
+    // The screening surface now has its backing unit and is safe to share.
+    expect($property->fresh()->units()->count())->toBe(1);
+});
+
 test('a whole rental show page exposes its backing unit screening links and applicant counts', function () {
     $landlord = User::factory()->landlord()->create();
     $property = Property::factory()->whole()->for($landlord, 'landlord')->create();

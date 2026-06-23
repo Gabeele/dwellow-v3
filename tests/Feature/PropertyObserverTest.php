@@ -16,7 +16,7 @@ it('provisions a single backing unit with a default form for a whole rental', fu
     expect($unit->label)->toBe($property->name);
     expect($unit->bedrooms)->toBe($property->bedrooms);
     expect($unit->applicationForm)->not->toBeNull();
-    expect($unit->applicationForm->fields)->toEqual(DefaultApplicationForm::fields());
+    expect($unit->applicationForm->sections)->toEqual(DefaultApplicationForm::sections());
 });
 
 it('does not auto-provision a unit for a multi-unit property', function () {

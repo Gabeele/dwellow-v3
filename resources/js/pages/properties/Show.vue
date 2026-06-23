@@ -201,12 +201,20 @@ function toggleScreening(unit: Unit): void {
                 </Button>
             </div>
 
-            <p
+            <div
                 v-if="!units.length"
-                class="rounded-lg border border-dashed border-border bg-card/50 p-10 text-center text-sm text-muted-foreground"
+                class="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border bg-card/50 p-10 text-center"
             >
-                No units yet. Add the first one.
-            </p>
+                <p class="text-sm text-muted-foreground">
+                    No units yet. Add the first one to start screening
+                    applicants.
+                </p>
+                <Button as-child>
+                    <Link :href="createUnit(property.id)">
+                        <Plus />Add unit
+                    </Link>
+                </Button>
+            </div>
 
             <DataTable v-else>
                 <template #head>
@@ -237,12 +245,17 @@ function toggleScreening(unit: Unit): void {
                         <td class="px-4 py-3">
                             <Button
                                 size="sm"
-                                variant="ghost"
-                                class="text-muted-foreground"
+                                variant="outline"
+                                :aria-expanded="expandedUnits.has(unit.id)"
                                 @click="toggleScreening(unit)"
                             >
                                 <Link2 />
                                 {{ unit.application_links?.length ?? 0 }}
+                                {{
+                                    (unit.application_links?.length ?? 0) === 1
+                                        ? 'link'
+                                        : 'links'
+                                }}
                                 <ChevronDown
                                     class="transition-transform"
                                     :class="
@@ -275,7 +288,10 @@ function toggleScreening(unit: Unit): void {
                             </div>
                         </td>
                     </TableRow>
-                    <tr v-if="expandedUnits.has(unit.id)" class="border-b border-border last:border-b-0">
+                    <tr
+                        v-if="expandedUnits.has(unit.id)"
+                        class="border-b border-border last:border-b-0"
+                    >
                         <td colspan="7" class="bg-muted/20 px-4 py-4">
                             <UnitScreeningPanel :unit="unit" />
                         </td>
@@ -285,9 +301,16 @@ function toggleScreening(unit: Unit): void {
         </div>
 
         <!-- WHOLE RENTAL: screening surface for the single backing unit -->
-        <div v-else-if="backingUnit" class="flex flex-col gap-4">
+        <div v-else class="flex flex-col gap-4">
             <h2 class="text-17 font-semibold tracking-tight">Screening</h2>
-            <UnitScreeningPanel :unit="backingUnit" />
+            <UnitScreeningPanel v-if="backingUnit" :unit="backingUnit" />
+            <p
+                v-else
+                class="rounded-lg border border-dashed border-border bg-card/50 p-10 text-center text-sm text-muted-foreground"
+            >
+                Screening isn't set up for this property yet. Reload the page to
+                finish setting it up.
+            </p>
         </div>
     </div>
 </template>

@@ -8,36 +8,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
-/**
- * A valid application-form schema payload.
- *
- * @return array<string, mixed>
- */
-function formSchemaPayload(array $overrides = []): array
-{
-    return array_merge([
-        'fields' => [
-            [
-                'key' => 'first_name',
-                'type' => 'short_text',
-                'label' => 'First name',
-                'required' => true,
-                'help' => null,
-                'options' => null,
-            ],
-            [
-                'key' => 'employment_type',
-                'type' => 'single_choice',
-                'label' => 'Employment type',
-                'required' => false,
-                'help' => null,
-                'options' => ['Full-time', 'Part-time'],
-            ],
-        ],
-    ], $overrides);
-}
-
-test('the owning landlord can load the form-builder page with the units fields', function () {
+test('the owning landlord can load the form-builder page with the units sections', function () {
     $landlord = User::factory()->landlord()->create();
     $property = Property::factory()->for($landlord, 'landlord')->create();
     $unit = Unit::factory()->for($property)->create();
@@ -49,9 +20,9 @@ test('the owning landlord can load the form-builder page with the units fields',
         ->assertInertia(fn (Assert $page) => $page
             ->component('screening/forms/Edit')
             ->has('unit')
-            ->has('fields')
-            ->has('fieldTypes', 11)
-            ->has('defaultFields'),
+            ->has('sections', 8)
+            ->where('sections.0.key', 'personal_information')
+            ->where('sections.0.locked', true),
         );
 });
 
@@ -68,110 +39,55 @@ test('the form-builder route linked from the screening panel is reachable for a 
         ->assertInertia(fn (Assert $page) => $page
             ->component('screening/forms/Edit')
             ->where('unit.id', $backingUnit->id)
-            ->has('fields'),
+            ->has('sections'),
         );
 });
 
-test('the owning landlord can update the form schema and it persists', function () {
+test('the owning landlord can disable an optional section and it persists', function () {
     $landlord = User::factory()->landlord()->create();
     $property = Property::factory()->for($landlord, 'landlord')->create();
     $unit = Unit::factory()->for($property)->create();
 
+    // Keep only residence history (locked sections come along automatically).
     $this->actingAs($landlord)
-        ->put(route('units.form.update', $unit), formSchemaPayload())
+        ->put(route('units.form.update', $unit), ['enabled_sections' => ['residence_history']])
         ->assertRedirect(route('units.form.edit', $unit));
 
-    $unit->refresh();
-    $fields = $unit->applicationForm->fields;
+    $sections = collect($unit->fresh()->applicationForm->sections);
 
-    expect($fields)->toHaveCount(2)
-        ->and($fields[0]['key'])->toBe('first_name')
-        ->and($fields[1]['options'])->toBe(['Full-time', 'Part-time']);
+    expect($sections->firstWhere('key', 'residence_history')['enabled'])->toBeTrue()
+        ->and($sections->firstWhere('key', 'background_check')['enabled'])->toBeFalse()
+        // Locked sections are always enabled, even when omitted from the payload.
+        ->and($sections->firstWhere('key', 'personal_information')['enabled'])->toBeTrue()
+        ->and($sections->firstWhere('key', 'consent')['enabled'])->toBeTrue();
 });
 
-test('a field can be toggled disabled and the enabled flag persists, then re-enabled', function () {
+test('a disabled section can be re-enabled', function () {
     $landlord = User::factory()->landlord()->create();
     $property = Property::factory()->for($landlord, 'landlord')->create();
     $unit = Unit::factory()->for($property)->create();
 
-    $payload = formSchemaPayload(['fields' => [
-        ['key' => 'first_name', 'type' => 'short_text', 'label' => 'First name', 'required' => true, 'enabled' => true, 'help' => null, 'options' => null],
-        ['key' => 'pay_stubs', 'type' => 'file', 'label' => 'Pay stubs', 'required' => false, 'enabled' => false, 'help' => null, 'options' => null],
-    ]]);
+    $this->actingAs($landlord)
+        ->put(route('units.form.update', $unit), ['enabled_sections' => []]);
+
+    expect(collect($unit->fresh()->applicationForm->sections)
+        ->firstWhere('key', 'employment_income')['enabled'])->toBeFalse();
 
     $this->actingAs($landlord)
-        ->put(route('units.form.update', $unit), $payload)
-        ->assertRedirect(route('units.form.edit', $unit));
+        ->put(route('units.form.update', $unit), ['enabled_sections' => ['employment_income']]);
 
-    $fields = $unit->fresh()->applicationForm->fields;
-    expect($fields[0]['enabled'])->toBeTrue()
-        ->and($fields[1]['enabled'])->toBeFalse();
-
-    // Turning the field back on persists too.
-    $payload['fields'][1]['enabled'] = true;
-
-    $this->actingAs($landlord)
-        ->put(route('units.form.update', $unit), $payload)
-        ->assertRedirect(route('units.form.edit', $unit));
-
-    expect($unit->fresh()->applicationForm->fields[1]['enabled'])->toBeTrue();
+    expect(collect($unit->fresh()->applicationForm->sections)
+        ->firstWhere('key', 'employment_income')['enabled'])->toBeTrue();
 });
 
-test('a duplicate field key is rejected', function () {
+test('an unknown section key is rejected', function () {
     $landlord = User::factory()->landlord()->create();
     $property = Property::factory()->for($landlord, 'landlord')->create();
     $unit = Unit::factory()->for($property)->create();
 
-    $payload = formSchemaPayload(['fields' => [
-        ['key' => 'name', 'type' => 'short_text', 'label' => 'A', 'required' => true, 'help' => null, 'options' => null],
-        ['key' => 'name', 'type' => 'short_text', 'label' => 'B', 'required' => true, 'help' => null, 'options' => null],
-    ]]);
-
     $this->actingAs($landlord)
-        ->put(route('units.form.update', $unit), $payload)
-        ->assertSessionHasErrors('fields.1.key');
-});
-
-test('an invalid field type is rejected', function () {
-    $landlord = User::factory()->landlord()->create();
-    $property = Property::factory()->for($landlord, 'landlord')->create();
-    $unit = Unit::factory()->for($property)->create();
-
-    $payload = formSchemaPayload(['fields' => [
-        ['key' => 'name', 'type' => 'not_a_type', 'label' => 'A', 'required' => true, 'help' => null, 'options' => null],
-    ]]);
-
-    $this->actingAs($landlord)
-        ->put(route('units.form.update', $unit), $payload)
-        ->assertSessionHasErrors('fields.0.type');
-});
-
-test('options on a non-option field type are rejected', function () {
-    $landlord = User::factory()->landlord()->create();
-    $property = Property::factory()->for($landlord, 'landlord')->create();
-    $unit = Unit::factory()->for($property)->create();
-
-    $payload = formSchemaPayload(['fields' => [
-        ['key' => 'name', 'type' => 'short_text', 'label' => 'A', 'required' => true, 'help' => null, 'options' => ['x', 'y']],
-    ]]);
-
-    $this->actingAs($landlord)
-        ->put(route('units.form.update', $unit), $payload)
-        ->assertSessionHasErrors('fields.0.options');
-});
-
-test('a choice field with no options is rejected', function () {
-    $landlord = User::factory()->landlord()->create();
-    $property = Property::factory()->for($landlord, 'landlord')->create();
-    $unit = Unit::factory()->for($property)->create();
-
-    $payload = formSchemaPayload(['fields' => [
-        ['key' => 'choice', 'type' => 'single_choice', 'label' => 'A', 'required' => true, 'help' => null, 'options' => []],
-    ]]);
-
-    $this->actingAs($landlord)
-        ->put(route('units.form.update', $unit), $payload)
-        ->assertSessionHasErrors('fields.0.options');
+        ->put(route('units.form.update', $unit), ['enabled_sections' => ['not_a_section']])
+        ->assertSessionHasErrors('enabled_sections.0');
 });
 
 test('a non-owner cannot view or update another landlords form', function () {
@@ -183,6 +99,6 @@ test('a non-owner cannot view or update another landlords form', function () {
         ->assertForbidden();
 
     $this->actingAs($landlord)
-        ->put(route('units.form.update', $unit), formSchemaPayload())
+        ->put(route('units.form.update', $unit), ['enabled_sections' => ['residence_history']])
         ->assertForbidden();
 });
