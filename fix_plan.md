@@ -80,9 +80,10 @@
   - done: feature test asserting the `/` route renders the Welcome page (Inertia component assertion) and key copy is present.
   - note: Rebuilt `Welcome.vue` within the app's existing design tokens (Geist + income-lens `success` green as the signature accent; kept the AI applicant-score hero card as the memorable element). Added a real 5-step "How it works" screening sequence (numbered, since the flow is ordered), 3 benefit cards (docs-not-bureau, references-handled, one-Score), a Now/Next/Later roadmap (from `.docs/roadmap.md`, "Now" highlighted), and a closing CTA. Drove `steps`/`features`/`roadmap` from Inertia props (set in the `/` route closure) so copy is assertable. Extended `LandingTest` to assert prop counts + key copy. Pint clean, ESLint clean, vue-tsc clean, `npm run build` green, 2 tests/24 assertions pass.
 
-- [ ] Add SEO support to the landing page
+- [x] Add SEO support to the landing page
   - context: add proper `<title>`, meta description, Open Graph / Twitter card tags, and JSON-LD structured data (Organization/SoftwareApplication) for the landing page. Use Inertia's `<Head>` (and/or server-shared meta). Ensure a sensible canonical URL.
   - done: feature test (or page assertion) confirming the title/meta description are present in the rendered `/` response.
+  - note: SSR is disabled (bundle commented out in `config/inertia.php`), so Vue `<Head>` tags never reach the HTTP response — rendered the SEO server-side in `resources/views/app.blade.php` instead, driven by a new `seo` prop (title/description/url/image) shared from the `/` route closure. The Blade `<x-inertia::head>` slot now emits title, meta description, canonical, OG, Twitter card, and JSON-LD (SoftwareApplication + publisher Organization). Welcome.vue's `<Head>` title now reads `seo.title` so client-side SPA title matches (kept meta/OG out of Vue Head to avoid duplicate tags post-hydration). Extended `LandingTest` with an SEO test asserting the `seo` prop + the rendered tags. 3 tests/44 assertions green; Pint/ESLint/vue-tsc clean.
 
 ## Done
 

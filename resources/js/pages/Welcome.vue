@@ -31,7 +31,15 @@ interface RoadmapPhase {
     current: boolean;
 }
 
-defineProps<{
+interface Seo {
+    title: string;
+    description: string;
+    url: string;
+    image: string;
+}
+
+const props = defineProps<{
+    seo: Seo;
     steps: Step[];
     features: Feature[];
     roadmap: RoadmapPhase[];
@@ -50,7 +58,7 @@ const featureIcons: Component[] = [ShieldCheck, Send, Scale];
 
 <template>
     <div class="bg-ambient flex min-h-screen flex-col text-foreground">
-        <Head title="Tenant screening for small landlords" />
+        <Head :title="props.seo.title" />
 
         <header class="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur">
             <div

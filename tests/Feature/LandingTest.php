@@ -21,6 +21,27 @@ test('guests see the marketing landing page', function () {
         );
 });
 
+test('the landing page renders SEO metadata in the response', function () {
+    $response = $this->get(route('home'))->assertOk();
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('seo.title', 'Dwellow — Tenant screening for small landlords')
+        ->where('seo.url', route('home'))
+        ->where('seo.description', fn (string $description) => str_contains($description, 'Score'))
+    );
+
+    $html = $response->getContent();
+
+    expect($html)
+        ->toContain('<title>Dwellow — Tenant screening for small landlords</title>')
+        ->toContain('<meta name="description"')
+        ->toContain('<link rel="canonical" href="'.route('home').'">')
+        ->toContain('property="og:title"')
+        ->toContain('name="twitter:card"')
+        ->toContain('application/ld+json')
+        ->toContain('SoftwareApplication');
+});
+
 test('authenticated users are redirected to the dashboard', function () {
     $user = User::factory()->create();
 

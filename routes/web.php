@@ -12,6 +12,12 @@ Route::get('/', function () {
     }
 
     return Inertia::render('Welcome', [
+        'seo' => [
+            'title' => 'Dwellow — Tenant screening for small landlords',
+            'description' => 'Dwellow turns every rental application into a clear, comparable Score — reading documents, checking references, and ranking applicants against your criteria. No bureau accounts, no spreadsheets.',
+            'url' => route('home'),
+            'image' => asset('apple-touch-icon.png'),
+        ],
         'steps' => [
             [
                 'title' => 'Add your property',

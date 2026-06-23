@@ -40,7 +40,48 @@
 
         @vite(['resources/css/app.css', 'resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])
         <x-inertia::head>
-            <title>{{ config('app.name', 'Laravel') }}</title>
+            @php($seo = $page['props']['seo'] ?? null)
+            <title>{{ $seo['title'] ?? config('app.name', 'Laravel') }}</title>
+            @if ($seo)
+                <meta name="description" content="{{ $seo['description'] }}">
+                <link rel="canonical" href="{{ $seo['url'] }}">
+
+                <meta property="og:type" content="website">
+                <meta property="og:site_name" content="Dwellow">
+                <meta property="og:title" content="{{ $seo['title'] }}">
+                <meta property="og:description" content="{{ $seo['description'] }}">
+                <meta property="og:url" content="{{ $seo['url'] }}">
+                <meta property="og:image" content="{{ $seo['image'] }}">
+
+                <meta name="twitter:card" content="summary_large_image">
+                <meta name="twitter:title" content="{{ $seo['title'] }}">
+                <meta name="twitter:description" content="{{ $seo['description'] }}">
+                <meta name="twitter:image" content="{{ $seo['image'] }}">
+
+                <script type="application/ld+json">
+                    {!! json_encode([
+                        '@context' => 'https://schema.org',
+                        '@type' => 'SoftwareApplication',
+                        'name' => 'Dwellow',
+                        'applicationCategory' => 'BusinessApplication',
+                        'operatingSystem' => 'Web',
+                        'description' => $seo['description'],
+                        'url' => $seo['url'],
+                        'image' => $seo['image'],
+                        'offers' => [
+                            '@type' => 'Offer',
+                            'price' => '0',
+                            'priceCurrency' => 'USD',
+                        ],
+                        'publisher' => [
+                            '@type' => 'Organization',
+                            'name' => 'Dwellow',
+                            'url' => $seo['url'],
+                            'logo' => $seo['image'],
+                        ],
+                    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}
+                </script>
+            @endif
         </x-inertia::head>
     </head>
     <body class="font-sans antialiased">
