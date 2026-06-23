@@ -46,6 +46,7 @@ class ApplicationReceivedMail extends Mailable
                 'firstName' => $this->application->applicant_first_name,
                 'unitLabel' => $unit->label,
                 'address' => $this->formatAddress($property),
+                'reference' => $this->application->public_id,
             ],
         );
     }

@@ -125,7 +125,8 @@ class PublicScreeningController extends Controller
             new NewApplicationNotification($application),
         );
 
-        return to_route('screening.submitted', $link->token);
+        return to_route('screening.submitted', $link->token)
+            ->with('reference', $application->public_id);
     }
 
     /**
@@ -137,6 +138,7 @@ class PublicScreeningController extends Controller
 
         return Inertia::render('screening/Submitted', [
             'unit' => $this->unitPayload($link),
+            'reference' => session('reference'),
         ]);
     }
 

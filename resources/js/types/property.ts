@@ -53,6 +53,7 @@ export interface Document {
 
 export interface Application {
     id: number;
+    public_id: string;
     application_link_id: number;
     unit_id: number;
     applicant_first_name: string;

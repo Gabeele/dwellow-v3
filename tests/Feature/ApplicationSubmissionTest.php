@@ -170,6 +170,43 @@ test('the submitted page renders a confirmation', function () {
         );
 });
 
+test('a created application is assigned a unique public reference id', function () {
+    $first = Application::factory()->create();
+    $second = Application::factory()->create();
+
+    expect($first->public_id)->not->toBeEmpty()
+        ->and($second->public_id)->not->toBeEmpty()
+        ->and($first->public_id)->not->toBe($second->public_id);
+});
+
+test('the submitted page exposes the new application reference after a submission', function () {
+    Storage::fake('local');
+
+    $link = openLink();
+
+    $this->followingRedirects()
+        ->post(route('screening.store', $link->token), ['answers' => validSubmission()])
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('screening/Submitted')
+            ->where('reference', Application::query()->sole()->public_id),
+        );
+});
+
+test('the applicant confirmation email shows the application reference', function () {
+    Storage::fake('local');
+
+    $link = openLink();
+
+    $this->post(route('screening.store', $link->token), ['answers' => validSubmission()]);
+
+    $application = Application::query()->sole();
+
+    $rendered = (new ApplicationReceivedMail($application))->render();
+
+    expect($rendered)->toContain($application->public_id);
+});
+
 test('a submission omitting a disabled section succeeds and the snapshot reflects only active fields', function () {
     Storage::fake('local');
 

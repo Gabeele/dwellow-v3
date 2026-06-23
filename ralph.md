@@ -262,12 +262,24 @@ Guardrails (unchanged — see `.docs/decisions/`):
     when the review step is later folded into the reference-id / "Submitted" page work, the recap copy can
     restate the reference id once that column exists.
 
-- [ ] Give each application a public reference id and show it on the thank-you page
+- [x] Give each application a public reference id and show it on the thank-you page
   - context: add a short, unguessable public reference (e.g. a ULID column `public_id` on `applications`,
     or a hashid) set on creation. Show it on `screening/Submitted.vue` ("Your reference: …") and include
     it in the applicant confirmation email. Landlords see it on the detail page too.
   - done: a feature test asserting a created application has a unique `public_id` and the submitted page
     payload includes it; migration is reversible; Pint clean.
+  - NOTE: Added a reversible migration (`public_id` ULID column, nullable → backfill existing rows with
+    `Str::ulid()` → unique index; `down()` drops the index then column). `Application::booted()` sets
+    `public_id` on `creating` if empty, so every create path gets one (mirrors `ApplicationLink`'s token
+    hook); added the `@property string $public_id` docblock. `PublicScreeningController@store` flashes
+    `->with('reference', $application->public_id)` on the PRG redirect and `@submitted` passes
+    `'reference' => session('reference')` (the submitted route is keyed by token, not application, so the
+    value rides the redirect rather than a re-query). `Submitted.vue` renders a "Your reference" chip when
+    present; the confirmation email (`ApplicationReceivedMail` + blade) shows the reference; the landlord
+    detail page (`applicants/Show.vue`) shows it as a "Reference" field. Added `public_id` to the
+    `Application` TS type. Four new tests in ApplicationSubmissionTest: unique public_id on create, the
+    submitted payload exposes the reference (followingRedirects), and the email renders it. Full suite
+    green (210), Pint + vue-tsc + ESLint + build clean; migration rollback/re-apply verified.
 
 - [ ] Flesh out the post-submission "Submitted" page
   - context: `screening/Submitted.vue` should clearly explain what happens next (the landlord reviews and

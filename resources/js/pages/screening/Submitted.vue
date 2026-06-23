@@ -16,6 +16,7 @@ const props = defineProps<{
         label: string;
         address: UnitAddress;
     };
+    reference: string | null;
 }>();
 
 const addressLines = computed<string[]>(() => {
@@ -61,7 +62,22 @@ const addressLines = computed<string[]>(() => {
                 >. The landlord has received your application and will be in
                 touch.
             </p>
-            <p class="mt-2 text-13 text-muted-foreground">
+
+            <div
+                v-if="reference"
+                class="mx-auto mt-5 inline-flex flex-col items-center gap-1 rounded-md border border-border bg-muted/40 px-4 py-3"
+            >
+                <span
+                    class="text-13 font-medium uppercase tracking-wide text-muted-foreground"
+                >
+                    Your reference
+                </span>
+                <span class="font-mono text-sm font-semibold text-foreground">
+                    {{ reference }}
+                </span>
+            </div>
+
+            <p class="mt-5 text-13 text-muted-foreground">
                 You can close this page now.
             </p>
         </div>

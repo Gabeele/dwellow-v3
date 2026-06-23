@@ -274,6 +274,14 @@ function formatSize(bytes: number | null): string {
                             {{ submittedOn }}
                         </span>
                     </div>
+                    <div class="flex flex-col gap-0.5">
+                        <span class="text-13 text-muted-foreground">
+                            Reference
+                        </span>
+                        <span class="font-mono text-sm text-foreground">
+                            {{ application.public_id }}
+                        </span>
+                    </div>
                 </CardContent>
             </Card>
 
