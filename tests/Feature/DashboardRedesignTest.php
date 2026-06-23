@@ -73,6 +73,33 @@ test('the dashboard surfaces new applicant activity scoped to the landlord', fun
         );
 });
 
+test('the dashboard exposes a total applications count linking to the applications page', function () {
+    $landlord = User::factory()->landlord()->create();
+    $property = Property::factory()->for($landlord, 'landlord')->multiUnit()->create();
+    $unit = Unit::factory()->for($property)->create();
+    $link = ApplicationLink::factory()->for($unit)->create();
+
+    // Two new + one reviewed application all count toward the running total.
+    Application::factory()->for($link, 'applicationLink')->count(2)->create();
+    Application::factory()->for($link, 'applicationLink')->create([
+        'status' => ApplicationStatus::Reviewing,
+    ]);
+
+    // Another landlord's application must not inflate the total.
+    $otherLandlord = User::factory()->landlord()->create();
+    $otherProperty = Property::factory()->for($otherLandlord, 'landlord')->multiUnit()->create();
+    $otherLink = ApplicationLink::factory()->for(Unit::factory()->for($otherProperty)->create())->create();
+    Application::factory()->for($otherLink, 'applicationLink')->create();
+
+    $this->actingAs($landlord)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->where('stats.total_applications', 3)
+            ->where('stats.new_applications', 2)
+        );
+});
+
 test('a verified non-landlord user sees no stats', function () {
     $user = User::factory()->create();
 

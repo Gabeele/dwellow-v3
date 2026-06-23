@@ -199,11 +199,22 @@ Guardrails (unchanged — see `.docs/decisions/`):
     it). Four new tests in ApplicationControllerTest (status / property / search narrowing + filter
     options exposed). Suite green (18), Pint + vue-tsc + ESLint + build clean.
 
-- [ ] Surface an applications count + link on the dashboard
+- [x] Surface an applications count + link on the dashboard
   - context: the dashboard already computes a `new_applications` signal — make it (and/or a total
     applications stat) link straight to the new `applications.index`, optionally pre-filtered to New.
     Reuse the existing `StatCard` / panel patterns; keep it read-only.
   - done: a feature assertion that the dashboard exposes a link to the applications page; build clean.
+  - NOTE: `DashboardController` now also computes `total_applications` (landlord-scoped via
+    `whereHas('unit.property', landlord_id)`, all statuses) alongside the existing `new_applications`.
+    On `Dashboard.vue` the "New applications" StatCard is now wrapped in an Inertia `<Link>` to
+    `applicationsIndex({ query: { status: 'new' } })` (shareable, pre-filtered to New — the same param
+    the Applications page reads server-side), and a new "Total applications" StatCard links to the
+    unfiltered `applicationsIndex()`. Both links carry hover/focus-ring affordances. Kept read-only —
+    no new panels, just the existing StatCard pattern. Inertia feature tests assert props (no SSR), so
+    the testable surface is the new `total_applications` stat; link wiring is guarded by vue-tsc/build.
+    New test in DashboardRedesignTest: `total_applications` = 3 (2 new + 1 reviewed), scoped to the
+    landlord (another landlord's app excluded). Suite green (4), Pint + vue-tsc + ESLint + build clean.
+    Milestone B is now complete.
 
 ---
 

@@ -40,6 +40,10 @@ class DashboardController extends Controller
                 ->whereHas('unit.property', fn ($query) => $query->where('landlord_id', $user->id))
                 ->count();
 
+            $totalApplications = Application::query()
+                ->whereHas('unit.property', fn ($query) => $query->where('landlord_id', $user->id))
+                ->count();
+
             $busiestUnit = Unit::query()
                 ->whereHas('property', fn ($query) => $query->where('landlord_id', $user->id))
                 ->withCount('applications')
@@ -53,6 +57,7 @@ class DashboardController extends Controller
                 'occupied' => $occupied,
                 'available' => $available,
                 'new_applications' => $newApplications,
+                'total_applications' => $totalApplications,
                 'busiest_unit' => $busiestUnit ? [
                     'id' => $busiestUnit->id,
                     'label' => $busiestUnit->label,

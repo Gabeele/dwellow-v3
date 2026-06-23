@@ -5,6 +5,7 @@ import PageHeader from '@/components/PageHeader.vue';
 import StatCard from '@/components/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import { dashboard } from '@/routes';
+import { index as applicationsIndex } from '@/routes/applications';
 import { index as propertiesIndex } from '@/routes/properties';
 import { index as applicantsIndex } from '@/routes/units/applicants';
 
@@ -18,6 +19,7 @@ interface DashboardStats {
     occupied: number;
     available: number;
     new_applications: number;
+    total_applications: number;
     busiest_unit: {
         id: number;
         label: string;
@@ -81,12 +83,29 @@ const welcomeTitle = computed(() =>
                     :value="stats.available"
                     tone="warning"
                 />
-                <StatCard
-                    label="New applications"
-                    :value="stats.new_applications"
-                    :tone="stats.new_applications > 0 ? 'ai' : 'muted'"
-                    context="Awaiting your review"
-                />
+                <Link
+                    :href="
+                        applicationsIndex({ query: { status: 'new' } })
+                    "
+                    class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                    <StatCard
+                        label="New applications"
+                        :value="stats.new_applications"
+                        :tone="stats.new_applications > 0 ? 'ai' : 'muted'"
+                        context="Awaiting your review"
+                    />
+                </Link>
+                <Link
+                    :href="applicationsIndex()"
+                    class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                    <StatCard
+                        label="Total applications"
+                        :value="stats.total_applications"
+                        context="View all applications"
+                    />
+                </Link>
             </div>
 
             <div
