@@ -179,7 +179,7 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
     Added `applications(): HasMany` to `Unit`. `ApplicationTest` (3 tests, 9 assertions) green;
     Pint clean.
 
-- [ ] Create the `Document` model, migration, and factory
+- [x] Create the `Document` model, migration, and factory
   - context: `make:model Document -mf`. Columns: `id`, `application_id` (foreignId, constrained,
     cascade), `field_key` (string — which form field it answers), `disk` (string, default
     `local`), `path` (string), `original_name` (string), `mime_type` (string, nullable), `size`
@@ -187,6 +187,10 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
   - context: documents live on the **private** `local` disk (see `config/filesystems.php` —
     root `storage/app/private`, not public). Never store under `public/`.
   - done: a feature test asserting a document belongs to an application and the columns persist.
+  - note: Added `Document` model (`#[Fillable]`, `application()` BelongsTo), migration (`application_id`
+    FK cascade, `field_key`, `disk` default `local`, `path`, `original_name`, nullable `mime_type`/
+    `size`), and factory (default `application_id` => `Application::factory()`, file metadata faker).
+    `DocumentTest` (3 tests, 9 assertions) green; Pint clean.
 
 - [ ] Add ownership authorization policies for the screening entities
   - context: landlords may only touch screening data for units of properties they own. Mirror
