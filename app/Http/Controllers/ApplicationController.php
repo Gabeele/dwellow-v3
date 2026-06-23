@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\ApplicationStatus;
 use App\Http\Requests\UpdateApplicationRequest;
+use App\Http\Resources\ApplicationRowResource;
 use App\Models\Application;
 use App\Models\Property;
 use App\Models\Unit;
@@ -37,17 +38,7 @@ class ApplicationController extends Controller
             ->withCount('documents')
             ->paginate(20)
             ->withQueryString()
-            ->through(fn (Application $application): array => [
-                'id' => $application->id,
-                'applicant_name' => trim("{$application->applicant_first_name} {$application->applicant_last_name}"),
-                'applicant_email' => $application->applicant_email,
-                'property_name' => $application->unit->property->name ?? $application->unit->property->address_line1,
-                'unit_label' => $application->unit->label,
-                'submitted_at' => $application->submitted_at,
-                'status' => $application->status,
-                'documents_count' => $application->documents_count,
-                'url' => route('applicants.show', $application),
-            ]);
+            ->through(fn (Application $application): array => ApplicationRowResource::make($application)->resolve($request));
 
         $properties = Property::query()
             ->where('landlord_id', $user->id)
@@ -153,16 +144,7 @@ class ApplicationController extends Controller
             ->latest('submitted_at')
             ->paginate(20)
             ->withQueryString()
-            ->through(fn (Application $application): array => [
-                'id' => $application->id,
-                'applicant_name' => trim("{$application->applicant_first_name} {$application->applicant_last_name}"),
-                'applicant_email' => $application->applicant_email,
-                'unit_label' => $application->unit->label,
-                'submitted_at' => $application->submitted_at,
-                'status' => $application->status,
-                'documents_count' => $application->documents_count,
-                'url' => route('applicants.show', $application),
-            ]);
+            ->through(fn (Application $application): array => ApplicationRowResource::make($application)->resolve());
 
         return Inertia::render('screening/applicants/Property', [
             'property' => [

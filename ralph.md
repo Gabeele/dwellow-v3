@@ -523,13 +523,27 @@ Guardrails (unchanged — see `.docs/decisions/`):
     behaviour-preserving with an unchanged server contract, guarded by vue-tsc + ESLint + build + Prettier
     (all clean). PropertyControllerTest (renders Show.vue) green (7). No PHP touched, so Pint N/A.
 
-- [ ] Introduce Eloquent API Resources for screening payloads (backend)
+- [x] Introduce Eloquent API Resources for screening payloads (backend)
   - context: controllers hand-build Inertia payload arrays for Unit / Application / Property (e.g.
     `unitPayload` in `PublicScreeningController`, the applicant rows in `ApplicationController`). Where the
     same shape is built in more than one place, extract an API Resource (per `CLAUDE.md`'s APIs &
     Eloquent Resources guidance) so the shape is defined once. Don't over-apply — only consolidate real
     duplication.
   - done: duplicated payload shapes flow through a Resource; all controller/feature tests green; Pint clean.
+  - NOTE: The only genuinely duplicated payload was the **applicant-row** array, built nearly identically in
+    `ApplicationController@indexAll` and `@indexForProperty` (id, applicant_name, applicant_email, unit_label,
+    submitted_at, status, documents_count, url — plus property_name only on the portfolio-wide page).
+    Extracted `app/Http/Resources/ApplicationRowResource.php`; both actions now map via
+    `ApplicationRowResource::make($application)->resolve()` inside `->through()`. Used `->resolve()` (not
+    `::collection()`) deliberately so the **paginator's top-level serialization is preserved** —
+    `applications.data` + top-level `total`/`per_page`/`links` — which the Vue pages + tests rely on;
+    `::collection()` would re-wrap pagination under `meta` and break them. `property_name` is emitted via
+    `mergeWhen($this->unit->relationLoaded('property'), …)`, so the per-property page (loads `with('unit')`
+    only) omits it while the portfolio page (`with('unit.property')`) includes it — no separate shapes.
+    **Did NOT** touch: `PublicScreeningController@unitPayload` (already a single shared private method, not
+    duplicated across places), nor the CSV `exportAll` row (a deliberately different shape — `status->label()`,
+    `toDateTimeString()`, no url/id — not the same payload). All 27 ApplicationControllerTest pass (252
+    assertions); Pint clean. No JS touched.
 
 - [ ] Consolidate the `firstOrCreate` default-form logic
   - context: `ApplicationFormController@edit` and `@update` both call
