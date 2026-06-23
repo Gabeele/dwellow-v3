@@ -63,7 +63,7 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
   - note: Added `ApplicationStatus` enum (4 cases, `label()`); `ApplicationStatusTest`
     (2 tests, 5 assertions) green. Pint clean.
 
-- [ ] Define the dwellow default application form schema
+- [x] Define the dwellow default application form schema
   - context: new class `app/Screening/DefaultApplicationForm.php` (create the `app/Screening/`
     dir; use `make:class`). Expose `public static function fields(): array` returning the
     default ordered field schema as plain arrays. Each field is a shape:
@@ -95,6 +95,10 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
   - done: a unit test asserting `fields()` returns the expected count, that every entry has the
     required keys, that `screening_consent` is present and required, and that each `type` is a
     valid `FieldType` value.
+  - note: Added `DefaultApplicationForm::fields()` returning 24 ordered fields via a private
+    `field()` builder (always emits key/type/label/required/help/options); `type` stored as the
+    enum string value for clean JSON. `DefaultApplicationFormTest` (6 tests, 320 assertions) green,
+    Pint clean.
 
 ### Data layer — models, migrations, factories
 
