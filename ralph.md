@@ -88,7 +88,7 @@ Guardrails (unchanged — see `.docs/decisions/`):
     Two new tests in `ApplicationSubmissionTest` (`Mail::fake()`): confirmation sent to applicant on
     success, nothing sent on validation failure. Suite green (7), Pint clean.
 
-- [ ] Notify the landlord by email when a new application arrives
+- [x] Notify the landlord by email when a new application arrives
   - context: when an Application is created, notify the owning landlord (`unit.property.landlord`) that
     a new application came in, with a deep link to the application detail page (`applicants.show`). Use a
     `Notification` (e.g. `NewApplicationNotification`, mail channel) so it's attributable to the User.
@@ -96,6 +96,13 @@ Guardrails (unchanged — see `.docs/decisions/`):
     observer — keep a single trigger point, don't double-send.
   - done: a feature test (`Notification::fake()`) asserting the owning landlord is notified once per
     submission and a different landlord is not. Pint clean.
+  - NOTE: Added `App\Notifications\NewApplicationNotification` (mail channel, `MailMessage` with a
+    `route('applicants.show', $application)` deep-link action). Triggered from
+    `PublicScreeningController@store` right after the applicant confirmation (single trigger point) via
+    `$application->unit->property->landlord?->notify(...)` — null-safe so submission still succeeds if a
+    property somehow has no landlord. Two new tests in `ApplicationSubmissionTest` (`Notification::fake()`):
+    owning landlord notified exactly once + a different landlord not notified; nothing sent on validation
+    failure. Suite green (submission 9, PublicScreening 7), Pint clean.
 
 - [ ] Replace the lost spam deterrent: rate-limit + honeypot the public submission
   - context: removing email verification removes our only abuse barrier on the account-free public

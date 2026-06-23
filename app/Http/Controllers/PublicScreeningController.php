@@ -7,6 +7,7 @@ use App\Enums\FieldType;
 use App\Http\Requests\StoreApplicationRequest;
 use App\Mail\ApplicationReceivedMail;
 use App\Models\ApplicationLink;
+use App\Notifications\NewApplicationNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -106,11 +107,17 @@ class PublicScreeningController extends Controller
             ]);
         }
 
+        $application->loadMissing('unit.property.landlord');
+
         if ($application->applicant_email !== '') {
             Mail::to($application->applicant_email)->send(
-                new ApplicationReceivedMail($application->loadMissing('unit.property')),
+                new ApplicationReceivedMail($application),
             );
         }
+
+        $application->unit->property->landlord?->notify(
+            new NewApplicationNotification($application),
+        );
 
         return to_route('screening.submitted', $link->token);
     }

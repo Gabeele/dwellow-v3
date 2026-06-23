@@ -7,9 +7,12 @@ use App\Models\ApplicationLink;
 use App\Models\Document;
 use App\Models\Property;
 use App\Models\Unit;
+use App\Models\User;
+use App\Notifications\NewApplicationNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
@@ -104,6 +107,41 @@ test('a valid submission emails the applicant a confirmation', function () {
     Mail::assertSent(ApplicationReceivedMail::class, function (ApplicationReceivedMail $mail) {
         return $mail->hasTo('dana@example.com');
     });
+});
+
+test('a valid submission notifies the owning landlord once', function () {
+    Storage::fake('local');
+    Notification::fake();
+
+    $landlord = User::factory()->landlord()->create();
+    $unit = Unit::factory()->for(Property::factory()->for($landlord, 'landlord'))->create();
+    $link = ApplicationLink::factory()->for($unit)->create();
+
+    $otherLandlord = User::factory()->landlord()->create();
+
+    $this->post(route('screening.store', $link->token), [
+        'answers' => validSubmission(),
+    ])->assertRedirect(route('screening.submitted', $link->token));
+
+    Notification::assertSentToTimes($landlord, NewApplicationNotification::class, 1);
+    Notification::assertNotSentTo($otherLandlord, NewApplicationNotification::class);
+});
+
+test('a rejected submission does not notify the landlord', function () {
+    Storage::fake('local');
+    Notification::fake();
+
+    $landlord = User::factory()->landlord()->create();
+    $unit = Unit::factory()->for(Property::factory()->for($landlord, 'landlord'))->create();
+    $link = ApplicationLink::factory()->for($unit)->create();
+
+    $answers = validSubmission();
+    unset($answers['gross_monthly_income']);
+
+    $this->post(route('screening.store', $link->token), ['answers' => $answers])
+        ->assertSessionHasErrors('answers.gross_monthly_income');
+
+    Notification::assertNothingSent();
 });
 
 test('a rejected submission does not email the applicant', function () {
