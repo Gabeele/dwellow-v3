@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ApplicationFormController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\UnitController;
@@ -99,6 +100,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('properties.units', UnitController::class)
         ->shallow()
         ->only(['create', 'store', 'edit', 'update', 'destroy']);
+
+    Route::get('units/{unit}/form', [ApplicationFormController::class, 'edit'])->name('units.form.edit');
+    Route::put('units/{unit}/form', [ApplicationFormController::class, 'update'])->name('units.form.update');
 });
 
 require __DIR__.'/settings.php';

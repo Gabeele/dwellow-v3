@@ -210,7 +210,7 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
 
 ### Landlord — application form builder
 
-- [ ] Add backend routes + controller to view and update a unit's application form
+- [x] Add backend routes + controller to view and update a unit's application form
   - context: new `ApplicationFormController` with `edit(Unit $unit)` (Inertia render
     `screening/forms/Edit`, pass the unit + its form `fields`) and `update(Request, Unit $unit)`
     (persist the edited schema). Authorize with the `ApplicationForm`/`Unit` policy. Nest under
@@ -224,6 +224,14 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
   - done: feature tests — owner can load the edit page (Inertia component assertion); owner can
     PUT a valid schema and it persists; invalid schema (dup key / bad type / options on a text
     field) is rejected; a non-owner gets 403.
+  - note: Added `ApplicationFormController` (`edit`/`update`, both authorize via the auto-resolved
+    `ApplicationFormPolicy`; `edit` passes `fields`, `fieldTypes`, `defaultFields` props),
+    `UpdateApplicationFormRequest` (wildcard per-field rules + an `after()` closure for the
+    cross-field invariants: unique keys, options-only-when-`expectsOptions()`/required-when-it-does),
+    and routes `units.form.edit` (GET) / `units.form.update` (PUT). `ApplicationFormControllerTest`
+    (7 tests, 25 assertions) green; the edit-page test uses `withoutVite()` +
+    `inertia.testing.ensure_pages_exist=false` since `screening/forms/Edit.vue` is the next task.
+    Full suite 146 passed; Pint clean.
 
 - [ ] Build the form-builder UI page
   - context: new `resources/js/pages/screening/forms/Edit.vue` using `AppLayout` and existing
