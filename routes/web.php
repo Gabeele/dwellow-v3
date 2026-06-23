@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ApplicationFormController;
+use App\Http\Controllers\ApplicationLinkController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\UnitController;
@@ -103,6 +104,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('units/{unit}/form', [ApplicationFormController::class, 'edit'])->name('units.form.edit');
     Route::put('units/{unit}/form', [ApplicationFormController::class, 'update'])->name('units.form.update');
+
+    Route::post('units/{unit}/links', [ApplicationLinkController::class, 'store'])->name('units.links.store');
+    Route::put('links/{link}', [ApplicationLinkController::class, 'update'])->name('links.update');
+    Route::delete('links/{link}', [ApplicationLinkController::class, 'destroy'])->name('links.destroy');
 });
 
 require __DIR__.'/settings.php';

@@ -258,7 +258,7 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
 
 ### Landlord — application links
 
-- [ ] Add backend for creating / toggling / revoking application links
+- [x] Add backend for creating / toggling / revoking application links
   - context: new `ApplicationLinkController` with `store(Unit $unit)` (create a link — token
     auto-generated; optional `label`), `update(ApplicationLink $link)` (toggle `is_accepting`,
     set/clear `expires_at`), and `destroy(ApplicationLink $link)` (set `revoked_at` — soft
@@ -268,6 +268,14 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
   - done: feature tests — owner can create a link (token present, accepting by default), toggle
     accepting off, set an expiry, and revoke it (`revoked_at` set, `isOpen()` false); non-owner
     403 on each.
+  - note: Added `ApplicationLinkController` (`store`/`update`/`destroy`, each authorizing via
+    `ApplicationLinkPolicy` — `store` uses `authorize('create', [ApplicationLink::class, $unit])`
+    since no link exists yet; `destroy` soft-revokes by setting `revoked_at`, all redirect `back()`
+    with a flash toast). Added `StoreApplicationLinkRequest` (nullable `label`) and
+    `UpdateApplicationLinkRequest` (`sometimes` `is_accepting` boolean / `expires_at` nullable date
+    so partial toggles work). Routes `units.links.store` (POST), `links.update` (PUT),
+    `links.destroy` (DELETE) — landlord routes bind by id; the public route will bind by `token`.
+    `ApplicationLinkControllerTest` (5 tests, 16 assertions) green; full suite 151 passed; Pint clean.
 
 - [ ] Surface link management + the applicants entry point on the unit
   - context: on the property show page (`resources/js/pages/properties/Show.vue`, served by
