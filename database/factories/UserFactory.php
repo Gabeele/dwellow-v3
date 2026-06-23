@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -44,6 +45,22 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    /**
+     * Indicate that the user holds the landlord role.
+     */
+    public function landlord(): static
+    {
+        return $this->afterCreating(fn (User $user) => $user->assignRole(Role::Landlord));
+    }
+
+    /**
+     * Indicate that the user holds the tenant role.
+     */
+    public function tenant(): static
+    {
+        return $this->afterCreating(fn (User $user) => $user->assignRole(Role::Tenant));
     }
 
     /**
