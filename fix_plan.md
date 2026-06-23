@@ -102,7 +102,7 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
 
 ### Data layer — models, migrations, factories
 
-- [ ] Create the `ApplicationForm` model, migration, and factory
+- [x] Create the `ApplicationForm` model, migration, and factory
   - context: `vendor/bin/sail artisan make:model ApplicationForm -mf`. Columns: `id`,
     `unit_id` (foreignId, constrained, cascade on delete, unique — one form per unit),
     `fields` (json), timestamps. Cast `fields` to `array`. Use the `#[Fillable([...])]`
@@ -112,6 +112,10 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
     `forUnit(Unit $unit)` state if helpful. `unit_id` defaults to `Unit::factory()`.
   - done: a feature test asserting a unit can have one application form and `fields` round-trips
     as an array.
+  - note: Added `ApplicationForm` model (`#[Fillable]`, `fields`=>array cast, `unit()` BelongsTo),
+    migration (`unit_id` unique FK cascade + json `fields`), and factory (default `fields` from
+    `DefaultApplicationForm::fields()`, `forUnit()` state). Added `applicationForm(): HasOne` to
+    `Unit`. `ApplicationFormTest` (3 tests, 5 assertions) green; Pint clean.
 
 - [ ] Auto-provision a default form when a unit is created
   - context: register a `UnitObserver` (`app/Observers/UnitObserver.php`, attach via the
