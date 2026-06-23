@@ -192,7 +192,7 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
     `size`), and factory (default `application_id` => `Application::factory()`, file metadata faker).
     `DocumentTest` (3 tests, 9 assertions) green; Pint clean.
 
-- [ ] Add ownership authorization policies for the screening entities
+- [x] Add ownership authorization policies for the screening entities
   - context: landlords may only touch screening data for units of properties they own. Mirror
     `app/Policies/UnitPolicy.php` (which checks `$user->isLandlord() && $unit->property->landlord_id === $user->id`).
     Add policies: `ApplicationFormPolicy` (view/update), `ApplicationLinkPolicy`
@@ -202,6 +202,11 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
     registration is needed (the existing Property/Unit policies aren't registered manually).
   - done: a feature test per policy asserting the owning landlord is allowed and a different
     landlord is denied.
+  - note: Added `ApplicationFormPolicy`, `ApplicationLinkPolicy`, `ApplicationPolicy`,
+    `DocumentPolicy` — each walks `…->unit->property->landlord_id` (Document via `application`).
+    `ApplicationLinkPolicy::create(User, Unit)` takes the unit since no link exists yet. No manual
+    registration needed (auto-discovered by convention, like Property/Unit). `ScreeningPoliciesTest`
+    (4 tests, 22 assertions) green; Pint clean.
 
 ### Landlord — application form builder
 
