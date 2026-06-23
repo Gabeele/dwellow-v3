@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Head, useForm, useHttp, usePage } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { CircleAlert } from '@lucide/vue';
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, reactive } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -95,10 +95,8 @@ for (const field of allFields.value) {
 
 const form = useForm<{
     answers: Record<string, AnswerValue>;
-    verification_code: string;
 }>({
     answers: initialAnswers,
-    verification_code: '',
 });
 
 const error = (key: string): string | undefined =>
@@ -143,57 +141,6 @@ const onFileChange = (key: string, event: Event): void => {
     form.answers[key] = file;
 };
 
-// Account-free email verification: the applicant requests a one-time code for the
-// email they entered above, then enters it to prove ownership. The code request is a
-// standalone XHR (useHttp) so it never reloads the page or discards the in-progress form.
-const verifier = useHttp<{ email: string }>({ email: '' });
-const codeSent = ref(false);
-const verifyError = ref<string | null>(null);
-const verifyNotice = ref<string | null>(null);
-
-const applicantEmail = computed<string>(
-    () => (form.answers.email as string | undefined)?.trim() ?? '',
-);
-
-const firstMessage = (value: unknown): string | null => {
-    if (Array.isArray(value)) {
-        return typeof value[0] === 'string' ? value[0] : null;
-    }
-
-    return typeof value === 'string' ? value : null;
-};
-
-const sendCode = (): void => {
-    verifier.email = applicantEmail.value;
-    verifyError.value = null;
-    verifyNotice.value = null;
-
-    verifier.post(`${page.url}/verify`, {
-        onSuccess: () => {
-            codeSent.value = true;
-            verifyNotice.value = `We emailed a code to ${applicantEmail.value}. It may take a minute to arrive.`;
-        },
-        onError: (errors: Record<string, unknown>) => {
-            verifyError.value =
-                firstMessage(errors.email) ??
-                firstMessage(errors.message) ??
-                "We couldn't send a code to that email. Check it and try again.";
-        },
-    });
-};
-
-// If the applicant changes their email after a code was sent, the old code no
-// longer matches — make them request a fresh one rather than fail confusingly.
-watch(applicantEmail, (next, previous) => {
-    if (codeSent.value && next !== previous) {
-        codeSent.value = false;
-        form.verification_code = '';
-        verifyError.value = null;
-        verifyNotice.value =
-            'Your email changed — send a new code to that address.';
-    }
-});
-
 const reference = (key: string): ReferenceValue =>
     form.answers[key] as ReferenceValue;
 
@@ -222,9 +169,7 @@ const textInputType = (type: string): string => {
     }
 };
 
-const canSubmit = computed<boolean>(
-    () => codeSent.value && !!form.verification_code && !form.processing,
-);
+const canSubmit = computed<boolean>(() => !form.processing);
 
 const submit = (): void => {
     form.post(page.url, {
@@ -490,68 +435,6 @@ const submit = (): void => {
                 </div>
             </section>
 
-            <!-- Email verification — account-free proof the applicant owns the email. -->
-            <div
-                class="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
-            >
-                <div class="flex flex-col gap-1">
-                    <h2 class="text-sm font-medium text-foreground">
-                        Verify your email
-                    </h2>
-                    <p class="text-13 text-muted-foreground">
-                        We'll email a one-time code to
-                        <span
-                            v-if="applicantEmail"
-                            class="font-medium text-foreground"
-                            >{{ applicantEmail }}</span
-                        ><span v-else>the email you entered above</span> to
-                        confirm it's yours before you submit.
-                    </p>
-                </div>
-
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
-                    <div v-if="codeSent" class="flex flex-1 flex-col gap-2">
-                        <Label for="verification-code" class="text-13">
-                            Verification code
-                        </Label>
-                        <Input
-                            id="verification-code"
-                            v-model="form.verification_code"
-                            inputmode="numeric"
-                            autocomplete="one-time-code"
-                            placeholder="123456"
-                        />
-                    </div>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        :disabled="!applicantEmail || verifier.processing"
-                        @click="sendCode"
-                    >
-                        {{
-                            verifier.processing
-                                ? 'Sending…'
-                                : codeSent
-                                  ? 'Resend code'
-                                  : 'Send code'
-                        }}
-                    </Button>
-                </div>
-
-                <p v-if="!applicantEmail" class="text-13 text-muted-foreground">
-                    Enter your email address above first, then request a code.
-                </p>
-                <p
-                    v-else-if="verifyNotice && !verifyError"
-                    class="text-13 text-muted-foreground"
-                >
-                    {{ verifyNotice }}
-                </p>
-
-                <InputError :message="verifyError ?? undefined" />
-                <InputError :message="form.errors.verification_code" />
-            </div>
-
             <!-- Surfaced after a rejected submit so nothing fails silently. -->
             <div
                 v-if="hasErrors"
@@ -568,9 +451,6 @@ const submit = (): void => {
                 <Button :disabled="!canSubmit" type="submit">
                     {{ form.processing ? 'Submitting…' : 'Submit application' }}
                 </Button>
-                <p v-if="!codeSent" class="mt-2 text-13 text-muted-foreground">
-                    Verify your email above to enable submitting.
-                </p>
             </div>
         </form>
     </div>

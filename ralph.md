@@ -58,12 +58,17 @@ Guardrails (unchanged — see `.docs/decisions/`):
     next task ("Remove the 'Verify your email' UI from the public apply page"). Full suite green (191),
     Pint clean.
 
-- [ ] Remove the "Verify your email" UI from the public apply page
+- [x] Remove the "Verify your email" UI from the public apply page
   - context: in `resources/js/pages/screening/Apply.vue` remove the email-verification block (the
     `useHttp` send/resend-code request, the code input, `codeSent`, and the submit-disabled-until-code
     logic). The Apply form now submits directly. Keep the rest of the form intact.
   - done: `vue-tsc` + `vendor/bin/sail npm run build` clean; the apply-page feature/inertia assertion
     still passes and no longer references a code field.
+  - NOTE: Removed the `useHttp` verifier, `verification_code` form field, `codeSent`/`verifyError`/
+    `verifyNotice` refs, `sendCode`, the email-change `watch`, the verification UI block, and the
+    submit-disabled-until-code message; `canSubmit` is now just `!form.processing`. Dropped the now-unused
+    `useHttp`/`ref`/`watch` imports. `grep` over `resources/js` for the removed symbols is empty.
+    vue-tsc + build clean; PublicScreeningController + ApplicationSubmission tests green (12).
 
 - [ ] Email the applicant a confirmation when they submit
   - context: after `PublicScreeningController@store` persists the Application, send a branded
