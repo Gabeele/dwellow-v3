@@ -11,6 +11,7 @@ import StatusBadge from '@/components/StatusBadge.vue';
 import TableRow from '@/components/TableRow.vue';
 import { Button } from '@/components/ui/button';
 import UnitScreeningPanel from '@/components/UnitScreeningPanel.vue';
+import { formatAddress } from '@/lib/address';
 import { edit, index } from '@/routes/properties';
 import { index as propertyApplicants } from '@/routes/properties/applicants';
 import { create as createUnit } from '@/routes/properties/units';
@@ -96,12 +97,6 @@ function unitRent(unit: Unit): string {
         : '—';
 }
 
-function fullAddress(p: Property): string {
-    return [p.address_line1, p.address_line2, p.city, p.region, p.postal_code]
-        .filter(Boolean)
-        .join(', ');
-}
-
 function destroyProperty(): void {
     if (confirm('Delete this property? This also removes all of its units.')) {
         router.delete(PropertyController.destroy.url(props.property.id));
@@ -155,7 +150,7 @@ function toggleScreening(unit: Unit): void {
         </PageHeader>
 
         <p class="-mt-4 text-sm text-muted-foreground">
-            {{ fullAddress(property) }}
+            {{ formatAddress(property) }}
         </p>
 
         <!-- METRICS -->

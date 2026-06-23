@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { formatAddressLines } from '@/lib/address';
 
 interface FormField {
     key: string;
@@ -88,12 +89,9 @@ const closedCopy = computed<{ title: string; body: string }>(() => {
     }
 });
 
-const addressLines = computed<string[]>(() => {
-    const { line1, line2, city, region, postal_code } = props.unit.address;
-    const cityLine = [city, region, postal_code].filter(Boolean).join(', ');
-
-    return [line1, line2, cityLine].filter((line): line is string => !!line);
-});
+const addressLines = computed<string[]>(() =>
+    formatAddressLines(props.unit.address),
+);
 
 const referenceDefault = (): ReferenceValue => ({
     name: '',

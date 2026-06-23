@@ -7,6 +7,7 @@ import {
     ShieldCheck,
 } from '@lucide/vue';
 import { computed } from 'vue';
+import { formatAddressLines } from '@/lib/address';
 
 interface UnitAddress {
     line1: string;
@@ -25,12 +26,9 @@ const props = defineProps<{
     reference: string | null;
 }>();
 
-const addressLines = computed<string[]>(() => {
-    const { line1, line2, city, region, postal_code } = props.unit.address;
-    const cityLine = [city, region, postal_code].filter(Boolean).join(', ');
-
-    return [line1, line2, cityLine].filter((line): line is string => !!line);
-});
+const addressLines = computed<string[]>(() =>
+    formatAddressLines(props.unit.address),
+);
 </script>
 
 <template>

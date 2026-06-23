@@ -487,11 +487,24 @@ Guardrails (unchanged — see `.docs/decisions/`):
 > the refactor exposes a gap. If a "duplication" below isn't actually present, mark the task `[x]` with a
 > note saying so rather than inventing work.
 
-- [ ] Extract a shared address formatter (frontend)
+- [x] Extract a shared address formatter (frontend)
   - context: `fullAddress()` and ad-hoc address joins appear in `properties/Show.vue`, `Apply.vue`,
     `Submitted.vue`, and others. Extract one `formatAddress(parts)` util (e.g. `resources/js/lib/`) and
     reuse it everywhere. One source of truth for the "line1, line2, city, region, postal" join.
   - done: all address rendering goes through the util; build + `vue-tsc` clean; pages render identically.
+  - NOTE: Added `resources/js/lib/address.ts` exporting `formatAddressLines(parts)` (envelope lines:
+    line1, line2, then "City, Region, Postal" as one locality line, empties dropped) and `formatAddress`
+    (the same joined by ", "). `AddressParts` accepts **both** payload shapes — the screening pages'
+    `line1`/`line2` and the `Property` model's `address_line1`/`address_line2` (`line1 ?? address_line1`)
+    — so it's a true single source of truth with no per-call field mapping. Wired into `Apply.vue` and
+    `Submitted.vue` (replaced their identical inline `cityLine`/filter computeds) and `properties/Show.vue`
+    (deleted the `fullAddress` wrapper, template now calls `formatAddress(property)` directly). Left
+    `properties/Index.vue`'s `cityLine` as-is: it joins only city+region as a compact card summary — a
+    different, deliberately shorter rendering, not the full envelope join — so routing it through the util
+    would change what's shown. No JS test harness exists (no vitest/jsdom), and the refactor is
+    behaviour-preserving with an unchanged server contract, so it's guarded by vue-tsc + build + ESLint
+    (all clean); existing PublicScreeningController + PropertyController feature tests that render these
+    pages stay green (17). No PHP touched, so Pint N/A.
 
 - [ ] Extract a currency formatter composable (frontend)
   - context: the `Intl.NumberFormat('en-CA', { currency: 'CAD' })` logic in `properties/Show.vue` (and
