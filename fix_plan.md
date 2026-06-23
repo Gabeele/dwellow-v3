@@ -41,10 +41,11 @@
   - done: feature test — an unverified user hitting a `verified`-protected route is redirected to the verification notice; a verified user passes.
   - note: `User` now implements `MustVerifyEmail` (the `verified` middleware was already on the dashboard + settings routes but was a no-op without the interface). Added two tests to `Auth/EmailVerificationTest`: unverified → redirect to `verification.notice`, verified → 200. Full suite (91 tests) stays green.
 
-- [ ] Send a branded email-verification email on signup
+- [x] Send a branded email-verification email on signup
   - context: override the default verification notification. Add a custom notification (e.g. `app/Notifications/VerifyEmailNotification.php` extending Fortify/Laravel's `VerifyEmail`) and wire it via `User::sendEmailVerificationNotification()` or `VerifyEmail::toMailUsing(...)` in a service provider. Use a branded Markdown mailable (dwellow name/logo/colors) with the signed verification URL.
   - context: keep the signed URL generation from the base class — only customize the presentation.
   - done: feature test using `Notification::fake()` asserting the custom verification notification is sent to a newly registered user.
+  - note: Added `VerifyEmailNotification` extending Laravel's `VerifyEmail` (keeps signed URL gen, overrides `buildMailMessage`) rendering a branded `resources/views/emails/verify-email.blade.php` Markdown mailable (dwellow name, green success button). Wired via `User::sendEmailVerificationNotification()`. Added a registration→notification test to `EmailVerificationTest`, and updated the existing `VerificationNotificationTest` assertion to the new class. All 96 green.
 
 - [ ] Send a branded welcome email after a user verifies their email
   - context: listen for `Illuminate\Auth\Events\Verified` (register the listener in `app/Providers/`), and send a branded `WelcomeMail` Mailable (Markdown). Should NOT send on registration — only after verification.
