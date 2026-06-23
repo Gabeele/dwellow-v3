@@ -354,13 +354,28 @@ Guardrails (unchanged — see `.docs/decisions/`):
     (19), Pint + vue-tsc + ESLint + build clean. Follow-up: neither `Index.vue` nor `All.vue` render
     pagination page links yet — a shared Pagination component would let users reach page 2+ (worth a task).
 
-- [ ] Add a shared Pagination component and wire it into the applicants tables
+- [x] Add a shared Pagination component and wire it into the applicants tables
   - context: both `screening/applicants/Index.vue` and `All.vue` now paginate server-side but render no
     page links, so a landlord can't reach page 2+. Build one small reusable Pagination component from the
     paginator's top-level `links` (prev/next + numbered) and use it on both pages. Preserve active filters
     on `All.vue` (the paginator already `->withQueryString()`).
   - done: a component/inertia assertion the links render; navigating to page 2 returns the next rows;
     build + `vue-tsc` clean.
+  - NOTE: Added `resources/js/components/Pagination.vue` — driven by the paginator's top-level `links`
+    array (first/last entries → prev/next chevron controls, middle → numbered links + `…` gaps), with a
+    "Showing from–to of total" line. Uses Inertia `<Link>` with `preserve-scroll`/`preserve-state`;
+    disabled controls and the active page render as `<span>` (via `:is`). Self-hides on a single page
+    (`pages.length <= 1`). Filters survive paging because the controllers already `->withQueryString()`,
+    so the link URLs carry the query string. Added shared `Paginated<T>` + `PaginationLink` types to
+    `types/ui.ts` (re-exported via `@/types`) and switched both pages' inline `PaginatedApplications`
+    interfaces to `Paginated<ApplicationRow>` / `Paginated<Application>`. Wired `<Pagination>` in after the
+    `DataTable` on both `All.vue` and `Index.vue`. No JS test harness exists (no vitest/jsdom), so the
+    "links render" + page-2 assertions are a feature test on the paginator payload: new
+    `the all-applications index exposes pagination links and a reachable second page` in
+    ApplicationControllerTest asserts `applications.links` is present, `from`/`to` = 1/20 on page 1, and
+    `?page=2` returns the remaining 5 rows (`from`/`to` = 21/25). Suite green (20), Pint + vue-tsc + ESLint
+    + build clean; new files are Prettier-clean (the two pre-existing All.vue/Index.vue Prettier warnings
+    predate this change — untouched lines).
 
 - [ ] Export a landlord's applications to CSV
   - context: an "Export CSV" action on the Applications page that streams the landlord's applications

@@ -195,6 +195,31 @@ test('the all-applications index is paginated', function () {
         );
 });
 
+test('the all-applications index exposes pagination links and a reachable second page', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    Application::factory()->count(25)->for($link, 'applicationLink')->create();
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applications.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('applications.links')
+            ->where('applications.from', 1)
+            ->where('applications.to', 20),
+        );
+
+    $this->actingAs($landlord)
+        ->get(route('applications.index', ['page' => 2]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('applications.data', 5)
+            ->where('applications.from', 21)
+            ->where('applications.to', 25),
+        );
+});
+
 test('the owning landlord sees their units applications newest first', function () {
     $landlord = User::factory()->landlord()->create();
     $unit = applicantUnitOwnedBy($landlord);

@@ -4,6 +4,7 @@ import { FileText, Inbox, Search } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import DataTable from '@/components/DataTable.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import Pagination from '@/components/Pagination.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import TableRow from '@/components/TableRow.vue';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,7 @@ import {
 } from '@/components/ui/select';
 import { applicationStatusBadge } from '@/lib/applicationStatus';
 import { index as applicationsIndex } from '@/routes/applications';
+import type { Paginated } from '@/types';
 import type { ApplicationStatus } from '@/types/property';
 
 interface ApplicationRow {
@@ -30,10 +32,6 @@ interface ApplicationRow {
     url: string;
 }
 
-interface PaginatedApplications {
-    data: ApplicationRow[];
-}
-
 interface StatusOption {
     value: ApplicationStatus;
     label: string;
@@ -45,7 +43,7 @@ interface PropertyOption {
 }
 
 const props = defineProps<{
-    applications: PaginatedApplications;
+    applications: Paginated<ApplicationRow>;
     properties: PropertyOption[];
     statuses: StatusOption[];
     filters: {
@@ -262,5 +260,12 @@ const propertyLabel = computed(() =>
                 </td>
             </TableRow>
         </DataTable>
+
+        <Pagination
+            :links="applications.links"
+            :from="applications.from"
+            :to="applications.to"
+            :total="applications.total"
+        />
     </div>
 </template>

@@ -4,21 +4,19 @@ import { FileText, Users } from '@lucide/vue';
 import { computed } from 'vue';
 import DataTable from '@/components/DataTable.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import Pagination from '@/components/Pagination.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import TableRow from '@/components/TableRow.vue';
 import { applicationStatusBadge } from '@/lib/applicationStatus';
 import { show as showApplicant } from '@/routes/applicants';
 import { index, show } from '@/routes/properties';
+import type { Paginated } from '@/types';
 import type { Application, Property, Unit } from '@/types/property';
-
-interface PaginatedApplications {
-    data: Application[];
-}
 
 const props = defineProps<{
     property: Property;
     unit: Unit;
-    applications: PaginatedApplications;
+    applications: Paginated<Application>;
 }>();
 
 defineOptions({
@@ -124,5 +122,12 @@ const unitContext = computed(() =>
                 </td>
             </TableRow>
         </DataTable>
+
+        <Pagination
+            :links="applications.links"
+            :from="applications.from"
+            :to="applications.to"
+            :total="applications.total"
+        />
     </div>
 </template>
