@@ -104,7 +104,7 @@ Guardrails (unchanged — see `.docs/decisions/`):
     owning landlord notified exactly once + a different landlord not notified; nothing sent on validation
     failure. Suite green (submission 9, PublicScreening 7), Pint clean.
 
-- [ ] Replace the lost spam deterrent: rate-limit + honeypot the public submission
+- [x] Replace the lost spam deterrent: rate-limit + honeypot the public submission
   - context: removing email verification removes our only abuse barrier on the account-free public
     endpoints. Add a `throttle` middleware to `screening.store` (and `screening.show` if sensible) — a
     sane per-IP limit — and a hidden honeypot field on `Apply.vue` that silently rejects bots (e.g.
@@ -112,6 +112,15 @@ Guardrails (unchanged — see `.docs/decisions/`):
     a new dependency without it being its own approved task — implement a minimal honeypot inline).
   - done: feature tests — exceeding the rate limit returns 429; a submission with the honeypot filled is
     rejected without creating an Application. Pint clean.
+  - NOTE: Routes now carry inline throttles — `throttle:10,1` on `screening.store`, `throttle:30,1` on
+    `screening.show` (no named limiter needed; segments per-IP automatically). Added `isSpam()` to
+    `StoreApplicationRequest`: a decoy `contact_channel` field (hidden, `filled()` → spam) plus a
+    `rendered_at` epoch-seconds timestamp (elapsed < `MIN_FILL_SECONDS` = 2 → spam). Both are optional, so
+    existing legit submissions are unaffected. `PublicScreeningController@store` silently redirects spam to
+    the submitted page without persisting. `Apply.vue` carries the hidden honeypot input (`aria-hidden`,
+    `tabindex=-1`, `class="hidden"`) and sets `rendered_at` in `onMounted` (not module load, to avoid an
+    SSR hydration mismatch). Three new tests in `ApplicationSubmissionTest`: decoy-filled discarded,
+    too-fast discarded, 11th post in a minute → 429. Suite green (12), Pint + vue-tsc + ESLint + build clean.
 
 ---
 

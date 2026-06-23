@@ -220,6 +220,49 @@ test('a submission missing a required field is rejected', function () {
     expect(Document::query()->count())->toBe(0);
 });
 
+test('a submission with the honeypot decoy filled is silently discarded', function () {
+    Storage::fake('local');
+
+    $link = openLink();
+
+    // A bot fills the hidden decoy field; the applicant sees the success page but
+    // nothing is persisted. rendered_at is set well in the past so only the decoy
+    // triggers the spam check.
+    $this->post(route('screening.store', $link->token), [
+        'answers' => validSubmission(),
+        'contact_channel' => 'http://spam.example',
+        'rendered_at' => time() - 60,
+    ])->assertRedirect(route('screening.submitted', $link->token));
+
+    expect(Application::query()->count())->toBe(0);
+});
+
+test('a submission returned faster than a human could fill it is silently discarded', function () {
+    Storage::fake('local');
+
+    $link = openLink();
+
+    $this->post(route('screening.store', $link->token), [
+        'answers' => validSubmission(),
+        'rendered_at' => time(),
+    ])->assertRedirect(route('screening.submitted', $link->token));
+
+    expect(Application::query()->count())->toBe(0);
+});
+
+test('the public submission endpoint is rate limited per IP', function () {
+    $link = openLink();
+
+    // The throttle runs before validation, so even invalid posts count toward the
+    // per-minute limit. The eleventh request in the window is blocked with a 429.
+    foreach (range(1, 10) as $ignored) {
+        $this->post(route('screening.store', $link->token), ['answers' => []]);
+    }
+
+    $this->post(route('screening.store', $link->token), ['answers' => []])
+        ->assertStatus(429);
+});
+
 test('a submission to a closed link is sent to the friendly closed page', function () {
     Storage::fake('local');
 

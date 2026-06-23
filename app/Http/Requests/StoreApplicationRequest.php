@@ -11,6 +11,12 @@ use Illuminate\Validation\Rule;
 class StoreApplicationRequest extends FormRequest
 {
     /**
+     * The fastest a human could plausibly complete the multi-field application,
+     * in seconds. A submission quicker than this is treated as automated.
+     */
+    private const int MIN_FILL_SECONDS = 2;
+
+    /**
      * Determine if the user is authorized to make this request.
      *
      * We only require a real link here; whether the link is still open is checked
@@ -63,6 +69,30 @@ class StoreApplicationRequest extends FormRequest
         }
 
         return $rules;
+    }
+
+    /**
+     * Whether this submission looks automated and should be silently discarded.
+     *
+     * Two cheap, dependency-free signals: a decoy field (`contact_channel`) that
+     * is hidden from humans but eagerly filled by bots, and a render timestamp —
+     * a form returned faster than a human could fill it is almost certainly a bot.
+     */
+    public function isSpam(): bool
+    {
+        if (filled($this->input('contact_channel'))) {
+            return true;
+        }
+
+        $renderedAt = $this->input('rendered_at');
+
+        if (is_numeric($renderedAt)) {
+            $elapsed = time() - (int) $renderedAt;
+
+            return $elapsed >= 0 && $elapsed < self::MIN_FILL_SECONDS;
+        }
+
+        return false;
     }
 
     /**

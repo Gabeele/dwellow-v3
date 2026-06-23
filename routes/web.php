@@ -98,8 +98,14 @@ Route::get('/', function () {
 })->name('home');
 
 // Public applicant flow — no account; the link is resolved by its unguessable token.
-Route::get('screening/{link:token}', [PublicScreeningController::class, 'show'])->name('screening.show');
-Route::post('screening/{link:token}', [PublicScreeningController::class, 'store'])->name('screening.store');
+// These endpoints are account-free, so a per-IP throttle is the floor of abuse
+// protection (paired with the honeypot in StoreApplicationRequest).
+Route::middleware('throttle:30,1')
+    ->get('screening/{link:token}', [PublicScreeningController::class, 'show'])
+    ->name('screening.show');
+Route::middleware('throttle:10,1')
+    ->post('screening/{link:token}', [PublicScreeningController::class, 'store'])
+    ->name('screening.store');
 Route::get('screening/{link:token}/submitted', [PublicScreeningController::class, 'submitted'])->name('screening.submitted');
 
 Route::middleware(['auth', 'verified'])->group(function () {

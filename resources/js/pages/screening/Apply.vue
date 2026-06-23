@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { CircleAlert } from '@lucide/vue';
-import { computed, reactive } from 'vue';
+import { computed, onMounted, reactive } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -93,10 +93,22 @@ for (const field of allFields.value) {
     initialAnswers[field.key] = initialValue(field.type);
 }
 
+// Honeypot: `contact_channel` is hidden from humans (bots fill every field they
+// find), and `rendered_at` lets the server reject submissions returned faster
+// than a person could fill the form. Both are checked in StoreApplicationRequest.
 const form = useForm<{
     answers: Record<string, AnswerValue>;
+    contact_channel: string;
+    rendered_at: number | null;
 }>({
     answers: initialAnswers,
+    contact_channel: '',
+    rendered_at: null,
+});
+
+// Set on mount (not at module load) to avoid an SSR/hydration time mismatch.
+onMounted(() => {
+    form.rendered_at = Math.floor(Date.now() / 1000);
 });
 
 const error = (key: string): string | undefined =>
@@ -212,6 +224,18 @@ const submit = (): void => {
         </div>
 
         <form v-else class="mt-8 flex flex-col gap-8" @submit.prevent="submit">
+            <!-- Honeypot: hidden from humans and assistive tech; bots fill it. -->
+            <div aria-hidden="true" class="hidden">
+                <label for="contact_channel">Preferred contact channel</label>
+                <input
+                    id="contact_channel"
+                    v-model="form.contact_channel"
+                    type="text"
+                    tabindex="-1"
+                    autocomplete="off"
+                />
+            </div>
+
             <p class="text-13 text-muted-foreground">
                 Fields marked with
                 <span class="text-destructive">*</span> are required.

@@ -52,6 +52,12 @@ class PublicScreeningController extends Controller
             return to_route('screening.show', $link->token);
         }
 
+        // Silently drop automated submissions: show the bot the same success page
+        // a human sees, but persist nothing.
+        if ($request->isSpam()) {
+            return to_route('screening.submitted', $link->token);
+        }
+
         $link->load('unit.applicationForm');
 
         // Only fields that were active at submit time render, validate, and snapshot.
