@@ -585,10 +585,24 @@ Guardrails (unchanged — see `.docs/decisions/`):
     warnings on `Submitted.vue`/`Show.vue` predate this change (confirmed against the committed version);
     `Edit.vue` is Prettier-clean. No PHP touched, so Pint is a no-op (passed).
 
-- [ ] Centralize status → badge variant mapping
+- [x] Centralize status → badge variant mapping
   - context: ensure `ApplicationStatus` → badge variant (and any `OccupancyStatus` mapping) lives in one
     place (`applicationStatus.ts`) and every page uses it — no inline `match`/ternary duplicates.
   - done: one mapping, reused everywhere; build clean.
+  - NOTE: No actual duplication present — both mappings are already centralized and reused everywhere, so
+    this was a verify-only no-op (Milestone E's "mark [x] with a note rather than invent work"). The
+    `ApplicationStatus` → badge mapping lives once in `resources/js/lib/applicationStatus.ts`
+    (`applicationStatusBadge()`, a `Record<ApplicationStatus, {variant,label}>`), imported by **every**
+    application-status render: `applicants/Show.vue`, `Index.vue`, `All.vue`, `Property.vue`. The
+    `OccupancyStatus` → badge mapping lives once in `resources/js/lib/occupancy.ts` (`occupancyBadge()`),
+    consumed via `StatusBadge.vue` + `propertyOccupancy()` on `properties/Index.vue`/`Show.vue`. Kept it in
+    its own file rather than folding into `applicationStatus.ts` — they are distinct domains; merging would
+    be semantically wrong, not "one place". A full grep (`status ===` / `status ?` ternaries and
+    `variant: '<literal>'` assignments) found zero inline duplicates of either: the only other `variant:`
+    literals are `DocumentCheckRow.vue`'s document-verification state and `UnitScreeningPanel.vue`'s
+    `linkState` (ApplicationLink lifecycle) — different concepts, each already single-sourced in its sole
+    consumer — and the `properties/*` `status ===` checks are filter/count logic, not badge mapping. No
+    code change, so no test/Pint/vue-tsc needed (nothing touched).
 
 - [ ] Dead-code sweep after the verification removal
   - context: once Milestone A lands, grep for orphans — unused imports, routes, translations, cache keys,
