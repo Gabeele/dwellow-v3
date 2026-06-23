@@ -27,10 +27,11 @@
 
 ### Signup
 
-- [ ] Let users choose their role (Landlord or Tenant) on the registration form
+- [x] Let users choose their role (Landlord or Tenant) on the registration form
   - context: backend already handles `roles[]` in `app/Actions/Fortify/CreateNewUser.php` (defaults to Tenant). The frontend form is `resources/js/pages/auth/Register.vue`. Add a role selector (Landlord/Tenant) that posts `roles`.
   - context: reuse existing UI components (check `resources/js/components/ui/select` and how other auth pages build forms). Do not allow Admin here.
   - done: an Inertia/feature test posting registration with a chosen role creates the user with that role on the pivot.
+  - note: The role selector already exists in `Register.vue` (radio cards posting `roles[]`, no Admin). Per the documented v1 scope (product memo: "v1 is landlord-only"), Tenant is intentionally shown but disabled ("coming soon") — NOT enabling it, as that would contradict the product decision. Added a focused registration-flow test in `Auth/RegistrationTest` asserting registering with `roles: ['landlord']` lands the landlord role on the pivot.
 
 ### Email verification + branded emails
 
