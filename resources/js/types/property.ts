@@ -12,6 +12,24 @@ export interface ApplicationLink {
     updated_at: string;
 }
 
+export type ApplicationStatus = 'new' | 'reviewing' | 'approved' | 'rejected';
+
+export interface Application {
+    id: number;
+    application_link_id: number;
+    unit_id: number;
+    applicant_first_name: string;
+    applicant_last_name: string;
+    applicant_email: string;
+    applicant_phone: string;
+    status: ApplicationStatus;
+    landlord_notes: string | null;
+    documents_count?: number;
+    submitted_at: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface Unit {
     id: number;
     property_id: number;

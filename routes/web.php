@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\ApplicationFormController;
 use App\Http\Controllers\ApplicationLinkController;
 use App\Http\Controllers\DashboardController;
@@ -110,6 +111,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('units/{unit}/form', [ApplicationFormController::class, 'edit'])->name('units.form.edit');
     Route::put('units/{unit}/form', [ApplicationFormController::class, 'update'])->name('units.form.update');
+
+    Route::get('units/{unit}/applicants', [ApplicationController::class, 'index'])->name('units.applicants.index');
 
     Route::post('units/{unit}/links', [ApplicationLinkController::class, 'store'])->name('units.links.store');
     Route::put('links/{link}', [ApplicationLinkController::class, 'update'])->name('links.update');

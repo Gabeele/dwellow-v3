@@ -380,7 +380,18 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
 
 ### Landlord — applicants (CRUD only)
 
-- [ ] Applicants list page for a unit
+- [x] Applicants list page for a unit
+  - note: Added `ApplicationController@index(Unit $unit)` (route `units.applicants.index` =
+    `GET units/{unit}/applicants`, auth+verified) authorizing via the Unit policy `view`;
+    eager-loads applications `withCount('documents')`, sorted `latest('submitted_at')`, passing
+    `property`/`unit`/`applications`. Built `screening/applicants/Index.vue` (DataTable of
+    applicant name+email, submitted date, document count, status badge; empty state; back-to-property
+    link) reusing `properties/Index.vue` patterns. Added an `Application` TS type + `applicationStatus.ts`
+    badge helper (new→default, reviewing→warning, approved→success, rejected→danger). Turned the
+    `UnitScreeningPanel` applicant count into a `<Link>` to the new list. `ApplicationControllerTest`
+    (4 tests, 31 assertions) green; PropertyShowRedesignTest still green; Pint, ESLint, vue-tsc, build clean.
+    Renamed the test helper to `applicantUnitOwnedBy` to avoid a global-function collision with
+    `ScreeningPoliciesTest::unitOwnedBy`.
   - context: new `ApplicationController@index` (e.g. `units/{unit}/applicants`, name
     `units.applicants.index`, in the auth+verified group). Authorize via the unit policy. List
     the unit's applications with applicant name, submitted date, status (badge), document count.

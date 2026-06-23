@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import { Ban, Check, Copy, Plus, Users } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import ApplicationLinkController from '@/actions/App/Http/Controllers/ApplicationLinkController';
@@ -8,6 +8,7 @@ import type { BadgeVariants } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { index as applicantsIndex } from '@/routes/units/applicants';
 import type { ApplicationLink, Unit } from '@/types/property';
 
 const props = defineProps<{
@@ -90,12 +91,15 @@ async function copyUrl(link: ApplicationLink): Promise<void> {
                     {{ links.length }}
                 </span>
             </div>
-            <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Link
+                :href="applicantsIndex(unit.id)"
+                class="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
                 <Users class="size-3.5" />
                 {{ unit.applications_count ?? 0 }} applicant{{
                     (unit.applications_count ?? 0) === 1 ? '' : 's'
                 }}
-            </span>
+            </Link>
         </div>
 
         <!-- Existing links -->
