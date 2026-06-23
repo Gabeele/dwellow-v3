@@ -461,11 +461,22 @@ Guardrails (unchanged — see `.docs/decisions/`):
     edit does not re-stamp it. ApplicationControllerTest green (27), Pint + vue-tsc + ESLint + build
     clean; migration rollback/re-apply verified.
 
-- [ ] Flesh out `README.md`
+- [x] Flesh out `README.md`
   - context: the README is a single line. Write a real project README: what dwellow is (small-landlord
     tenant screening, documents-only, Canadian), the stack, local setup via Sail, how to run tests, and
     how the Ralph loop (`ralph.sh` + `PROMPT.md` + `ralph.md`) works. Keep it accurate to the repo.
   - done: README covers setup + test + Ralph; no fabricated commands (verify each runs).
+  - NOTE: Replaced the one-line README with a full one: what dwellow is (small-landlord tenant screening),
+    the **v1 scope** stated against the actual code — documents-only/Canadian (ADR 0002), link-only
+    no-accounts (ADR 0003), CRUD-only with AI scoring + reference outreach deferred (ADR 0001/0004) — so a
+    new contributor doesn't hunt for the aspirational features in `.docs/product/overview.md`. Stack pulled
+    from composer.json/package.json (PHP 8.5 / Laravel 13, Inertia v3 + Vue 3 + TS, Tailwind v4, Fortify,
+    Wayfinder, Pest/Pint/Larastan/ESLint/Prettier/vue-tsc, Sail w/ MariaDB+Redis+Mailpit). Setup is the
+    standard Sail flow; tests + quality commands match composer/package scripts. **Every command verified to
+    run**: `vendor/bin/sail artisan test --compact --filter=ApplicationSubmissionTest` (15 green), Mailpit
+    dashboard confirmed on :8025 in compose.yaml, `vendor/bin/phpstan` binary present, `sail open` present in
+    `vendor/bin/sail` help. Doc-only change (not under `resources/`), so no Pint/vue-tsc/Prettier/test run is
+    applicable. Linked the ADRs/glossary/data-model/roadmap docs. Milestone D is now complete.
 
 ---
 
