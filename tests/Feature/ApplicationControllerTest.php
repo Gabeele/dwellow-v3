@@ -60,6 +60,35 @@ test('the all-applications index lists every application across the landlords un
         );
 });
 
+test('the all-applications page renders each application with its unit and property', function () {
+    $landlord = User::factory()->landlord()->create();
+
+    $property = Property::factory()->for($landlord, 'landlord')->create(['name' => 'Cedar House']);
+    $unit = Unit::factory()->for($property)->create(['label' => 'Suite 3']);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create([
+        'applicant_first_name' => 'Rosa',
+        'applicant_last_name' => 'Lin',
+        'applicant_email' => 'rosa@example.com',
+        'status' => ApplicationStatus::Reviewing,
+        'submitted_at' => now(),
+    ]);
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applications.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('screening/applicants/All')
+            ->where('applications.data.0.applicant_name', 'Rosa Lin')
+            ->where('applications.data.0.applicant_email', 'rosa@example.com')
+            ->where('applications.data.0.property_name', 'Cedar House')
+            ->where('applications.data.0.unit_label', 'Suite 3')
+            ->where('applications.data.0.status', ApplicationStatus::Reviewing->value)
+            ->where('applications.data.0.url', route('applicants.show', $application)),
+        );
+});
+
 test('the all-applications index is paginated', function () {
     $landlord = User::factory()->landlord()->create();
     $unit = applicantUnitOwnedBy($landlord);

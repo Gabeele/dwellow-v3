@@ -148,13 +148,21 @@ Guardrails (unchanged — see `.docs/decisions/`):
     lists across multiple properties + excludes another landlord (newest first), and pagination (25 → 20
     per page, total 25). Suite green (13), Pint + vue-tsc + ESLint + build clean.
 
-- [ ] Build the Applications table page
+- [x] Build the Applications table page
   - context: new Vue page rendering the running list as a table (reuse `DataTable`, `TableRow`,
     `StatusBadge`, the `applicationStatus.ts` badge helper, and the row-click pattern from
     `screening/applicants/Index.vue`). Columns: Applicant, Property · Unit, Submitted, Documents,
     Status. Each row links to `applicants.show`. Include a clear empty state.
   - done: an inertia/page assertion that the page renders the applications with their unit/property;
     `vue-tsc` + build clean.
+  - NOTE: Replaced the `screening/applicants/All.vue` stub with the full table — `DataTable` + clickable
+    `TableRow` rows (Applicant name/email, Property · Unit, Submitted [en-CA date], Documents w/ `FileText`
+    count, right-aligned `StatusBadge` via `applicationStatusBadge`), mirroring `applicants/Index.vue`.
+    Rows navigate via the controller-supplied `application.url` (`router.visit`), so route logic stays in
+    the controller. Empty state reuses the dashed-border card pattern with an `Inbox` icon. The TS row
+    interface models the paginator's top-level `data` key. Added a focused inertia test asserting the page
+    renders a row's applicant_name/email/property/unit/status/url. ApplicationControllerTest green (14),
+    vue-tsc + ESLint + build + Pint clean. Sidebar nav entry is the next task.
 
 - [ ] Add the "Applications" entry to the sidebar nav
   - context: add an item to `mainNavItems` in `resources/js/components/AppSidebar.vue` (between
