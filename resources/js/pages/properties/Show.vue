@@ -33,6 +33,11 @@ const isMultiUnit = computed(() => props.property.rental_type === 'multi_unit');
 
 const units = computed<Unit[]>(() => props.property.units ?? []);
 
+/** The single unit that backs a whole rental; screening happens against it. */
+const backingUnit = computed<Unit | undefined>(() =>
+    isMultiUnit.value ? undefined : units.value[0],
+);
+
 const occupiedUnits = computed(() =>
     units.value.filter((unit) => unit.status === 'occupied'),
 );
@@ -277,6 +282,12 @@ function toggleScreening(unit: Unit): void {
                     </tr>
                 </template>
             </DataTable>
+        </div>
+
+        <!-- WHOLE RENTAL: screening surface for the single backing unit -->
+        <div v-else-if="backingUnit" class="flex flex-col gap-4">
+            <h2 class="text-17 font-semibold tracking-tight">Screening</h2>
+            <UnitScreeningPanel :unit="backingUnit" />
         </div>
     </div>
 </template>

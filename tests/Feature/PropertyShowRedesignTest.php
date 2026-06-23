@@ -46,16 +46,25 @@ test('the property show page exposes each unit application links and applicant c
         );
 });
 
-test('a whole rental show page renders with an empty units array', function () {
+test('a whole rental show page exposes its backing unit screening links and applicant counts', function () {
     $landlord = User::factory()->landlord()->create();
     $property = Property::factory()->whole()->for($landlord, 'landlord')->create();
+
+    // The PropertyObserver auto-provisions a single backing unit for whole rentals.
+    $unit = $property->units()->sole();
+    $link = ApplicationLink::factory()->for($unit)->create(['label' => 'Facebook post']);
+    Application::factory()->count(2)->for($link, 'applicationLink')->create();
 
     $this->actingAs($landlord)
         ->get(route('properties.show', $property))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('properties/Show')
-            ->has('property')
-            ->has('property.units'),
+            ->has('property.units', 1)
+            ->where('property.units.0.applications_count', 2)
+            ->has('property.units.0.application_links', 1)
+            ->where('property.units.0.application_links.0.label', 'Facebook post')
+            ->where('property.units.0.application_links.0.applications_count', 2)
+            ->where('property.units.0.application_links.0.public_url', fn (string $url) => str_contains($url, '/screening/'.$link->token)),
         );
 });

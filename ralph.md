@@ -70,7 +70,14 @@ Guardrails (unchanged from the prior milestone — see `.docs/decisions/`):
   - done: a feature test seeding a unit-less whole property, running the backfill, and asserting it now
     has exactly one unit with a default form; running it again adds nothing.
 
-- [ ] Render the screening surface for whole-rental properties on the property page
+- [x] Render the screening surface for whole-rental properties on the property page
+  - done: `properties/Show.vue` now renders a `Screening` section (`v-else-if="backingUnit"`) that reuses
+    `UnitScreeningPanel` for the whole rental's single backing unit (`units[0]`), without the multi-unit
+    Units-table chrome. No controller change needed — `PropertyController@show` already eager-loads every
+    property's units with `applicationLinks` + applicant counts + `public_url`, and the backing unit is a
+    regular `Unit`, so its screening data was already in the payload. Updated the stale "empty units array"
+    test in `PropertyShowRedesignTest.php` to assert the backing unit's links + applicant counts (whole
+    rentals now have a backing unit); multi-unit show test unchanged. Suite green (3), `vue-tsc` + build clean.
   - context: `properties/Show.vue` only renders units + `UnitScreeningPanel` inside `v-if="isMultiUnit"`.
     For a whole rental, render the **same** `UnitScreeningPanel` for its single backing unit — but as the
     property's own "Screening" section, **without** the multi-unit "Units" table chrome (no per-unit rows,
