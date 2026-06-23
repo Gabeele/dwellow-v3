@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ChevronLeft, Pencil, Plus, Trash2 } from '@lucide/vue';
+import { Pencil, Plus, Trash2 } from '@lucide/vue';
+import { computed } from 'vue';
 import PropertyController from '@/actions/App/Http/Controllers/PropertyController';
 import UnitController from '@/actions/App/Http/Controllers/UnitController';
-import Diamond from '@/components/Diamond.vue';
-import Eyebrow from '@/components/Eyebrow.vue';
+import DataTable from '@/components/DataTable.vue';
+import MetricCard from '@/components/MetricCard.vue';
+import PageHeader from '@/components/PageHeader.vue';
+import StatusBadge from '@/components/StatusBadge.vue';
+import TableRow from '@/components/TableRow.vue';
 import { Button } from '@/components/ui/button';
 import { edit, index } from '@/routes/properties';
 import { create as createUnit } from '@/routes/properties/units';
@@ -24,27 +28,71 @@ defineOptions({
     },
 });
 
-const isMultiUnit = props.property.rental_type === 'multi_unit';
+const isMultiUnit = computed(() => props.property.rental_type === 'multi_unit');
+
+const units = computed<Unit[]>(() => props.property.units ?? []);
+
+const occupiedUnits = computed(() =>
+    units.value.filter((unit) => unit.status === 'occupied'),
+);
+
+const availableUnits = computed(() =>
+    units.value.filter((unit) => unit.status === 'available'),
+);
+
+/** Number of rentable spaces: one per unit for multi-unit, otherwise the property itself. */
+const spaceCount = computed(() => (isMultiUnit.value ? units.value.length : 1));
+
+/** Spaces currently occupied. */
+const occupiedCount = computed(() =>
+    isMultiUnit.value
+        ? occupiedUnits.value.length
+        : props.property.status === 'occupied'
+          ? 1
+          : 0,
+);
+
+/** Spaces currently available to rent. */
+const vacantCount = computed(() =>
+    isMultiUnit.value
+        ? availableUnits.value.length
+        : props.property.status === 'available'
+          ? 1
+          : 0,
+);
+
+/** Monthly rent roll from occupied units (multi-unit) or the property rent (whole). */
+const rentRoll = computed(() => {
+    if (isMultiUnit.value) {
+        return occupiedUnits.value.reduce(
+            (sum, unit) => sum + Number(unit.rent_amount ?? 0),
+            0,
+        );
+    }
+
+    return Number(props.property.rent_amount ?? 0);
+});
+
+const currency = new Intl.NumberFormat('en-CA', {
+    style: 'currency',
+    currency: 'CAD',
+    maximumFractionDigits: 0,
+});
+
+function formatCurrency(value: number): string {
+    return currency.format(value);
+}
+
+function unitRent(unit: Unit): string {
+    return unit.rent_amount
+        ? `${formatCurrency(Number(unit.rent_amount))}/mo`
+        : '—';
+}
 
 function fullAddress(p: Property): string {
     return [p.address_line1, p.address_line2, p.city, p.region, p.postal_code]
         .filter(Boolean)
         .join(', ');
-}
-
-/** Tailwind colour utility for a status indicator dot. */
-function statusDot(status: string): string {
-    return (
-        {
-            available: 'bg-success',
-            occupied: 'bg-ai',
-            unavailable: 'bg-muted-foreground',
-        }[status] ?? 'bg-muted-foreground'
-    );
-}
-
-function money(value: string | null): string {
-    return value ? `$${value}` : '—';
 }
 
 function destroyProperty(): void {
@@ -63,171 +111,134 @@ function destroyUnit(unit: Unit): void {
 <template>
     <Head :title="property.name || property.address_line1" />
 
-    <div class="flex h-full flex-1 flex-col gap-6 p-6 lg:p-10">
-        <Button
-            as-child
-            variant="outline"
-            size="sm"
-            class="w-fit text-muted-foreground"
+    <div class="flex h-full flex-1 flex-col gap-8 p-6 lg:p-10">
+        <PageHeader
+            :title="property.name || property.address_line1"
+            :eyebrow="isMultiUnit ? 'Multi-unit' : 'Whole rental'"
+            :back="{ label: 'All properties', href: index() }"
         >
-            <Link :href="index()"><ChevronLeft />All properties</Link>
-        </Button>
+            <template #actions>
+                <Button as-child variant="outline">
+                    <Link :href="edit(property.id)"><Pencil />Edit</Link>
+                </Button>
+                <Button
+                    variant="outline"
+                    class="text-destructive"
+                    @click="destroyProperty"
+                >
+                    <Trash2 />Delete
+                </Button>
+            </template>
+        </PageHeader>
 
-        <!-- HERO -->
-        <div
-            class="overflow-hidden rounded-2xl border border-border bg-[radial-gradient(460px_340px_at_14%_0%,#F5F9FF_0%,var(--card)_56%)]"
-        >
-            <div
-                class="flex flex-col gap-6 p-6 lg:flex-row lg:items-start lg:justify-between lg:p-8"
-            >
-                <div class="flex flex-col gap-3">
-                    <span class="flex items-center gap-2">
-                        <Diamond :size="8" class="text-success" />
-                        <Eyebrow>{{
-                            isMultiUnit ? 'Multi-unit' : 'Whole rental'
-                        }}</Eyebrow>
-                    </span>
-                    <h1
-                        class="text-[26px] leading-none font-semibold tracking-[-0.03em]"
-                    >
-                        {{ property.name || property.address_line1 }}
-                    </h1>
-                    <p class="text-sm text-muted-foreground">
-                        {{ fullAddress(property) }}
-                    </p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <Button as-child variant="outline">
-                        <Link :href="edit(property.id)"><Pencil />Edit</Link>
-                    </Button>
-                    <Button
-                        variant="outline"
-                        class="text-destructive"
-                        @click="destroyProperty"
-                    >
-                        <Trash2 />Delete
-                    </Button>
-                </div>
-            </div>
+        <p class="-mt-4 text-sm text-muted-foreground">
+            {{ fullAddress(property) }}
+        </p>
 
-            <!-- Whole-rental details: mono micro-labels in the hero footer -->
-            <div
-                v-if="!isMultiUnit"
-                class="grid grid-cols-2 gap-6 border-t border-border/70 px-6 py-5 sm:grid-cols-4 lg:px-8"
-            >
-                <div class="flex flex-col gap-1">
-                    <Eyebrow>Bedrooms</Eyebrow>
-                    <span class="text-sm font-medium">{{
-                        property.bedrooms ?? '—'
-                    }}</span>
-                </div>
-                <div class="flex flex-col gap-1">
-                    <Eyebrow>Bathrooms</Eyebrow>
-                    <span class="text-sm font-medium">{{
-                        property.bathrooms ?? '—'
-                    }}</span>
-                </div>
-                <div class="flex flex-col gap-1">
-                    <Eyebrow>Monthly rent</Eyebrow>
-                    <span class="text-sm font-medium">{{
-                        money(property.rent_amount)
-                    }}</span>
-                </div>
-                <div class="flex flex-col gap-1">
-                    <Eyebrow>Status</Eyebrow>
-                    <span
-                        class="inline-flex items-center gap-2 text-sm font-medium capitalize"
-                    >
-                        <span
-                            class="size-1.5 rounded-full"
-                            :class="statusDot(property.status)"
-                        />
-                        {{ property.status }}
-                    </span>
-                </div>
-            </div>
+        <!-- METRICS -->
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <template v-if="isMultiUnit">
+                <MetricCard label="Units" :value="spaceCount" />
+                <MetricCard label="Occupied" :value="occupiedCount" />
+                <MetricCard label="Vacant" :value="vacantCount" />
+                <MetricCard
+                    label="Monthly rent"
+                    :value="formatCurrency(rentRoll)"
+                    detail="from occupied units"
+                />
+            </template>
+            <template v-else>
+                <MetricCard
+                    label="Bedrooms"
+                    :value="property.bedrooms ?? '—'"
+                />
+                <MetricCard
+                    label="Bathrooms"
+                    :value="property.bathrooms ?? '—'"
+                />
+                <MetricCard
+                    label="Monthly rent"
+                    :value="formatCurrency(rentRoll)"
+                />
+                <MetricCard label="Status" value="">
+                    <template #tag>
+                        <StatusBadge :status="property.status" />
+                    </template>
+                </MetricCard>
+            </template>
         </div>
 
         <!-- MULTI-UNIT: unit list -->
         <div v-if="isMultiUnit" class="flex flex-col gap-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <h2 class="text-lg font-semibold tracking-[-0.01em]">
-                        Units
-                    </h2>
+                    <h2 class="text-17 font-semibold tracking-tight">Units</h2>
                     <span class="font-mono text-xs text-muted-foreground">
-                        {{ property.units?.length ?? 0 }}
+                        {{ units.length }}
                     </span>
                 </div>
                 <Button as-child variant="outline">
-                    <Link :href="createUnit(property.id)"
-                        ><Plus />Add unit</Link
-                    >
+                    <Link :href="createUnit(property.id)">
+                        <Plus />Add unit
+                    </Link>
                 </Button>
             </div>
 
             <p
-                v-if="!property.units?.length"
-                class="rounded-2xl border border-dashed border-border bg-card/50 p-10 text-center text-sm text-muted-foreground"
+                v-if="!units.length"
+                class="rounded-lg border border-dashed border-border bg-card/50 p-10 text-center text-sm text-muted-foreground"
             >
                 No units yet. Add the first one.
             </p>
 
-            <div
-                v-else
-                class="overflow-hidden rounded-2xl border border-border bg-card"
-            >
-                <div
-                    v-for="unit in property.units"
-                    :key="unit.id"
-                    class="flex items-center gap-4 border-b border-border/70 px-5 py-4 last:border-b-0"
-                >
-                    <div
-                        class="flex size-9 flex-none items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground"
-                    >
-                        {{ unit.label.slice(0, 2).toUpperCase() }}
-                    </div>
-                    <div class="min-w-0 flex-1">
-                        <div class="truncate text-sm font-medium">
-                            {{ unit.label }}
+            <DataTable v-else>
+                <template #head>
+                    <th class="px-4 py-3 font-medium">Label</th>
+                    <th class="px-4 py-3 font-medium">Bedrooms</th>
+                    <th class="px-4 py-3 font-medium">Bathrooms</th>
+                    <th class="px-4 py-3 font-medium">Rent</th>
+                    <th class="px-4 py-3 font-medium">Status</th>
+                    <th class="px-4 py-3 text-right font-medium">Actions</th>
+                </template>
+
+                <TableRow v-for="unit in units" :key="unit.id">
+                    <td class="px-4 py-3 font-medium">{{ unit.label }}</td>
+                    <td class="px-4 py-3 text-muted-foreground">
+                        {{ unit.bedrooms ?? '—' }}
+                    </td>
+                    <td class="px-4 py-3 text-muted-foreground">
+                        {{ unit.bathrooms ?? '—' }}
+                    </td>
+                    <td class="px-4 py-3 font-mono text-muted-foreground">
+                        {{ unitRent(unit) }}
+                    </td>
+                    <td class="px-4 py-3">
+                        <StatusBadge :status="unit.status" />
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="flex items-center justify-end gap-1">
+                            <Button
+                                as-child
+                                size="icon"
+                                variant="ghost"
+                                class="text-muted-foreground"
+                            >
+                                <Link :href="editUnit(unit.id)">
+                                    <Pencil />
+                                </Link>
+                            </Button>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                class="text-muted-foreground"
+                                @click="destroyUnit(unit)"
+                            >
+                                <Trash2 />
+                            </Button>
                         </div>
-                        <div class="text-xs text-muted-foreground">
-                            {{ unit.bedrooms ?? '—' }} bd ·
-                            {{ unit.bathrooms ?? '—' }} ba ·
-                            {{
-                                unit.rent_amount
-                                    ? `${money(unit.rent_amount)}/mo`
-                                    : 'no rent set'
-                            }}
-                        </div>
-                    </div>
-                    <span
-                        class="inline-flex items-center gap-2 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground capitalize"
-                    >
-                        <span
-                            class="size-1.5 rounded-full"
-                            :class="statusDot(unit.status)"
-                        />
-                        {{ unit.status }}
-                    </span>
-                    <Button
-                        as-child
-                        size="icon"
-                        variant="ghost"
-                        class="text-muted-foreground"
-                    >
-                        <Link :href="editUnit(unit.id)"><Pencil /></Link>
-                    </Button>
-                    <Button
-                        size="icon"
-                        variant="ghost"
-                        class="text-muted-foreground"
-                        @click="destroyUnit(unit)"
-                    >
-                        <Trash2 />
-                    </Button>
-                </div>
-            </div>
+                    </td>
+                </TableRow>
+            </DataTable>
         </div>
     </div>
 </template>

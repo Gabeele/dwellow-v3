@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import type { Property, PropertyFormOptions } from '@/types/property';
 
 const props = defineProps<{
@@ -15,14 +22,28 @@ const rentalType = ref(props.property?.rental_type ?? 'whole');
 const type = ref(props.property?.type ?? 'other');
 const status = ref(props.property?.status ?? 'available');
 
-const selectClass =
-    'border-input bg-transparent dark:bg-input/30 h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none';
+const typeLabel = computed(
+    () =>
+        props.options.types.find((option) => option.value === type.value)
+            ?.label,
+);
+const rentalTypeLabel = computed(
+    () =>
+        props.options.rentalTypes.find(
+            (option) => option.value === rentalType.value,
+        )?.label,
+);
+const statusLabel = computed(
+    () =>
+        props.options.statuses.find((option) => option.value === status.value)
+            ?.label,
+);
 </script>
 
 <template>
     <div class="grid gap-6">
         <div class="grid gap-2">
-            <Label for="name"
+            <Label for="name" class="text-sm"
                 >Name
                 <span class="text-muted-foreground">(optional)</span></Label
             >
@@ -36,7 +57,7 @@ const selectClass =
         </div>
 
         <div class="grid gap-2">
-            <Label for="address_line1">Address line 1</Label>
+            <Label for="address_line1" class="text-sm">Address line 1</Label>
             <Input
                 id="address_line1"
                 name="address_line1"
@@ -47,7 +68,7 @@ const selectClass =
         </div>
 
         <div class="grid gap-2">
-            <Label for="address_line2"
+            <Label for="address_line2" class="text-sm"
                 >Address line 2
                 <span class="text-muted-foreground">(optional)</span></Label
             >
@@ -61,7 +82,7 @@ const selectClass =
 
         <div class="grid gap-4 sm:grid-cols-2">
             <div class="grid gap-2">
-                <Label for="city">City</Label>
+                <Label for="city" class="text-sm">City</Label>
                 <Input
                     id="city"
                     name="city"
@@ -71,7 +92,7 @@ const selectClass =
                 <InputError :message="errors.city" />
             </div>
             <div class="grid gap-2">
-                <Label for="region">Province / region</Label>
+                <Label for="region" class="text-sm">Province / region</Label>
                 <Input
                     id="region"
                     name="region"
@@ -84,7 +105,7 @@ const selectClass =
 
         <div class="grid gap-4 sm:grid-cols-2">
             <div class="grid gap-2">
-                <Label for="postal_code">Postal code</Label>
+                <Label for="postal_code" class="text-sm">Postal code</Label>
                 <Input
                     id="postal_code"
                     name="postal_code"
@@ -94,7 +115,7 @@ const selectClass =
                 <InputError :message="errors.postal_code" />
             </div>
             <div class="grid gap-2">
-                <Label for="country">Country</Label>
+                <Label for="country" class="text-sm">Country</Label>
                 <Input
                     id="country"
                     name="country"
@@ -108,39 +129,45 @@ const selectClass =
 
         <div class="grid gap-4 sm:grid-cols-2">
             <div class="grid gap-2">
-                <Label for="type">Property type</Label>
-                <select
-                    id="type"
-                    name="type"
-                    v-model="type"
-                    :class="selectClass"
-                >
-                    <option
-                        v-for="option in options.types"
-                        :key="option.value"
-                        :value="option.value"
-                    >
-                        {{ option.label }}
-                    </option>
-                </select>
+                <Label for="type" class="text-sm">Property type</Label>
+                <input type="hidden" name="type" :value="type" />
+                <Select v-model="type">
+                    <SelectTrigger id="type" class="w-full">
+                        <SelectValue placeholder="Select a type">
+                            {{ typeLabel }}
+                        </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem
+                            v-for="option in options.types"
+                            :key="option.value"
+                            :value="option.value"
+                        >
+                            {{ option.label }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
                 <InputError :message="errors.type" />
             </div>
             <div class="grid gap-2">
-                <Label for="rental_type">Rental type</Label>
-                <select
-                    id="rental_type"
-                    name="rental_type"
-                    v-model="rentalType"
-                    :class="selectClass"
-                >
-                    <option
-                        v-for="option in options.rentalTypes"
-                        :key="option.value"
-                        :value="option.value"
-                    >
-                        {{ option.label }}
-                    </option>
-                </select>
+                <Label for="rental_type" class="text-sm">Rental type</Label>
+                <input type="hidden" name="rental_type" :value="rentalType" />
+                <Select v-model="rentalType">
+                    <SelectTrigger id="rental_type" class="w-full">
+                        <SelectValue placeholder="Select a rental type">
+                            {{ rentalTypeLabel }}
+                        </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem
+                            v-for="option in options.rentalTypes"
+                            :key="option.value"
+                            :value="option.value"
+                        >
+                            {{ option.label }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
                 <InputError :message="errors.rental_type" />
             </div>
         </div>
@@ -149,14 +176,14 @@ const selectClass =
              multi-unit properties these live on each unit instead. -->
         <div
             v-if="rentalType === 'whole'"
-            class="grid gap-6 rounded-md border border-dashed p-4"
+            class="grid gap-6 rounded-lg border border-dashed border-border p-4"
         >
             <p class="text-sm text-muted-foreground">
                 Rental details for the whole property
             </p>
             <div class="grid gap-4 sm:grid-cols-3">
                 <div class="grid gap-2">
-                    <Label for="bedrooms">Bedrooms</Label>
+                    <Label for="bedrooms" class="text-sm">Bedrooms</Label>
                     <Input
                         id="bedrooms"
                         name="bedrooms"
@@ -167,7 +194,7 @@ const selectClass =
                     <InputError :message="errors.bedrooms" />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="bathrooms">Bathrooms</Label>
+                    <Label for="bathrooms" class="text-sm">Bathrooms</Label>
                     <Input
                         id="bathrooms"
                         name="bathrooms"
@@ -179,7 +206,9 @@ const selectClass =
                     <InputError :message="errors.bathrooms" />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="rent_amount">Monthly rent</Label>
+                    <Label for="rent_amount" class="text-sm"
+                        >Monthly rent</Label
+                    >
                     <Input
                         id="rent_amount"
                         name="rent_amount"
@@ -192,21 +221,24 @@ const selectClass =
                 </div>
             </div>
             <div class="grid gap-2 sm:max-w-xs">
-                <Label for="status">Status</Label>
-                <select
-                    id="status"
-                    name="status"
-                    v-model="status"
-                    :class="selectClass"
-                >
-                    <option
-                        v-for="option in options.statuses"
-                        :key="option.value"
-                        :value="option.value"
-                    >
-                        {{ option.label }}
-                    </option>
-                </select>
+                <Label for="status" class="text-sm">Status</Label>
+                <input type="hidden" name="status" :value="status" />
+                <Select v-model="status">
+                    <SelectTrigger id="status" class="w-full">
+                        <SelectValue placeholder="Select a status">
+                            {{ statusLabel }}
+                        </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem
+                            v-for="option in options.statuses"
+                            :key="option.value"
+                            :value="option.value"
+                        >
+                            {{ option.label }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
                 <InputError :message="errors.status" />
             </div>
         </div>

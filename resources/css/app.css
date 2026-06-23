@@ -9,13 +9,40 @@
 
 @theme inline {
     --font-sans:
-        Geist, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
-        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+        'Geist Sans', Geist, ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        'Noto Color Emoji';
     --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
     --radius-sm: calc(var(--radius) - 4px);
+
+    /* Rationalized type scale extracted from the design prototype. */
+    --text-2xs: 0.6875rem; /* 11px — micro labels, sidebar counts */
+    --text-2xs--line-height: 1rem;
+    --text-xs: 0.75rem; /* 12px — eyebrows, badges, table meta */
+    --text-xs--line-height: 1rem;
+    --text-13: 0.8125rem; /* 13px — dense table body */
+    --text-13--line-height: 1.125rem;
+    --text-sm: 0.875rem; /* 14px — body, inputs */
+    --text-sm--line-height: 1.25rem;
+    --text-base: 1rem; /* 16px */
+    --text-base--line-height: 1.5rem;
+    --text-17: 1.0625rem; /* 17px — card values */
+    --text-17--line-height: 1.5rem;
+    --text-22: 1.375rem; /* 22px — section headings */
+    --text-22--line-height: 1.75rem;
+    --text-28: 1.75rem; /* 28px — page titles */
+    --text-28--line-height: 2.125rem;
+    --text-34: 2.125rem; /* 34px — hero/large stats */
+    --text-34--line-height: 2.5rem;
+    --text-gauge: 6rem; /* 96px — score gauge numeral */
+    --text-gauge--line-height: 1;
+
+    /* Shadows from the prototype. */
+    --shadow-card: 0 1px 4px rgb(0 0 0 / 0.08);
+    --shadow-card-md: 0 1px 4px rgb(0 0 0 / 0.12);
 
     --color-background: var(--background);
     --color-foreground: var(--foreground);
@@ -43,9 +70,21 @@
 
     --color-success: var(--success);
     --color-success-foreground: var(--success-foreground);
+    --color-success-tint: var(--success-tint);
+    --color-success-tint-foreground: var(--success-tint-foreground);
+
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-warning-tint: var(--warning-tint);
+    --color-warning-tint-foreground: var(--warning-tint-foreground);
+
+    --color-danger-tint: var(--danger-tint);
+    --color-danger-tint-foreground: var(--danger-tint-foreground);
 
     --color-ai: var(--ai);
     --color-ai-foreground: var(--ai-foreground);
+    --color-ai-tint: var(--ai-tint);
+    --color-ai-tint-foreground: var(--ai-tint-foreground);
 
     --color-border: var(--border);
     --color-input: var(--input);
@@ -114,10 +153,20 @@
     --accent-foreground: hsl(0 0% 9%);
     --destructive: hsl(0 84.2% 60.2%);
     --destructive-foreground: hsl(0 0% 98%);
-    --success: hsl(142 73% 29%);
+    --success: hsl(142 73% 29%); /* #15803D */
     --success-foreground: hsl(0 0% 100%);
-    --ai: hsl(217 91% 60%);
+    --success-tint: hsl(142 41% 93%); /* #E7F4EC */
+    --success-tint-foreground: hsl(142 73% 29%);
+    --warning: hsl(31 91% 36%); /* #B45309 */
+    --warning-foreground: hsl(0 0% 100%);
+    --warning-tint: hsl(36 60% 94%); /* #FBF1E3 */
+    --warning-tint-foreground: hsl(31 91% 36%);
+    --danger-tint: hsl(6 67% 95%); /* #FBEBE9 */
+    --danger-tint-foreground: hsl(4 63% 46%); /* #C0362C */
+    --ai: hsl(217 91% 60%); /* #2563EB */
     --ai-foreground: hsl(0 0% 100%);
+    --ai-tint: hsl(222 83% 96%); /* #EAF0FE */
+    --ai-tint-foreground: hsl(221 83% 53%);
     --border: hsl(240 6% 93%);
     --input: hsl(240 5% 91%);
     --ring: hsl(142 73% 29%);
@@ -157,8 +206,18 @@
     --destructive-foreground: hsl(0 0% 98%);
     --success: hsl(142 69% 45%);
     --success-foreground: hsl(0 0% 4%);
+    --success-tint: hsl(142 40% 14%);
+    --success-tint-foreground: hsl(142 69% 70%);
+    --warning: hsl(38 92% 55%);
+    --warning-foreground: hsl(0 0% 4%);
+    --warning-tint: hsl(33 45% 15%);
+    --warning-tint-foreground: hsl(38 92% 72%);
+    --danger-tint: hsl(6 45% 16%);
+    --danger-tint-foreground: hsl(6 78% 74%);
     --ai: hsl(217 91% 66%);
     --ai-foreground: hsl(0 0% 4%);
+    --ai-tint: hsl(221 45% 18%);
+    --ai-tint-foreground: hsl(217 91% 78%);
     --border: hsl(0 0% 14.9%);
     --input: hsl(0 0% 14.9%);
     --ring: hsl(0 0% 83.1%);
@@ -187,18 +246,62 @@
         /* Ambient brand glow: faint blue (AI) top-right, faint green bottom-left. */
         background-image:
             radial-gradient(
-                960px 520px at 88% -6%,
-                hsl(217 91% 60% / 0.05),
-                transparent 58%
+                900px 520px at 92% -8%,
+                hsl(217 91% 60% / 0.08),
+                transparent 60%
             ),
             radial-gradient(
-                820px 600px at 2% 108%,
-                hsl(142 73% 29% / 0.05),
-                transparent 55%
+                820px 600px at -4% 110%,
+                hsl(142 73% 29% / 0.07),
+                transparent 58%
             );
         background-attachment: fixed;
     }
     .dark body {
-        background-image: none;
+        /* A subtler version of the same brand glow on the near-black canvas. */
+        background-image:
+            radial-gradient(
+                900px 520px at 92% -8%,
+                hsl(217 91% 62% / 0.12),
+                transparent 60%
+            ),
+            radial-gradient(
+                820px 600px at -4% 110%,
+                hsl(142 69% 45% / 0.1),
+                transparent 58%
+            );
+    }
+}
+
+@layer utilities {
+    /* Opaque page/layout roots paint over the body glow, so reapply the same
+       ambient brand gradients on any root that needs them. */
+    .bg-ambient {
+        background-color: var(--background);
+        background-image:
+            radial-gradient(
+                900px 520px at 92% -8%,
+                hsl(217 91% 60% / 0.08),
+                transparent 60%
+            ),
+            radial-gradient(
+                820px 600px at -4% 110%,
+                hsl(142 73% 29% / 0.07),
+                transparent 58%
+            );
+        background-attachment: fixed;
+    }
+    .dark .bg-ambient {
+        background-image:
+            radial-gradient(
+                900px 520px at 92% -8%,
+                hsl(217 91% 62% / 0.12),
+                transparent 60%
+            ),
+            radial-gradient(
+                820px 600px at -4% 110%,
+                hsl(142 69% 45% / 0.1),
+                transparent 58%
+            );
     }
 }

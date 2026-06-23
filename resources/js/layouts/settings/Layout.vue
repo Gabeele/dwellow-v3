@@ -4,7 +4,7 @@ import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
-import { toUrl } from '@/lib/utils';
+import { cn, toUrl } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editProfile } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
@@ -29,7 +29,7 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
 </script>
 
 <template>
-    <div class="px-4 py-6">
+    <div class="px-4 py-6 lg:px-6 lg:py-8">
         <Heading
             title="Settings"
             description="Manage your profile and account settings"
@@ -45,10 +45,13 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
                         v-for="item in sidebarNavItems"
                         :key="toUrl(item.href)"
                         variant="ghost"
-                        :class="[
-                            'w-full justify-start',
-                            { 'bg-muted': isCurrentOrParentUrl(item.href) },
-                        ]"
+                        :class="
+                            cn(
+                                'w-full justify-start text-sm font-normal text-muted-foreground hover:bg-accent hover:text-foreground',
+                                isCurrentOrParentUrl(item.href) &&
+                                    'bg-accent font-medium text-foreground',
+                            )
+                        "
                         as-child
                     >
                         <Link :href="item.href">

@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { computed, reactive } from 'vue';
+import { ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
@@ -21,24 +20,19 @@ const roleOptions = [
         value: 'landlord',
         label: 'Landlord',
         description: 'I own or manage properties to rent out.',
+        disabled: false,
     },
     {
         value: 'tenant',
         label: 'Tenant',
-        description: 'I rent, or am looking to rent, a place to live.',
+        description: 'Tenant accounts are coming soon.',
+        disabled: true,
     },
 ] as const;
 
-const selectedRoles = reactive<Record<string, boolean>>({
-    landlord: false,
-    tenant: true,
-});
-
-const checkedRoles = computed(() =>
-    roleOptions
-        .map((role) => role.value)
-        .filter((value) => selectedRoles[value]),
-);
+// Dwellow v1 is landlord-only, so landlord is preselected and tenant is
+// disabled; the form still submits a roles[] array for the backend.
+const selectedRole = ref<string>('landlord');
 
 defineOptions({
     layout: {
@@ -117,34 +111,35 @@ defineOptions({
 
             <div class="grid gap-3">
                 <Label>I am a…</Label>
-                <div
+                <label
                     v-for="role in roleOptions"
                     :key="role.value"
-                    class="flex items-start gap-3 rounded-md border border-input p-3"
+                    :class="[
+                        'flex items-start gap-3 rounded-lg border p-3 transition-colors',
+                        role.disabled
+                            ? 'cursor-not-allowed border-border opacity-50'
+                            : selectedRole === role.value
+                              ? 'cursor-pointer border-success bg-success/5'
+                              : 'cursor-pointer border-border',
+                    ]"
                 >
-                    <Checkbox
-                        :id="`role-${role.value}`"
-                        v-model="selectedRoles[role.value]"
-                        class="mt-0.5"
+                    <input
+                        type="radio"
+                        name="role-choice"
+                        class="mt-0.5 accent-success"
+                        :value="role.value"
+                        :checked="selectedRole === role.value"
+                        :disabled="role.disabled"
+                        @change="selectedRole = role.value"
                     />
                     <div class="grid gap-1 leading-none">
-                        <Label
-                            :for="`role-${role.value}`"
-                            class="font-medium"
-                            >{{ role.label }}</Label
-                        >
+                        <span class="font-medium">{{ role.label }}</span>
                         <p class="text-sm text-muted-foreground">
                             {{ role.description }}
                         </p>
                     </div>
-                </div>
-                <input
-                    v-for="value in checkedRoles"
-                    :key="value"
-                    type="hidden"
-                    name="roles[]"
-                    :value="value"
-                />
+                </label>
+                <input type="hidden" name="roles[]" :value="selectedRole" />
                 <InputError :message="errors.roles" />
             </div>
 
@@ -162,12 +157,7 @@ defineOptions({
 
         <div class="text-center text-sm text-muted-foreground">
             Already have an account?
-            <TextLink
-                :href="login()"
-                class="underline underline-offset-4"
-                :tabindex="6"
-                >Log in</TextLink
-            >
+            <TextLink :href="login()" :tabindex="6">Log in</TextLink>
         </div>
     </Form>
 </template>

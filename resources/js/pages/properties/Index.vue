@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
-import { Building2, Plus } from '@lucide/vue';
-import Diamond from '@/components/Diamond.vue';
-import Eyebrow from '@/components/Eyebrow.vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { Building2 } from '@lucide/vue';
+import { computed, ref } from 'vue';
+import DataTable from '@/components/DataTable.vue';
+import FilterTabs from '@/components/FilterTabs.vue';
+import type { FilterTab } from '@/components/FilterTabs.vue';
+import PageHeader from '@/components/PageHeader.vue';
+import StatCard from '@/components/StatCard.vue';
+import StatusBadge from '@/components/StatusBadge.vue';
+import TableRow from '@/components/TableRow.vue';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { propertyOccupancy } from '@/lib/occupancy';
+import type { OccupancyStatus } from '@/lib/occupancy';
 import { create, index, show } from '@/routes/properties';
 import type { Property } from '@/types/property';
 
-defineProps<{
+const props = defineProps<{
     properties: Property[];
 }>();
 
@@ -17,39 +26,150 @@ defineOptions({
     },
 });
 
+/**
+ * The number of rentable spaces a property contributes: a multi-unit
+ * property exposes one space per unit, a whole rental is a single space.
+ */
+function spaceCount(property: Property): number {
+    return property.rental_type === 'multi_unit'
+        ? (property.units_count ?? 0)
+        : 1;
+}
+
+/**
+ * The count of occupied rentable spaces within a property.
+ */
+function occupiedSpaces(property: Property): number {
+    if (property.rental_type === 'multi_unit') {
+        return property.occupied_units_count ?? 0;
+    }
+
+    return property.status === 'occupied' ? 1 : 0;
+}
+
+/**
+ * The count of available (vacant) rentable spaces within a property.
+ */
+function availableSpaces(property: Property): number {
+    if (property.rental_type === 'multi_unit') {
+        return property.available_units_count ?? 0;
+    }
+
+    return property.status === 'available' ? 1 : 0;
+}
+
+const totalUnits = computed(() =>
+    props.properties.reduce((sum, property) => sum + spaceCount(property), 0),
+);
+
+const totalOccupied = computed(() =>
+    props.properties.reduce(
+        (sum, property) => sum + occupiedSpaces(property),
+        0,
+    ),
+);
+
+const totalAvailable = computed(() =>
+    props.properties.reduce(
+        (sum, property) => sum + availableSpaces(property),
+        0,
+    ),
+);
+
+type TabValue = 'all' | OccupancyStatus;
+
+const activeTab = ref<TabValue>('all');
+
+function countByStatus(status: OccupancyStatus): number {
+    return props.properties.filter(
+        (property) => propertyOccupancy(property) === status,
+    ).length;
+}
+
+const tabs = computed<FilterTab[]>(() => [
+    { value: 'all', label: 'All', count: props.properties.length },
+    { value: 'occupied', label: 'Occupied', count: countByStatus('occupied') },
+    {
+        value: 'available',
+        label: 'Available',
+        count: countByStatus('available'),
+    },
+    {
+        value: 'unavailable',
+        label: 'Unavailable',
+        count: countByStatus('unavailable'),
+    },
+]);
+
+const filteredProperties = computed(() => {
+    if (activeTab.value === 'all') {
+        return props.properties;
+    }
+
+    return props.properties.filter(
+        (property) => propertyOccupancy(property) === activeTab.value,
+    );
+});
+
+function initials(property: Property): string {
+    const source = property.name || property.address_line1 || '';
+
+    return (
+        source
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((word) => word[0]?.toUpperCase() ?? '')
+            .join('') || '?'
+    );
+}
+
+function primaryText(property: Property): string {
+    return property.name || property.address_line1;
+}
+
 function cityLine(property: Property): string {
     return [property.city, property.region].filter(Boolean).join(', ');
+}
+
+function spacesLabel(property: Property): string {
+    if (property.rental_type === 'multi_unit') {
+        const count = property.units_count ?? 0;
+
+        return `${count} ${count === 1 ? 'unit' : 'units'}`;
+    }
+
+    return 'Whole';
+}
+
+function rentOrType(property: Property): string {
+    if (property.rental_type === 'whole' && property.rent_amount) {
+        return `$${property.rent_amount}`;
+    }
+
+    return property.type;
+}
+
+function openProperty(property: Property): void {
+    router.visit(show(property.id));
 }
 </script>
 
 <template>
     <Head title="Properties" />
 
-    <div class="flex h-full flex-1 flex-col gap-7 p-6 lg:p-10">
-        <div class="flex items-end justify-between gap-6">
-            <div class="flex flex-col gap-2">
-                <Eyebrow>Portfolio</Eyebrow>
-                <h1
-                    class="text-[28px] leading-none font-semibold tracking-[-0.03em]"
-                >
-                    Properties
-                </h1>
-                <p class="text-sm text-muted-foreground">
-                    Everything you rent out, across whole-home and multi-unit
-                    listings.
-                </p>
-            </div>
-            <Button as-child>
-                <Link :href="create()">
-                    <Plus />
-                    New property
-                </Link>
-            </Button>
-        </div>
+    <div class="flex h-full flex-1 flex-col p-6 lg:p-10">
+        <PageHeader eyebrow="Portfolio" title="Properties">
+            <template #actions>
+                <Button as-child>
+                    <Link :href="create()">Add property</Link>
+                </Button>
+            </template>
+        </PageHeader>
 
         <div
             v-if="properties.length === 0"
-            class="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-card/50 p-16 text-center"
+            class="flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card p-16 text-center shadow-card"
         >
             <div
                 class="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground"
@@ -60,64 +180,74 @@ function cityLine(property: Property): string {
                 You haven't added any properties yet.
             </p>
             <Button as-child variant="outline">
-                <Link :href="create()">Add your first property</Link>
+                <Link :href="create()">Add property</Link>
             </Button>
         </div>
 
-        <div v-else class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <Link
-                v-for="property in properties"
-                :key="property.id"
-                :href="show(property.id)"
-                class="group flex flex-col gap-5 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-foreground/25"
-            >
-                <div class="flex items-center justify-between">
-                    <span class="flex items-center gap-2 text-muted-foreground">
-                        <Diamond :size="7" class="text-success" />
-                        <span
-                            class="font-mono text-[11px] tracking-[0.08em] uppercase"
-                        >
-                            {{ property.type }}
-                        </span>
-                    </span>
-                    <span class="font-mono text-[11px] text-muted-foreground">
-                        {{
-                            property.rental_type === 'multi_unit'
-                                ? `${property.units_count ?? 0} ${(property.units_count ?? 0) === 1 ? 'unit' : 'units'}`
-                                : 'Whole'
-                        }}
-                    </span>
-                </div>
+        <div v-else class="flex flex-col gap-6">
+            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <StatCard label="Properties" :value="properties.length" />
+                <StatCard
+                    label="Units"
+                    :value="totalUnits"
+                    context="Rentable spaces"
+                />
+                <StatCard
+                    label="Occupied"
+                    :value="totalOccupied"
+                    tone="success"
+                />
+                <StatCard
+                    label="Available"
+                    :value="totalAvailable"
+                    tone="warning"
+                />
+            </div>
 
-                <div class="flex flex-col gap-1">
-                    <span class="text-base font-semibold tracking-[-0.01em]">
-                        {{ property.name || property.address_line1 }}
-                    </span>
-                    <span class="text-sm text-muted-foreground">{{
-                        cityLine(property)
-                    }}</span>
-                </div>
+            <FilterTabs v-model="activeTab" :tabs="tabs" />
 
-                <div class="mt-auto border-t border-border pt-4">
-                    <span
-                        class="inline-flex items-center gap-2 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"
-                    >
-                        <span
-                            class="size-1.5 rounded-full"
-                            :class="
-                                property.rental_type === 'multi_unit'
-                                    ? 'bg-foreground/40'
-                                    : 'bg-success'
-                            "
-                        />
-                        {{
-                            property.rental_type === 'multi_unit'
-                                ? 'Split into units'
-                                : 'Rented as a whole'
-                        }}
-                    </span>
-                </div>
-            </Link>
+            <DataTable>
+                <template #head>
+                    <th class="px-4 py-3 font-medium">Property</th>
+                    <th class="px-4 py-3 font-medium">Spaces</th>
+                    <th class="px-4 py-3 font-medium">Rent / Type</th>
+                    <th class="px-4 py-3 text-right font-medium">Status</th>
+                </template>
+
+                <TableRow
+                    v-for="property in filteredProperties"
+                    :key="property.id"
+                    clickable
+                    @click="openProperty(property)"
+                >
+                    <td class="px-4 py-3">
+                        <div class="flex items-center gap-3">
+                            <Avatar>
+                                <AvatarFallback class="text-xs font-medium">
+                                    {{ initials(property) }}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div class="flex flex-col">
+                                <span class="font-medium text-foreground">
+                                    {{ primaryText(property) }}
+                                </span>
+                                <span class="text-13 text-muted-foreground">
+                                    {{ cityLine(property) }}
+                                </span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-muted-foreground">
+                        {{ spacesLabel(property) }}
+                    </td>
+                    <td class="px-4 py-3 text-muted-foreground">
+                        {{ rentOrType(property) }}
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                        <StatusBadge :status="propertyOccupancy(property)" />
+                    </td>
+                </TableRow>
+            </DataTable>
         </div>
     </div>
 </template>

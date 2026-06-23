@@ -30,7 +30,7 @@ defineProps<{
 
     <div
         v-if="status"
-        class="mb-4 text-center text-sm font-medium text-green-600"
+        class="mb-4 text-center text-sm font-medium text-success"
     >
         {{ status }}
     </div>
@@ -81,7 +81,10 @@ defineProps<{
             </div>
 
             <div class="flex items-center justify-between">
-                <Label for="remember" class="flex items-center space-x-3">
+                <Label
+                    for="remember"
+                    class="flex items-center gap-2 text-sm font-normal text-muted-foreground"
+                >
                     <Checkbox id="remember" name="remember" :tabindex="3" />
                     <span>Remember me</span>
                 </Label>

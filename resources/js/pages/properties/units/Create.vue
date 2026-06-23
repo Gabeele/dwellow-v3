@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
 import UnitController from '@/actions/App/Http/Controllers/UnitController';
-import Eyebrow from '@/components/Eyebrow.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import UnitFormFields from '@/components/properties/UnitFormFields.vue';
 import { Button } from '@/components/ui/button';
 import { index, show } from '@/routes/properties';
@@ -26,19 +26,23 @@ defineOptions({
     <Head title="Add unit" />
 
     <div class="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6 lg:p-10">
-        <div class="flex flex-col gap-2">
-            <Eyebrow>Add unit</Eyebrow>
-            <h1 class="text-2xl font-semibold tracking-[-0.02em]">
-                {{ property.name || property.address_line1 }}
-            </h1>
-        </div>
+        <PageHeader
+            eyebrow="Add unit"
+            title="Add unit"
+            :back="{
+                label: property.name || property.address_line1,
+                href: show(property.id),
+            }"
+        />
 
         <Form
             v-bind="UnitController.store.form(property.id)"
             class="space-y-6"
             v-slot="{ errors, processing }"
         >
-            <div class="rounded-2xl border border-border bg-card p-6">
+            <div
+                class="rounded-lg border border-border bg-card p-6 shadow-card"
+            >
                 <UnitFormFields :statuses="statuses" :errors="errors" />
             </div>
 

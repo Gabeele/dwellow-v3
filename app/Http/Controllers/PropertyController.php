@@ -24,7 +24,11 @@ class PropertyController extends Controller
 
         $properties = $request->user()
             ->properties()
-            ->withCount('units')
+            ->withCount([
+                'units',
+                'units as occupied_units_count' => fn ($query) => $query->where('status', OccupancyStatus::Occupied),
+                'units as available_units_count' => fn ($query) => $query->where('status', OccupancyStatus::Available),
+            ])
             ->latest()
             ->get();
 
