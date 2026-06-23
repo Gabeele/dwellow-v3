@@ -117,7 +117,7 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
     `DefaultApplicationForm::fields()`, `forUnit()` state). Added `applicationForm(): HasOne` to
     `Unit`. `ApplicationFormTest` (3 tests, 5 assertions) green; Pint clean.
 
-- [ ] Auto-provision a default form when a unit is created
+- [x] Auto-provision a default form when a unit is created
   - context: register a `UnitObserver` (`app/Observers/UnitObserver.php`, attach via the
     `#[ObservedBy]` attribute on `app/Models/Unit.php`) whose `created()` hook creates an
     `ApplicationForm` for the unit seeded from `DefaultApplicationForm::fields()` — but only if
@@ -127,6 +127,13 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
     consistent; prefer the observer as the single source of truth).
   - done: a feature test asserting that creating a `Unit` results in an `ApplicationForm` with
     the default fields; creating a second time does not duplicate it.
+  - note: Added `UnitObserver` (`created()` uses `applicationForm()->firstOrCreate([], …)` so a
+    re-fire is a no-op), attached via `#[ObservedBy(UnitObserver::class)]` on `Unit`. Observer is
+    the single source of truth — fires for both `UnitController@store` (Eloquent relation create)
+    and the factory; `UnitFactory` needs no afterCreating. Since every unit now auto-gets a form,
+    updated `ApplicationFormTest` to derive the form from the unit (bare `ApplicationForm::factory()
+    ->create()` would now collide on the unique `unit_id`). Added `UnitObserverTest` (2 tests).
+    Full suite 120 passed; Pint clean.
 
 - [ ] Create the `ApplicationLink` model, migration, and factory
   - context: `make:model ApplicationLink -mf`. Columns: `id`, `unit_id` (foreignId, constrained,

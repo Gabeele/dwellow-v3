@@ -10,14 +10,14 @@ uses(RefreshDatabase::class);
 
 it('lets a unit have one application form', function () {
     $unit = Unit::factory()->create();
-    $form = ApplicationForm::factory()->forUnit($unit)->create();
+    $form = $unit->applicationForm;
 
-    expect($unit->applicationForm->is($form))->toBeTrue();
+    expect($form)->not->toBeNull();
     expect($form->unit->is($unit))->toBeTrue();
 });
 
 it('round-trips the fields json as an array', function () {
-    $form = ApplicationForm::factory()->create();
+    $form = Unit::factory()->create()->applicationForm;
 
     expect($form->fresh()->fields)
         ->toBeArray()
@@ -25,8 +25,8 @@ it('round-trips the fields json as an array', function () {
 });
 
 it('enforces one form per unit', function () {
+    // The unit already has its auto-provisioned form, so a second insert collides.
     $unit = Unit::factory()->create();
-    ApplicationForm::factory()->forUnit($unit)->create();
 
     expect(fn () => ApplicationForm::factory()->forUnit($unit)->create())
         ->toThrow(QueryException::class);
