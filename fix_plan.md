@@ -135,7 +135,7 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
     ->create()` would now collide on the unique `unit_id`). Added `UnitObserverTest` (2 tests).
     Full suite 120 passed; Pint clean.
 
-- [ ] Create the `ApplicationLink` model, migration, and factory
+- [x] Create the `ApplicationLink` model, migration, and factory
   - context: `make:model ApplicationLink -mf`. Columns: `id`, `unit_id` (foreignId, constrained,
     cascade), `token` (string, unique, indexed), `label` (string, nullable — landlord's name
     for the link e.g. "Facebook post"), `is_accepting` (boolean, default true), `expires_at`
@@ -149,6 +149,12 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
     `notAccepting()`.
   - done: a feature test covering token auto-generation + uniqueness and `isOpen()` returning
     false for revoked / expired / not-accepting links and true otherwise.
+  - note: Added `ApplicationLink` model (token via `booted()` `creating` hook using `Str::random(40)`
+    so all creation paths get one; `isOpen()` = accepting ∧ ¬revoked ∧ ¬expired; `unit()` BelongsTo,
+    `applications()` HasMany), migration (unit FK cascade, unique `token`, nullable `label`,
+    `is_accepting` default true, `expires_at`/`revoked_at`), factory (`revoked()`/`expired()`/
+    `notAccepting()` states). Added `applicationLinks(): HasMany` to `Unit`. `ApplicationLinkTest`
+    (9 tests, 10 assertions) green; full suite 129 passed; Pint clean.
 
 - [ ] Create the `Application` model, migration, and factory
   - context: `make:model Application -mf`. Columns: `id`, `application_link_id` (foreignId,

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
@@ -69,5 +70,15 @@ class Unit extends Model
     public function applicationForm(): HasOne
     {
         return $this->hasOne(ApplicationForm::class);
+    }
+
+    /**
+     * The application links generated for this unit.
+     *
+     * @return HasMany<ApplicationLink, $this>
+     */
+    public function applicationLinks(): HasMany
+    {
+        return $this->hasMany(ApplicationLink::class);
     }
 }
