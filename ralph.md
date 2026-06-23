@@ -126,7 +126,7 @@ Guardrails (unchanged — see `.docs/decisions/`):
 
 ## Milestone B — Landlord "Applications" page (all units, one table)
 
-- [ ] Add an all-applications index (controller action + route)
+- [x] Add an all-applications index (controller action + route)
   - context: new `ApplicationController@indexAll` (or a dedicated `ApplicationsController`) returning
     **every** application across the authenticated landlord's units — scoped via
     `whereHas('unit.property', fn ($q) => $q->where('landlord_id', $user->id))`. Eager-load
@@ -136,6 +136,17 @@ Guardrails (unchanged — see `.docs/decisions/`):
     name / unit label, submitted date, status, document count, and the detail-page URL.
   - done: a feature test asserting the page lists the landlord's applications across multiple
     units/properties and excludes another landlord's; pagination present.
+  - NOTE: Added `ApplicationController@indexAll` — `whereHas('unit.property', landlord_id)` scope,
+    `with('unit.property')` + `withCount('documents')`, `latest('submitted_at')`, `paginate(20)` with
+    `->through()` mapping each row to {id, applicant_name, applicant_email, property_name (name ?? line1),
+    unit_label, submitted_at, status, documents_count, url=route('applicants.show')}. Route
+    `GET /applications` name `applications.index` in the auth+verified group (between Properties and the
+    unit applicants routes). Created a **minimal** `screening/applicants/All.vue` stub (Inertia tests
+    require the component file to exist) — the full DataTable build is the very next task ("Build the
+    Applications table page"). Note Laravel's paginator serializes pagination keys at the **top level**
+    (`applications.total`/`per_page`/`links`), not under `meta`. Two new tests in ApplicationControllerTest:
+    lists across multiple properties + excludes another landlord (newest first), and pagination (25 → 20
+    per page, total 25). Suite green (13), Pint + vue-tsc + ESLint + build clean.
 
 - [ ] Build the Applications table page
   - context: new Vue page rendering the running list as a table (reuse `DataTable`, `TableRow`,

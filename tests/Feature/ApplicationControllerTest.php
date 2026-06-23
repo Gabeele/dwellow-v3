@@ -23,6 +23,60 @@ function applicantUnitOwnedBy(User $landlord): Unit
     return Unit::factory()->for($property)->create();
 }
 
+test('the all-applications index lists every application across the landlords units', function () {
+    $landlord = User::factory()->landlord()->create();
+
+    $propertyA = Property::factory()->for($landlord, 'landlord')->create(['name' => 'Maple Court']);
+    $unitA = Unit::factory()->for($propertyA)->create(['label' => 'Unit 1']);
+    $linkA = ApplicationLink::factory()->for($unitA)->create();
+    $appA = Application::factory()->for($linkA, 'applicationLink')->create([
+        'submitted_at' => now()->subDay(),
+    ]);
+
+    $propertyB = Property::factory()->for($landlord, 'landlord')->create(['name' => 'Birch Flats']);
+    $unitB = Unit::factory()->for($propertyB)->create(['label' => 'Unit 7']);
+    $linkB = ApplicationLink::factory()->for($unitB)->create();
+    $appB = Application::factory()->for($linkB, 'applicationLink')->create([
+        'submitted_at' => now(),
+    ]);
+
+    $otherUnit = Unit::factory()->create();
+    $otherLink = ApplicationLink::factory()->for($otherUnit)->create();
+    Application::factory()->for($otherLink, 'applicationLink')->create();
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applications.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('screening/applicants/All')
+            ->has('applications.data', 2)
+            ->where('applications.data.0.id', $appB->id)
+            ->where('applications.data.0.property_name', 'Birch Flats')
+            ->where('applications.data.0.unit_label', 'Unit 7')
+            ->where('applications.data.1.id', $appA->id)
+            ->has('applications.links')
+            ->has('applications.total'),
+        );
+});
+
+test('the all-applications index is paginated', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    Application::factory()->count(25)->for($link, 'applicationLink')->create();
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applications.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('applications.data', 20)
+            ->where('applications.total', 25)
+            ->where('applications.per_page', 20),
+        );
+});
+
 test('the owning landlord sees their units applications newest first', function () {
     $landlord = User::factory()->landlord()->create();
     $unit = applicantUnitOwnedBy($landlord);

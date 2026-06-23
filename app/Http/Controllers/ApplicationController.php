@@ -7,12 +7,44 @@ use App\Http\Requests\UpdateApplicationRequest;
 use App\Models\Application;
 use App\Models\Unit;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ApplicationController extends Controller
 {
+    /**
+     * List every application across all of the authenticated landlord's units,
+     * newest first — the portfolio-wide running list of who has applied.
+     */
+    public function indexAll(Request $request): Response
+    {
+        $user = $request->user();
+
+        $applications = Application::query()
+            ->with('unit.property')
+            ->withCount('documents')
+            ->whereHas('unit.property', fn ($query) => $query->where('landlord_id', $user->id))
+            ->latest('submitted_at')
+            ->paginate(20)
+            ->through(fn (Application $application): array => [
+                'id' => $application->id,
+                'applicant_name' => trim("{$application->applicant_first_name} {$application->applicant_last_name}"),
+                'applicant_email' => $application->applicant_email,
+                'property_name' => $application->unit->property->name ?? $application->unit->property->address_line1,
+                'unit_label' => $application->unit->label,
+                'submitted_at' => $application->submitted_at,
+                'status' => $application->status,
+                'documents_count' => $application->documents_count,
+                'url' => route('applicants.show', $application),
+            ]);
+
+        return Inertia::render('screening/applicants/All', [
+            'applications' => $applications,
+        ]);
+    }
+
     /**
      * List the applications submitted for a unit (newest first).
      */
