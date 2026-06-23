@@ -604,10 +604,22 @@ Guardrails (unchanged — see `.docs/decisions/`):
     consumer — and the `properties/*` `status ===` checks are filter/count logic, not badge mapping. No
     code change, so no test/Pint/vue-tsc needed (nothing touched).
 
-- [ ] Dead-code sweep after the verification removal
+- [x] Dead-code sweep after the verification removal
   - context: once Milestone A lands, grep for orphans — unused imports, routes, translations, cache keys,
     factory states, or test helpers left behind by the removed verification flow — and delete them.
   - done: `grep` for the removed symbols is empty; full suite green; Pint + ESLint clean.
+  - NOTE: Verify-only no-op — Milestone A's tasks each removed their own orphans as they landed, so the
+    sweep found nothing left to delete. Audited: `grep -rin` for the applicant-verification symbols
+    (`verification_code`, `EmailVerification`, `ApplicationVerificationCode`, `application-code`,
+    `VerifyApplicationEmail`, `screening.verify`, `sendCode`/`codeSent`) over `app resources routes tests`
+    returns only **Fortify landlord** email-verification + 2FA + document-check matches (all legitimate,
+    kept). No verification migration/table/model, no factory state, no orphan blade view
+    (`resources/views/emails/` has only `application-received`, `verify-email` [Fortify], `welcome`), no
+    lang entries. Wayfinder's generated `routes/screening/index.ts` + `actions/.../PublicScreeningController.ts`
+    carry no `verify`. Every `use` import in the Milestone-A-edited files (`PublicScreeningController`,
+    `StoreApplicationRequest`) resolves to a real usage; `Apply.vue` no longer imports `useHttp`/`watch`.
+    The honeypot fields (`contact_channel`/`rendered_at`) are deliberately retained (Milestone A spam
+    deterrent), not orphans. Full suite green (223), ESLint + Pint clean. No files changed.
 
 - [ ] Run Larastan and fix what it flags
   - context: run `vendor/bin/sail php artisan` is not it — run Larastan (`vendor/bin/sail php vendor/bin/phpstan analyse` per `phpstan.neon`). Fix legitimate issues (missing types, generics on relations/collections, array shapes). Do not silence with baseline unless a finding is a genuine false positive.
