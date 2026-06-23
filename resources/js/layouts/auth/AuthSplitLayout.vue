@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
+import AppLogo from '@/components/AppLogo.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import { home } from '@/routes';
-
-const page = usePage();
-const name = page.props.name;
 
 defineProps<{
     title?: string;
@@ -13,34 +11,79 @@ defineProps<{
 </script>
 
 <template>
-    <div
-        class="relative grid h-dvh flex-col items-center justify-center px-8 sm:px-0 lg:max-w-none lg:grid-cols-2 lg:px-0"
-    >
-        <div
-            class="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r"
-        >
-            <div class="absolute inset-0 bg-zinc-900" />
+    <div class="grid min-h-dvh lg:grid-cols-2">
+        <div class="bg-ambient flex flex-col px-6 py-10 sm:px-10">
             <Link
                 :href="home()"
-                class="relative z-20 flex items-center text-lg font-medium"
+                class="flex items-center"
+                aria-label="Dwellow home"
             >
-                <AppLogoIcon class="mr-2 size-8 fill-current text-white" />
-                {{ name }}
+                <AppLogo />
             </Link>
-        </div>
-        <div class="lg:p-8">
-            <div
-                class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]"
-            >
-                <div class="flex flex-col space-y-2 text-center">
-                    <h1 class="text-xl font-medium tracking-tight" v-if="title">
-                        {{ title }}
-                    </h1>
-                    <p class="text-sm text-muted-foreground" v-if="description">
-                        {{ description }}
-                    </p>
+
+            <div class="flex flex-1 items-center justify-center py-12">
+                <div class="w-full max-w-sm">
+                    <div class="flex flex-col gap-2">
+                        <h1
+                            v-if="title"
+                            class="text-28 font-semibold tracking-[-0.02em] text-foreground"
+                        >
+                            {{ title }}
+                        </h1>
+                        <p
+                            v-if="description"
+                            class="text-sm text-muted-foreground"
+                        >
+                            {{ description }}
+                        </p>
+                    </div>
+
+                    <div class="mt-8">
+                        <slot />
+                    </div>
                 </div>
-                <slot />
+            </div>
+        </div>
+
+        <div
+            class="relative hidden flex-col justify-between overflow-hidden bg-primary p-12 text-primary-foreground lg:flex"
+        >
+            <div
+                class="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/8 via-transparent to-success/15"
+            />
+            <div
+                class="pointer-events-none absolute -top-24 -right-24 h-80 w-80 rounded-full bg-success/20 blur-3xl"
+            />
+            <div
+                class="pointer-events-none absolute -bottom-32 -left-20 h-80 w-80 rounded-full bg-ai/15 blur-3xl"
+            />
+
+            <div class="relative flex items-center gap-2">
+                <AppLogoIcon class="size-7 shrink-0 text-primary-foreground" />
+                <span
+                    class="text-17 font-semibold tracking-[-0.02em] text-primary-foreground"
+                >
+                    Dwellow
+                </span>
+            </div>
+
+            <div class="relative flex flex-col gap-4">
+                <h2
+                    class="text-34 font-semibold tracking-[-0.02em] text-primary-foreground"
+                >
+                    AI tenant screening for small landlords.
+                </h2>
+                <p class="text-base text-primary-foreground/70">
+                    Vet applicants, verify income, and choose your next tenant
+                    with confidence — without the enterprise overhead.
+                </p>
+            </div>
+
+            <div
+                class="relative text-sm text-primary-foreground/60"
+                aria-hidden="true"
+            >
+                &copy; {{ new Date().getFullYear() }} Dwellow
             </div>
         </div>
     </div>

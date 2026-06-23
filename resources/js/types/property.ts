@@ -27,6 +27,8 @@ export interface Property {
     rent_amount: string | null;
     status: string;
     units_count?: number;
+    occupied_units_count?: number;
+    available_units_count?: number;
     units?: Unit[];
     created_at: string;
     updated_at: string;
