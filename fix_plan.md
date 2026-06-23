@@ -35,10 +35,11 @@
 
 ### Email verification + branded emails
 
-- [ ] Enforce email verification on the User model
+- [x] Enforce email verification on the User model
   - context: Fortify's `Features::emailVerification()` is already enabled in `config/fortify.php`, but `app/Models/User.php` does NOT implement `MustVerifyEmail` (the import is commented out), so it isn't enforced. Implement `Illuminate\Contracts\Auth\MustVerifyEmail` on `User`.
   - context: confirm verified-only routes use the `verified` middleware; check `routes/` and the dashboard route. Mail goes to Mailcatcher (current mail driver) — no real delivery.
   - done: feature test — an unverified user hitting a `verified`-protected route is redirected to the verification notice; a verified user passes.
+  - note: `User` now implements `MustVerifyEmail` (the `verified` middleware was already on the dashboard + settings routes but was a no-op without the interface). Added two tests to `Auth/EmailVerificationTest`: unverified → redirect to `verification.notice`, verified → 200. Full suite (91 tests) stays green.
 
 - [ ] Send a branded email-verification email on signup
   - context: override the default verification notification. Add a custom notification (e.g. `app/Notifications/VerifyEmailNotification.php` extending Fortify/Laravel's `VerifyEmail`) and wire it via `User::sendEmailVerificationNotification()` or `VerifyEmail::toMailUsing(...)` in a service provider. Use a branded Markdown mailable (dwellow name/logo/colors) with the signed verification URL.
