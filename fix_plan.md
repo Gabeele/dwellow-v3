@@ -4,87 +4,375 @@
 > One task = one commit. Most important / most foundational first.
 > Context bullets give the agent what it needs; follow `PROMPT.md` for the loop rules and definition of done.
 
+## Milestone: Tenant screening — custom application forms
+
+Build the v1 screening flow as **CRUD only — no AI inferencing, no scoring job, no automated
+reference outreach** (those are explicitly deferred — see `.docs/features/scoring-engine.md`
+and `references.md`; do NOT build them). The goal of this milestone:
+
+1. A landlord configures a **custom application form** (set of fields) per **unit**, starting
+   from a sensible dwellow **default**. Forms differ per unit.
+2. The landlord generates a shareable **application link** (unguessable token) per unit, and
+   can **toggle whether it's accepting submissions**, plus revoke/expire it.
+3. A prospective tenant opens `/screening/{token}` (no account), fills the form, uploads
+   documents, and submits — creating an **Application** with a **form snapshot**.
+4. The landlord sees an **applicants** list per unit and a detail page, and can change an
+   application's status / delete it. Pure CRUD.
+
+Data model (confirmed — follows `.docs/domain/data-model.md`):
+
+```
+Unit
+ ├─1:1─ ApplicationForm   (field schema as JSON, seeded from the default)
+ └─1:N─ ApplicationLink   (token, is_accepting toggle, expires_at, revoked_at)
+            └─1:N─ Application  (applicant contact, answers JSON, form_snapshot JSON, status)
+                       └─1:N─ Document  (uploaded files: pay stub, ID, etc.)
+```
+
+References are modeled as a **field type within the form schema** (a "reference block"
+field stored in the answers) — NOT a separate entity and NOT contacted in v1.
+
+Read `.docs/features/application-form-builder.md`, `applicant-flow.md`, and
+`landlord-dashboard.md` + `.docs/domain/glossary.md` before starting — use the glossary's
+terms (Applicant, Application, Application Form, Application Link, etc.) in code and UI.
+
 ## Tasks
 
-### Roles
+### Enums & the default form
 
-- [x] Add an `Admin` case to the `Role` enum
-  - context: `app/Enums/Role.php` currently has only `Landlord` and `Tenant`. Add `case Admin = 'admin';` and its `label()` arm ("Admin").
-  - context: Admin must NOT be self-assignable at signup. Check `app/Concerns/RoleValidationRules.php` and ensure the registration `roleRules()` only allows `landlord`/`tenant` (the `Role` enum is the full set, but registration is restricted).
-  - done: unit test covering `Role::Admin->label()` and a feature/validation test asserting a registration request with `roles: ['admin']` is rejected.
-  - note: Added `Role::Admin` + label; restricted registration `roleRules()` via `Rule::enum(Role::class)->only([Landlord, Tenant])`. Added `tests/Unit/RoleTest.php` and an admin-rejection case in `RoleAssignmentTest`. All green.
+- [x] Add a `FieldType` enum for application-form fields
+  - context: new file `app/Enums/FieldType.php`. Mirror the structure of existing enums in
+    `app/Enums/` (e.g. `RentalType.php` — backed string enum with a `label(): string` method
+    using a `match`). Cases (use TitleCase keys per the PHP rules in `CLAUDE.md`):
+    `ShortText`, `LongText`, `Number`, `Currency`, `Date`, `SingleChoice`, `MultiChoice`,
+    `Boolean`, `File`, `Reference`, `Consent`. Values are snake_case strings
+    (`short_text`, etc.).
+  - context: add a helper `expectsOptions(): bool` (true for `SingleChoice`/`MultiChoice`) and
+    `isFileUpload(): bool` (true for `File`) — the form builder and submission validator will
+    need them.
+  - done: a unit test (`tests/Unit/FieldTypeTest.php`) covering `label()` for a couple of cases
+    and the two helper booleans.
+  - note: Added `FieldType` enum with 11 cases, `label()`, `expectsOptions()`, `isFileUpload()`;
+    `FieldTypeTest` (3 tests, 10 assertions) green.
 
-- [x] Gate Filament panel access by the `Admin` role (keep the email allowlist as a fallback)
-  - context: `app/Models/User.php` `canAccessPanel()` currently only checks `config('admin.emails')`. Change it to allow access when the user `isAdmin()` OR is on the allowlist.
-  - context: add an `isAdmin(): bool` helper to `app/Concerns/HasRoles.php` (mirrors existing `isLandlord()`/`isTenant()`).
-  - done: feature test — an Admin-role user can access the panel; a Landlord/Tenant not on the allowlist cannot; an allowlisted user still can.
-  - note: Added `isAdmin()` to HasRoles, `canAccessPanel()` now `isAdmin() || allowlist`, added `admin()` UserFactory state, and two cases (admin allowed / landlord+tenant denied) in PanelAccessTest. Existing allowlist test still green.
+- [ ] Add an `ApplicationStatus` enum
+  - context: new file `app/Enums/ApplicationStatus.php`, same pattern as above. Cases per the
+    data-model lifecycle: `New`, `Reviewing`, `Approved`, `Rejected` (values `new`, `reviewing`,
+    `approved`, `rejected`). Add `label()`.
+  - done: a unit test covering `label()` and `ApplicationStatus::cases()` count.
 
-- [x] Show and manage user roles in the Filament User resource
-  - context: resource lives in `app/Filament/Resources/Users/`. Add roles to `Tables/UsersTable.php` (a badge column listing the user's roles) and `Schemas/UserForm.php` (a multi-select of `Role` cases) so an admin can assign/remove roles. Roles are stored via the `role_user` pivot (use the `HasRoles` trait's `assignRole`/`removeRole`, or sync on save).
-  - done: feature test asserting an admin can save a user with selected roles and the pivot reflects it.
-  - note: Added a `roles.role` badge column, a non-dehydrated `roles` multi-select, and a `SyncsUserRoles` page trait that reads `$this->data['roles']` and calls a new `HasRoles::syncRoles()`. EditUser pre-fills via `mutateFormDataBeforeFill`. Tests in `Filament/UserRolesTest`. Also (per user request) `UserSeeder` now assigns `Role::Admin` to allowlisted admins — covered by `UserSeederTest`.
+- [ ] Define the dwellow default application form schema
+  - context: new class `app/Screening/DefaultApplicationForm.php` (create the `app/Screening/`
+    dir; use `make:class`). Expose `public static function fields(): array` returning the
+    default ordered field schema as plain arrays. Each field is a shape:
+    `['key' => string, 'type' => FieldType value, 'label' => string, 'required' => bool,
+    'help' => ?string, 'options' => ?array<string>]`.
+  - context: ground the defaults in standard landlord screening (see research summary below).
+    Include these fields in this order:
+    - Identity: `first_name`, `last_name` (short_text, required); `email`, `phone` (short_text,
+      required); `date_of_birth` (date, required).
+    - Current residence: `current_address` (short_text, required); `current_move_in_date`
+      (date); `current_monthly_rent` (currency); `reason_for_leaving` (long_text).
+    - Employment & income: `employer_name` (short_text, required); `job_title` (short_text);
+      `employment_type` (single_choice: Full-time / Part-time / Self-employed / Student /
+      Unemployed); `gross_monthly_income` (currency, required); `employment_start_date` (date).
+    - Occupancy: `desired_move_in_date` (date, required); `number_of_occupants` (number,
+      required); `has_pets` (boolean) + `pet_details` (long_text); `is_smoker` (boolean).
+    - References: `previous_landlord` (reference — name/email/phone/relationship block).
+    - Documents: `photo_id` (file, required); `pay_stubs` (file, required);
+      `proof_of_income` (file) — label it "Bank statement or additional proof of income".
+    - Consent: `screening_consent` (consent, required) — label/help should state the applicant
+      consents to the landlord **using and verifying the information and contacting the
+      references they've provided** (a privacy/consent acknowledgement under Canadian privacy
+      law — PIPEDA / provincial equivalents). dwellow does NOT run credit/background checks or
+      pull any numbers — applicants only submit their own info and documents — so frame consent
+      around handling the provided data, not authorizing a bureau check.
+  - context: do NOT collect a Social Insurance Number (SIN) — Canadian privacy guidance
+    discourages collecting it on rental applications; leave it off the default form.
+  - context: this list pairs with the (deferred) default scorecard — do NOT build scoring here.
+  - done: a unit test asserting `fields()` returns the expected count, that every entry has the
+    required keys, that `screening_consent` is present and required, and that each `type` is a
+    valid `FieldType` value.
 
-### Signup
+### Data layer — models, migrations, factories
 
-- [x] Let users choose their role (Landlord or Tenant) on the registration form
-  - context: backend already handles `roles[]` in `app/Actions/Fortify/CreateNewUser.php` (defaults to Tenant). The frontend form is `resources/js/pages/auth/Register.vue`. Add a role selector (Landlord/Tenant) that posts `roles`.
-  - context: reuse existing UI components (check `resources/js/components/ui/select` and how other auth pages build forms). Do not allow Admin here.
-  - done: an Inertia/feature test posting registration with a chosen role creates the user with that role on the pivot.
-  - note: The role selector already exists in `Register.vue` (radio cards posting `roles[]`, no Admin). Per the documented v1 scope (product memo: "v1 is landlord-only"), Tenant is intentionally shown but disabled ("coming soon") — NOT enabling it, as that would contradict the product decision. Added a focused registration-flow test in `Auth/RegistrationTest` asserting registering with `roles: ['landlord']` lands the landlord role on the pivot.
+- [ ] Create the `ApplicationForm` model, migration, and factory
+  - context: `vendor/bin/sail artisan make:model ApplicationForm -mf`. Columns: `id`,
+    `unit_id` (foreignId, constrained, cascade on delete, unique — one form per unit),
+    `fields` (json), timestamps. Cast `fields` to `array`. Use the `#[Fillable([...])]`
+    attribute pattern from `app/Models/Unit.php`. Add `unit(): BelongsTo`.
+  - context: add the inverse `applicationForm(): HasOne` to `app/Models/Unit.php`.
+  - context: factory default `fields` should use `DefaultApplicationForm::fields()`; add a
+    `forUnit(Unit $unit)` state if helpful. `unit_id` defaults to `Unit::factory()`.
+  - done: a feature test asserting a unit can have one application form and `fields` round-trips
+    as an array.
 
-### Email verification + branded emails
+- [ ] Auto-provision a default form when a unit is created
+  - context: register a `UnitObserver` (`app/Observers/UnitObserver.php`, attach via the
+    `#[ObservedBy]` attribute on `app/Models/Unit.php`) whose `created()` hook creates an
+    `ApplicationForm` for the unit seeded from `DefaultApplicationForm::fields()` — but only if
+    one doesn't already exist.
+  - context: confirm units created through `UnitController@store` and through the factory both
+    get a default form (the factory's `created` afterCreating may also need it — keep behavior
+    consistent; prefer the observer as the single source of truth).
+  - done: a feature test asserting that creating a `Unit` results in an `ApplicationForm` with
+    the default fields; creating a second time does not duplicate it.
 
-- [x] Enforce email verification on the User model
-  - context: Fortify's `Features::emailVerification()` is already enabled in `config/fortify.php`, but `app/Models/User.php` does NOT implement `MustVerifyEmail` (the import is commented out), so it isn't enforced. Implement `Illuminate\Contracts\Auth\MustVerifyEmail` on `User`.
-  - context: confirm verified-only routes use the `verified` middleware; check `routes/` and the dashboard route. Mail goes to Mailcatcher (current mail driver) — no real delivery.
-  - done: feature test — an unverified user hitting a `verified`-protected route is redirected to the verification notice; a verified user passes.
-  - note: `User` now implements `MustVerifyEmail` (the `verified` middleware was already on the dashboard + settings routes but was a no-op without the interface). Added two tests to `Auth/EmailVerificationTest`: unverified → redirect to `verification.notice`, verified → 200. Full suite (91 tests) stays green.
+- [ ] Create the `ApplicationLink` model, migration, and factory
+  - context: `make:model ApplicationLink -mf`. Columns: `id`, `unit_id` (foreignId, constrained,
+    cascade), `token` (string, unique, indexed), `label` (string, nullable — landlord's name
+    for the link e.g. "Facebook post"), `is_accepting` (boolean, default true), `expires_at`
+    (timestamp, nullable), `revoked_at` (timestamp, nullable), timestamps. Cast booleans/dates.
+  - context: generate the token with `Str::random(40)` in a model `creating` hook (or a
+    `booted()` method) if not set — must be unguessable; route-model-bind by `token` later.
+  - context: add helper methods `isOpen(): bool` (accepting AND not revoked AND not expired) and
+    scopes/states. Add `unit(): BelongsTo` and `applications(): HasMany`. Add the inverse
+    `applicationLinks(): HasMany` on `Unit`.
+  - context: factory: `unit_id` => `Unit::factory()`; states `revoked()`, `expired()`,
+    `notAccepting()`.
+  - done: a feature test covering token auto-generation + uniqueness and `isOpen()` returning
+    false for revoked / expired / not-accepting links and true otherwise.
 
-- [x] Send a branded email-verification email on signup
-  - context: override the default verification notification. Add a custom notification (e.g. `app/Notifications/VerifyEmailNotification.php` extending Fortify/Laravel's `VerifyEmail`) and wire it via `User::sendEmailVerificationNotification()` or `VerifyEmail::toMailUsing(...)` in a service provider. Use a branded Markdown mailable (dwellow name/logo/colors) with the signed verification URL.
-  - context: keep the signed URL generation from the base class — only customize the presentation.
-  - done: feature test using `Notification::fake()` asserting the custom verification notification is sent to a newly registered user.
-  - note: Added `VerifyEmailNotification` extending Laravel's `VerifyEmail` (keeps signed URL gen, overrides `buildMailMessage`) rendering a branded `resources/views/emails/verify-email.blade.php` Markdown mailable (dwellow name, green success button). Wired via `User::sendEmailVerificationNotification()`. Added a registration→notification test to `EmailVerificationTest`, and updated the existing `VerificationNotificationTest` assertion to the new class. All 96 green.
+- [ ] Create the `Application` model, migration, and factory
+  - context: `make:model Application -mf`. Columns: `id`, `application_link_id` (foreignId,
+    constrained, cascade), `unit_id` (foreignId, constrained, cascade — denormalized for easy
+    querying), `applicant_first_name`, `applicant_last_name`, `applicant_email`,
+    `applicant_phone`, `answers` (json), `form_snapshot` (json — the field schema as submitted),
+    `status` (string, default `new`), `landlord_notes` (text, nullable), `submitted_at`
+    (timestamp, nullable), timestamps.
+  - context: cast `answers`/`form_snapshot` to `array`, `status` to `ApplicationStatus`,
+    `submitted_at` to `datetime`. Use `#[Fillable]`. Relations: `applicationLink()`, `unit()`,
+    `documents(): HasMany`. Add `applications(): HasMany` to `Unit`.
+  - context: factory: link to `ApplicationLink::factory()`, set matching `unit_id`, fake
+    applicant contact, `answers`/`form_snapshot` from `DefaultApplicationForm::fields()`,
+    `status` = New, `submitted_at` = now.
+  - done: a feature test asserting an application persists with array casts intact and belongs to
+    its link + unit.
 
-- [x] Send a branded welcome email after a user verifies their email
-  - context: listen for `Illuminate\Auth\Events\Verified` (register the listener in `app/Providers/`), and send a branded `WelcomeMail` Mailable (Markdown). Should NOT send on registration — only after verification.
-  - done: feature test using `Mail::fake()`/`Notification::fake()` asserting the welcome email is sent when the `Verified` event fires, and not before.
-  - note: Added `WelcomeMail` Markdown mailable (branded `emails.welcome` view, dwellow copy + dashboard button) and a `SendWelcomeEmail` listener type-hinting `Verified` (auto-discovered, same pattern as `RecordSentEmail` — no provider wiring needed). Added `Auth/WelcomeEmailTest`: nothing sent at registration, `WelcomeMail` sent to the user after the verification link fires `Verified`. Full suite (98) green.
+- [ ] Create the `Document` model, migration, and factory
+  - context: `make:model Document -mf`. Columns: `id`, `application_id` (foreignId, constrained,
+    cascade), `field_key` (string — which form field it answers), `disk` (string, default
+    `local`), `path` (string), `original_name` (string), `mime_type` (string, nullable), `size`
+    (unsignedBigInteger, nullable), timestamps. Use `#[Fillable]`. Add `application(): BelongsTo`.
+  - context: documents live on the **private** `local` disk (see `config/filesystems.php` —
+    root `storage/app/private`, not public). Never store under `public/`.
+  - done: a feature test asserting a document belongs to an application and the columns persist.
 
-### Filament — properties
+- [ ] Add ownership authorization policies for the screening entities
+  - context: landlords may only touch screening data for units of properties they own. Mirror
+    `app/Policies/UnitPolicy.php` (which checks `$user->isLandlord() && $unit->property->landlord_id === $user->id`).
+    Add policies: `ApplicationFormPolicy` (view/update), `ApplicationLinkPolicy`
+    (view/create/update/delete), `ApplicationPolicy` (view/update/delete), `DocumentPolicy`
+    (view/download). Each resolves ownership by walking to `…->unit->property->landlord_id`.
+  - context: Laravel 13 auto-discovers policies by naming convention — verify no manual
+    registration is needed (the existing Property/Unit policies aren't registered manually).
+  - done: a feature test per policy asserting the owning landlord is allowed and a different
+    landlord is denied.
 
-- [x] Add a Filament resource for viewing properties
-  - context: no Property resource exists yet (only `app/Filament/Resources/Users/`). Generate/create a `PropertyResource` for the `Property` model with a list table (name/address/city, type, rental_type, status, landlord) and a view/detail page. Read-focused is fine; mirror the structure of the existing Users resource.
-  - context: enums for columns are `App\Enums\PropertyType`, `RentalType`, `OccupancyStatus`.
-  - done: feature test asserting an admin can load the property list page and it renders an existing property (use `Property` factory).
-  - note: Added read-only `PropertyResource` (mirrors `SentEmailResource`: `canCreate`/`canEdit` false, index+view pages) with `PropertiesTable` (name/address/city + type/rental_type/status badges via `->formatStateUsing(label())` + landlord) and `PropertyInfolist`. The existing `PropertyPolicy` is landlord/ownership-scoped and denied admins (403), so overrode `canViewAny()`/`canView()` to `true` on the resource — panel access is already admin-gated by `canAccessPanel()`. Added `Filament/PropertyResourceTest` (list + view). Full suite (100) green.
+### Landlord — application form builder
 
-- [x] Show a property's units in Filament
-  - context: `Property hasMany Unit` (see `app/Models/Property.php`). Add a Units relation manager to the `PropertyResource` so an admin can see the units under a property (label, bedrooms, bathrooms, rent_amount, status).
-  - done: feature test asserting the relation manager lists a property's units (use `Property` + `Unit` factories).
-  - note: Generated `UnitsRelationManager` and made it read-only to match the read-only `PropertyResource` (removed create/edit/dissociate/delete actions — only `ViewAction`). Table + infolist show label/bedrooms/bathrooms/rent_amount (money usd)/status (badge via `label()`). Registered via `PropertyResource::getRelations()` (auto-renders on the View page). Added `Filament/PropertyUnitsRelationManagerTest` (lists owned units, excludes another property's unit). All 12 Filament tests green.
+- [ ] Add backend routes + controller to view and update a unit's application form
+  - context: new `ApplicationFormController` with `edit(Unit $unit)` (Inertia render
+    `screening/forms/Edit`, pass the unit + its form `fields`) and `update(Request, Unit $unit)`
+    (persist the edited schema). Authorize with the `ApplicationForm`/`Unit` policy. Nest under
+    the unit: e.g. `Route::get('units/{unit}/form', …)->name('units.form.edit')` and a matching
+    PUT, inside the existing `auth`+`verified` group in `routes/web.php`.
+  - context: validate the submitted schema with a `FormRequest` (`UpdateApplicationFormRequest`)
+    — each field must have a unique `key`, a valid `FieldType`, a `label`, a boolean `required`,
+    and `options` only when the type `expectsOptions()`. Extract shared rules into a Concern if
+    it grows (see `app/Concerns/UnitValidationRules.php` pattern).
+  - context: use `Inertia::flash('toast', …)` and `to_route(...)` like `UnitController`.
+  - done: feature tests — owner can load the edit page (Inertia component assertion); owner can
+    PUT a valid schema and it persists; invalid schema (dup key / bad type / options on a text
+    field) is rejected; a non-owner gets 403.
 
-### Units on the tenant/landlord app
+- [ ] Build the form-builder UI page
+  - context: new `resources/js/pages/screening/forms/Edit.vue` using `AppLayout` and existing
+    `resources/js/components/ui/*` (input, select, checkbox, button, card, separator). Let the
+    landlord add / edit / remove / **reorder** fields, set the label, pick a `FieldType`, mark
+    required, and edit choice options when the type needs them. Posts the full `fields` array
+    via Inertia `useForm` to `units.form.edit`'s PUT route (use Wayfinder-generated actions per
+    `CLAUDE.md`).
+  - context: provide a "Reset to dwellow default" affordance that repopulates from the default
+    (a button that loads `DefaultApplicationForm` — surface the default via a prop). Show the
+    field-type list from a `fieldTypes` prop (value+label) the controller passes.
+  - context: this is meaningful UX — activate the `inertia-vue-development`, `frontend-design`,
+    and `tailwindcss-development` skills. Vue components need a single root element.
+  - done: an Inertia/feature assertion that the edit page renders with the unit's fields and the
+    `fieldTypes` prop; verify `vendor/bin/sail npm run build` + `vue-tsc` are clean.
 
-- [x] Show associated units on the property detail page
-  - context: a property is either rented "whole" (single house) or as multiple independent units — this is the `rental_type` field (`App\Enums\RentalType`). On the Inertia property show page (`resources/js/pages/properties/Show.vue`, served by `app/Http/Controllers/PropertyController.php@show`), when `rental_type` is multi-unit, list the associated units with their label/bedrooms/bathrooms/rent/status; when "whole", show the property's own rentable details.
-  - context: eager-load `units` in the controller's `show` method. Reuse existing display patterns from the Index/Show pages.
-  - done: feature test asserting the show response includes the property's units for a multi-unit property.
-  - note: Already fully implemented by prior redesign work — `PropertyController@show` eager-loads `units` (`$property->load('units')`), and `Show.vue` branches on `rental_type`: a units DataTable (label/bedrooms/bathrooms/rent/status) for multi-unit, and the property's own rentable metrics for whole rentals. `PropertyShowRedesignTest` already covers the done criterion (multi-unit asserts `property.units` has 2; whole-rental asserts the units array is present). Verified green (2 tests, 21 assertions). No code change needed.
+### Landlord — application links
 
-### Landing page
+- [ ] Add backend for creating / toggling / revoking application links
+  - context: new `ApplicationLinkController` with `store(Unit $unit)` (create a link — token
+    auto-generated; optional `label`), `update(ApplicationLink $link)` (toggle `is_accepting`,
+    set/clear `expires_at`), and `destroy(ApplicationLink $link)` (set `revoked_at` — soft
+    revoke, don't hard-delete so historical applications keep their link). Authorize via
+    `ApplicationLinkPolicy`. Routes nested under the unit in the `auth`+`verified` group.
+  - context: don't expose the raw DB id in the public URL — the public route uses the `token`.
+  - done: feature tests — owner can create a link (token present, accepting by default), toggle
+    accepting off, set an expiry, and revoke it (`revoked_at` set, `isOpen()` false); non-owner
+    403 on each.
 
-- [x] Redesign the landing page content and layout
-  - context: `resources/js/pages/Welcome.vue`. Build an eye-catching marketing landing page: hero explaining what dwellow does now (tenant screening for small landlords — see the product memo/`CONTEXT.md`), key features/benefits, and a roadmap/timeline section for future plans. Make it look polished using the existing Tailwind v4 setup and UI components. Activate the `tailwindcss-development` and `frontend-design` skills.
-  - done: feature test asserting the `/` route renders the Welcome page (Inertia component assertion) and key copy is present.
-  - note: Rebuilt `Welcome.vue` within the app's existing design tokens (Geist + income-lens `success` green as the signature accent; kept the AI applicant-score hero card as the memorable element). Added a real 5-step "How it works" screening sequence (numbered, since the flow is ordered), 3 benefit cards (docs-not-bureau, references-handled, one-Score), a Now/Next/Later roadmap (from `.docs/roadmap.md`, "Now" highlighted), and a closing CTA. Drove `steps`/`features`/`roadmap` from Inertia props (set in the `/` route closure) so copy is assertable. Extended `LandingTest` to assert prop counts + key copy. Pint clean, ESLint clean, vue-tsc clean, `npm run build` green, 2 tests/24 assertions pass.
+- [ ] Surface link management + the applicants entry point on the unit
+  - context: on the property show page (`resources/js/pages/properties/Show.vue`, served by
+    `PropertyController@show`) or a dedicated unit view, show each unit's application link(s):
+    the shareable URL (built from the token — use `route()`/Wayfinder so the domain is correct),
+    a copy-to-clipboard button, the accepting toggle, an expiry/revoke control, and a link to
+    that unit's **applicants** list. Eager-load `applicationLinks` (+ applications count) in the
+    controller.
+  - context: reuse existing display patterns (DataTable / badges) already in `Show.vue`. Keep
+    the public URL obviously copyable. Use the `success` green accent per existing design.
+  - done: a feature test asserting the show response includes a unit's links and applicant
+    counts; build + vue-tsc clean.
 
-- [x] Add SEO support to the landing page
-  - context: add proper `<title>`, meta description, Open Graph / Twitter card tags, and JSON-LD structured data (Organization/SoftwareApplication) for the landing page. Use Inertia's `<Head>` (and/or server-shared meta). Ensure a sensible canonical URL.
-  - done: feature test (or page assertion) confirming the title/meta description are present in the rendered `/` response.
-  - note: SSR is disabled (bundle commented out in `config/inertia.php`), so Vue `<Head>` tags never reach the HTTP response — rendered the SEO server-side in `resources/views/app.blade.php` instead, driven by a new `seo` prop (title/description/url/image) shared from the `/` route closure. The Blade `<x-inertia::head>` slot now emits title, meta description, canonical, OG, Twitter card, and JSON-LD (SoftwareApplication + publisher Organization). Welcome.vue's `<Head>` title now reads `seo.title` so client-side SPA title matches (kept meta/OG out of Vue Head to avoid duplicate tags post-hydration). Extended `LandingTest` with an SEO test asserting the `seo` prop + the rendered tags. 3 tests/44 assertions green; Pint/ESLint/vue-tsc clean.
+### Applicant — public screening flow (no account)
 
-## Done
+- [ ] Add the public screening route + controller (resolve token, gate state)
+  - context: new `PublicScreeningController@show` bound to `/screening/{token}` (route name
+    `screening.show`) — **outside** the `auth`/`verified` group (applicants have no account).
+    Route-model-bind `ApplicationLink` by its `token` column (define `getRouteKeyName()` or bind
+    explicitly). Eager-load `unit.property` and `unit.applicationForm`.
+  - context: if the link is missing → 404. If `isOpen()` is false (revoked / expired / not
+    accepting) → render a friendly "this application is no longer accepting submissions" state
+    (still 200 with a closed view, or a dedicated page). Otherwise render `screening/Apply` with
+    the unit context (address/label) and the form `fields`.
+  - context: tokens are unguessable; do not leak landlord/property internals beyond what an
+    applicant needs (unit label + address + the form). See `.docs/features/applicant-flow.md`.
+  - done: feature tests — open link renders the apply page with the unit's fields; revoked /
+    expired / not-accepting renders the closed state; unknown token 404s.
 
-<!-- completed tasks get checked off above and noted by the loop -->
+- [ ] Build the public application page (dynamic form render)
+  - context: new `resources/js/pages/screening/Apply.vue`. Do NOT use `AppLayout` (that's the
+    authenticated sidebar shell) — create/use a minimal public layout (check
+    `resources/js/layouts/auth` for a lightweight pattern) so there's no app chrome. Render each
+    field from the schema by `FieldType`: text/long/number/currency/date inputs, single/multi
+    choice, boolean checkbox, file inputs, the reference block (name/email/phone/relationship),
+    and the consent checkbox. Mobile-first (applicants apply from a phone — see applicant-flow).
+  - context: post with Inertia `useForm` (supports file uploads / multipart) to the submit route
+    below. Show required markers and inline validation errors.
+  - context: activate `inertia-vue-development` + `frontend-design`. Single root element.
+  - done: an Inertia/page assertion that the apply page renders the fields; build + vue-tsc clean.
+
+- [ ] Handle application submission (create Application + snapshot + Documents)
+  - context: `PublicScreeningController@store` on `POST /screening/{token}` (name
+    `screening.store`), outside auth. Re-check `isOpen()` (reject if closed). Validate answers
+    **against the unit's current form schema** — required fields present, choice values in
+    `options`, files only for `File` fields with sane mime/size limits. Build a
+    `FormRequest` that reads the schema to generate rules.
+  - context: on success: store each uploaded file on the private `local` disk
+    (`storage/app/private`, e.g. under `applications/{ulid}/`), create the `Application`
+    (copy the current schema into `form_snapshot`, persist `answers`, applicant contact from the
+    identity fields, `status` = New, `submitted_at` = now), and create a `Document` row per file.
+    Then redirect to a confirmation page (`screening/Submitted`) — no account, just a thank-you.
+  - context: one submission per applicant per link is the v1 assumption (no edit/resubmit) — see
+    applicant-flow open questions; don't build resubmit.
+  - done: feature tests — a valid multipart submission creates the Application with a
+    `form_snapshot`, persists answers, stores uploaded files (use `Storage::fake()`) and Document
+    rows, and shows the confirmation; a submission missing a required field is rejected; a
+    submission to a closed link is rejected.
+
+### Landlord — applicants (CRUD only)
+
+- [ ] Applicants list page for a unit
+  - context: new `ApplicationController@index` (e.g. `units/{unit}/applicants`, name
+    `units.applicants.index`, in the auth+verified group). Authorize via the unit policy. List
+    the unit's applications with applicant name, submitted date, status (badge), document count.
+    Render `screening/applicants/Index.vue`. NO score column (scoring is deferred).
+  - context: reuse the table/badge patterns from `properties/Index.vue` / `Show.vue`. Sort by
+    `submitted_at` desc.
+  - done: a feature test asserting the owning landlord sees their unit's applications and not
+    another unit's; non-owner 403.
+
+- [ ] Application detail page (render from snapshot)
+  - context: `ApplicationController@show` → `screening/applicants/Show.vue`. Render the submitted
+    answers using the application's **`form_snapshot`** (so later form edits don't change history
+    — see data-model). Show applicant contact, every field's label + answer, the reference block,
+    a list of uploaded documents (with download links — see the download task), and the current
+    status. Label the data clearly as **applicant-provided / unverified** (per
+    `landlord-dashboard.md` design notes).
+  - done: a feature test asserting the detail page renders an application's snapshot answers and
+    its documents for the owner; non-owner 403.
+
+- [ ] Update application status + landlord notes
+  - context: `ApplicationController@update` — change `status` (validate against
+    `ApplicationStatus`) and edit `landlord_notes`. Wire status actions
+    (New / Reviewing / Approved / Rejected) + a notes field into `Show.vue`. dwellow never
+    auto-decides — this is purely the landlord's manual action.
+  - done: a feature test asserting the owner can move an application Reviewing→Approved and save
+    notes, and the change persists; non-owner 403.
+
+- [ ] Delete an application (and clean up its documents)
+  - context: `ApplicationController@destroy` — delete the application and remove its stored files
+    from disk (delete each `Document`'s file via `Storage::disk(...)->delete(...)`, then the rows
+    cascade). Confirm in the UI before deleting. Authorize via policy.
+  - done: a feature test (with `Storage::fake()`) asserting destroy removes the application,
+    its document rows, and the files from disk; non-owner 403.
+
+- [ ] Secure document download for landlords
+  - context: `DocumentController@download` (auth+verified) streams a `Document` from the private
+    disk only to the owning landlord (authorize via `DocumentPolicy`). Use
+    `Storage::disk($document->disk)->download($document->path, $document->original_name)`.
+    Never serve these from a public URL.
+  - done: a feature test (`Storage::fake()`) asserting the owner downloads the file (200 +
+    correct filename) and a different landlord is denied (403).
+
+### Integration & polish
+
+- [ ] Surface applicant activity on the dashboard / properties
+  - context: on the dashboard (`DashboardController` + its Vue page) and/or the properties index,
+    surface a lightweight applicant signal — e.g. a count of new applications across the
+    landlord's units and a link straight to the busiest unit's applicants list. Reuse existing
+    card/stat patterns. Keep it read-only.
+  - done: a feature test asserting the dashboard payload includes the applicant count for the
+    authenticated landlord's units.
+
+- [ ] (Optional, later) Lightweight email verification before submission
+  - context: per `.docs/features/applicant-flow.md`, gate submission behind a one-time email code
+    so applications are attributable and link spam is deterred. Send a code to the applicant's
+    email, verify it, then allow the `Application` to be created. Build only after the core CRUD
+    flow above is solid; this is intentionally last and optional for this milestone.
+  - done: a feature test (`Notification::fake()` / `Mail::fake()`) asserting a code is sent and an
+    unverified submission is blocked until the code is confirmed.
+
+## Research summary — what landlords screen for (informs the default form)
+
+dwellow is **documents-only** in v1: applicants *submit* their own information and documents —
+dwellow never pulls numbers, runs a credit/background check, or contacts a bureau (no bureau
+integrations — see ADR 0002). All data is **applicant-provided and labeled unverified**. This is
+a **Canadian** product, so the framing below follows Canadian norms (not US FCRA/Fair-Housing).
+Standard rental applications here collect, and applicants typically provide documents for, five
+areas:
+
+- **Identity & contact** — legal name, date of birth, phone, email, government-issued **photo ID**.
+  Do NOT collect a SIN (privacy guidance discourages it).
+- **Residence history** — current address, monthly rent, move-in date, reason for leaving, and a
+  prior/current **landlord reference** (name + contact).
+- **Employment & income** — employer, job title, employment type, **gross monthly income**, and
+  proof via **recent pay stubs**, an employment letter, or a bank statement. (Affordability rule
+  of thumb: income ≈ 3× rent — a future scoring criterion, not built here.) Applicants may also
+  attach a credit report they pulled themselves (Equifax/TransUnion Canada) — optional, not run
+  by dwellow.
+- **Occupancy** — desired move-in date, number of occupants, pets, smoking.
+- **Consent** — a privacy/consent acknowledgement that the applicant agrees to dwellow/the
+  landlord **using and verifying the submitted information and contacting their references**.
+  Under Canadian privacy law (PIPEDA and provincial equivalents) personal information should be
+  collected with consent for a stated purpose; provincial **human-rights codes** also prohibit
+  discriminatory screening, so the same criteria must be applied to every applicant. A required
+  consent field belongs on every form even in a documents-only v1.
+
+Note: residential tenancies are regulated **provincially** in Canada (e.g. Ontario's RTA / LTB),
+so specifics vary by province — keep the default form general and let landlords customize.
+
+Sources:
+- [Avail — Guide to standard rental application forms](https://www.avail.com/education/articles/guide-to-standard-rental-application-forms)
+- [MySmartMove — Rental documents to keep on file](https://www.mysmartmove.com/blog/rental-documents-landlord-forms)
+- [LeaseRunner — Documents needed for apartment rental](https://www.leaserunner.com/blog/documents-needed-for-apartment-rental)
+- [iPropertyManagement — Rental application form template](https://ipropertymanagement.com/templates/rental-application-form)
+
+## Done — previous milestone (roles, auth, branded email, Filament, landing page)
+
+Completed and in git history (`git log`): Admin role + Filament gating & user-role management;
+role selection at signup; email verification enforcement + branded verification/welcome emails;
+Filament Property resource + units relation manager; units on the property detail page; landing
+page redesign + SEO. See commits up to `33d6ca6`.
