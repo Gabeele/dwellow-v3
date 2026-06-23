@@ -1,3 +1,17 @@
+export interface ApplicationLink {
+    id: number;
+    unit_id: number;
+    token: string;
+    label: string | null;
+    is_accepting: boolean;
+    expires_at: string | null;
+    revoked_at: string | null;
+    applications_count?: number;
+    public_url: string;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface Unit {
     id: number;
     property_id: number;
@@ -6,6 +20,8 @@ export interface Unit {
     bathrooms: string | null;
     rent_amount: string | null;
     status: string;
+    applications_count?: number;
+    application_links?: ApplicationLink[];
     created_at: string;
     updated_at: string;
 }

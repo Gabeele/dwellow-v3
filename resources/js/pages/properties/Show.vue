@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Pencil, Plus, Trash2 } from '@lucide/vue';
-import { computed } from 'vue';
+import { ChevronDown, Link2, Pencil, Plus, Trash2 } from '@lucide/vue';
+import { computed, reactive } from 'vue';
 import PropertyController from '@/actions/App/Http/Controllers/PropertyController';
 import UnitController from '@/actions/App/Http/Controllers/UnitController';
 import DataTable from '@/components/DataTable.vue';
@@ -10,6 +10,7 @@ import PageHeader from '@/components/PageHeader.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import TableRow from '@/components/TableRow.vue';
 import { Button } from '@/components/ui/button';
+import UnitScreeningPanel from '@/components/UnitScreeningPanel.vue';
 import { edit, index } from '@/routes/properties';
 import { create as createUnit } from '@/routes/properties/units';
 import { edit as editUnit } from '@/routes/units';
@@ -106,6 +107,17 @@ function destroyUnit(unit: Unit): void {
         router.delete(UnitController.destroy.url(unit.id));
     }
 }
+
+/** Tracks which unit rows have their screening (links) panel expanded. */
+const expandedUnits = reactive<Set<number>>(new Set());
+
+function toggleScreening(unit: Unit): void {
+    if (expandedUnits.has(unit.id)) {
+        expandedUnits.delete(unit.id);
+    } else {
+        expandedUnits.add(unit.id);
+    }
+}
 </script>
 
 <template>
@@ -198,46 +210,72 @@ function destroyUnit(unit: Unit): void {
                     <th class="px-4 py-3 font-medium">Bathrooms</th>
                     <th class="px-4 py-3 font-medium">Rent</th>
                     <th class="px-4 py-3 font-medium">Status</th>
+                    <th class="px-4 py-3 font-medium">Screening</th>
                     <th class="px-4 py-3 text-right font-medium">Actions</th>
                 </template>
 
-                <TableRow v-for="unit in units" :key="unit.id">
-                    <td class="px-4 py-3 font-medium">{{ unit.label }}</td>
-                    <td class="px-4 py-3 text-muted-foreground">
-                        {{ unit.bedrooms ?? '—' }}
-                    </td>
-                    <td class="px-4 py-3 text-muted-foreground">
-                        {{ unit.bathrooms ?? '—' }}
-                    </td>
-                    <td class="px-4 py-3 font-mono text-muted-foreground">
-                        {{ unitRent(unit) }}
-                    </td>
-                    <td class="px-4 py-3">
-                        <StatusBadge :status="unit.status" />
-                    </td>
-                    <td class="px-4 py-3">
-                        <div class="flex items-center justify-end gap-1">
+                <template v-for="unit in units" :key="unit.id">
+                    <TableRow>
+                        <td class="px-4 py-3 font-medium">{{ unit.label }}</td>
+                        <td class="px-4 py-3 text-muted-foreground">
+                            {{ unit.bedrooms ?? '—' }}
+                        </td>
+                        <td class="px-4 py-3 text-muted-foreground">
+                            {{ unit.bathrooms ?? '—' }}
+                        </td>
+                        <td class="px-4 py-3 font-mono text-muted-foreground">
+                            {{ unitRent(unit) }}
+                        </td>
+                        <td class="px-4 py-3">
+                            <StatusBadge :status="unit.status" />
+                        </td>
+                        <td class="px-4 py-3">
                             <Button
-                                as-child
-                                size="icon"
+                                size="sm"
                                 variant="ghost"
                                 class="text-muted-foreground"
+                                @click="toggleScreening(unit)"
                             >
-                                <Link :href="editUnit(unit.id)">
-                                    <Pencil />
-                                </Link>
+                                <Link2 />
+                                {{ unit.application_links?.length ?? 0 }}
+                                <ChevronDown
+                                    class="transition-transform"
+                                    :class="
+                                        expandedUnits.has(unit.id) &&
+                                        'rotate-180'
+                                    "
+                                />
                             </Button>
-                            <Button
-                                size="icon"
-                                variant="ghost"
-                                class="text-muted-foreground"
-                                @click="destroyUnit(unit)"
-                            >
-                                <Trash2 />
-                            </Button>
-                        </div>
-                    </td>
-                </TableRow>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center justify-end gap-1">
+                                <Button
+                                    as-child
+                                    size="icon"
+                                    variant="ghost"
+                                    class="text-muted-foreground"
+                                >
+                                    <Link :href="editUnit(unit.id)">
+                                        <Pencil />
+                                    </Link>
+                                </Button>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    class="text-muted-foreground"
+                                    @click="destroyUnit(unit)"
+                                >
+                                    <Trash2 />
+                                </Button>
+                            </div>
+                        </td>
+                    </TableRow>
+                    <tr v-if="expandedUnits.has(unit.id)" class="border-b border-border last:border-b-0">
+                        <td colspan="7" class="bg-muted/20 px-4 py-4">
+                            <UnitScreeningPanel :unit="unit" />
+                        </td>
+                    </tr>
+                </template>
             </DataTable>
         </div>
     </div>

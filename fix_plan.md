@@ -277,7 +277,19 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
     `links.destroy` (DELETE) — landlord routes bind by id; the public route will bind by `token`.
     `ApplicationLinkControllerTest` (5 tests, 16 assertions) green; full suite 151 passed; Pint clean.
 
-- [ ] Surface link management + the applicants entry point on the unit
+- [x] Surface link management + the applicants entry point on the unit
+  - note: `PropertyController@show` now eager-loads `units.applicationLinks` (each `withCount('applications')`
+    + a `public_url` set via `url('/screening/'.$token)` since the named public route doesn't exist yet)
+    and `units` with `applications_count`. Added a per-unit expandable "Screening" column on
+    `properties/Show.vue` that renders a new `UnitScreeningPanel.vue`: copyable public URL, accepting
+    toggle (PUT `links.update`), revoke (DELETE `links.destroy`), create-with-optional-label
+    (POST `units.links.store`), per-link + per-unit applicant counts, and Open/Paused/Expired/Revoked
+    status badge. Added `ApplicationLink` TS type + `applications_count`/`application_links` on `Unit`.
+    `PropertyShowRedesignTest` (3 tests, incl. new links+counts assertion) green; full property suite 10
+    passed; vue-tsc, ESLint, build, Pint clean. NOTE: the navigable "applicants list" link is shown as a
+    count only — wiring it to a real `units.applicants.index` route is part of the "Applicants list page"
+    task below (route doesn't exist yet). Had to regenerate Wayfinder with `--with-form` (the vite plugin
+    uses `formVariants: true`) after a plain `wayfinder:generate` dropped the `.form` variants.
   - context: on the property show page (`resources/js/pages/properties/Show.vue`, served by
     `PropertyController@show`) or a dedicated unit view, show each unit's application link(s):
     the shareable URL (built from the token — use `route()`/Wayfinder so the domain is correct),
