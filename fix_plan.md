@@ -20,9 +20,10 @@
   - done: feature test — an Admin-role user can access the panel; a Landlord/Tenant not on the allowlist cannot; an allowlisted user still can.
   - note: Added `isAdmin()` to HasRoles, `canAccessPanel()` now `isAdmin() || allowlist`, added `admin()` UserFactory state, and two cases (admin allowed / landlord+tenant denied) in PanelAccessTest. Existing allowlist test still green.
 
-- [ ] Show and manage user roles in the Filament User resource
+- [x] Show and manage user roles in the Filament User resource
   - context: resource lives in `app/Filament/Resources/Users/`. Add roles to `Tables/UsersTable.php` (a badge column listing the user's roles) and `Schemas/UserForm.php` (a multi-select of `Role` cases) so an admin can assign/remove roles. Roles are stored via the `role_user` pivot (use the `HasRoles` trait's `assignRole`/`removeRole`, or sync on save).
   - done: feature test asserting an admin can save a user with selected roles and the pivot reflects it.
+  - note: Added a `roles.role` badge column, a non-dehydrated `roles` multi-select, and a `SyncsUserRoles` page trait that reads `$this->data['roles']` and calls a new `HasRoles::syncRoles()`. EditUser pre-fills via `mutateFormDataBeforeFill`. Tests in `Filament/UserRolesTest`. Also (per user request) `UserSeeder` now assigns `Role::Admin` to allowlisted admins — covered by `UserSeederTest`.
 
 ### Signup
 

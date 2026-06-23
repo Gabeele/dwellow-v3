@@ -55,6 +55,22 @@ trait HasRoles
     }
 
     /**
+     * Sync the user's roles to exactly the given set, adding and removing as needed.
+     */
+    public function syncRoles(Role ...$roles): void
+    {
+        $values = array_map(fn (Role $role): string => $role->value, $roles);
+
+        $this->roles()->whereNotIn('role', $values)->delete();
+
+        foreach ($roles as $role) {
+            $this->roles()->firstOrCreate(['role' => $role]);
+        }
+
+        $this->unsetRelation('roles');
+    }
+
+    /**
      * The user's roles as a collection of {@see Role} enums.
      *
      * @return Collection<int, Role>
