@@ -55,11 +55,13 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
   - note: Added `FieldType` enum with 11 cases, `label()`, `expectsOptions()`, `isFileUpload()`;
     `FieldTypeTest` (3 tests, 10 assertions) green.
 
-- [ ] Add an `ApplicationStatus` enum
+- [x] Add an `ApplicationStatus` enum
   - context: new file `app/Enums/ApplicationStatus.php`, same pattern as above. Cases per the
     data-model lifecycle: `New`, `Reviewing`, `Approved`, `Rejected` (values `new`, `reviewing`,
     `approved`, `rejected`). Add `label()`.
   - done: a unit test covering `label()` and `ApplicationStatus::cases()` count.
+  - note: Added `ApplicationStatus` enum (4 cases, `label()`); `ApplicationStatusTest`
+    (2 tests, 5 assertions) green. Pint clean.
 
 - [ ] Define the dwellow default application form schema
   - context: new class `app/Screening/DefaultApplicationForm.php` (create the `app/Screening/`
