@@ -11,10 +11,14 @@ import { show as showApplicant } from '@/routes/applicants';
 import { index, show } from '@/routes/properties';
 import type { Application, Property, Unit } from '@/types/property';
 
+interface PaginatedApplications {
+    data: Application[];
+}
+
 const props = defineProps<{
     property: Property;
     unit: Unit;
-    applications: Application[];
+    applications: PaginatedApplications;
 }>();
 
 defineOptions({
@@ -64,7 +68,7 @@ const unitContext = computed(() =>
         </p>
 
         <div
-            v-if="applications.length === 0"
+            v-if="applications.data.length === 0"
             class="flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card p-16 text-center shadow-card"
         >
             <div
@@ -87,7 +91,7 @@ const unitContext = computed(() =>
             </template>
 
             <TableRow
-                v-for="application in applications"
+                v-for="application in applications.data"
                 :key="application.id"
                 clickable
                 @click="$inertia.visit(showApplicant(application.id).url)"

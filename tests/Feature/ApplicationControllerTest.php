@@ -216,9 +216,26 @@ test('the owning landlord sees their units applications newest first', function 
         ->assertInertia(fn (Assert $page) => $page
             ->component('screening/applicants/Index')
             ->has('unit')
-            ->has('applications', 2)
-            ->where('applications.0.id', $newer->id)
-            ->where('applications.1.id', $older->id),
+            ->has('applications.data', 2)
+            ->where('applications.data.0.id', $newer->id)
+            ->where('applications.data.1.id', $older->id),
+        );
+});
+
+test('the per-unit applicants list is paginated', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    Application::factory()->count(25)->for($link, 'applicationLink')->create();
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('units.applicants.index', $unit))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('applications.data', 20)
+            ->where('applications.total', 25)
+            ->where('applications.per_page', 20),
         );
 });
 
@@ -235,7 +252,7 @@ test('an applications document count is exposed', function () {
     $this->actingAs($landlord)
         ->get(route('units.applicants.index', $unit))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('applications.0.documents_count', 2),
+            ->where('applications.data.0.documents_count', 2),
         );
 });
 
@@ -251,7 +268,7 @@ test('the landlord does not see another units applications', function () {
 
     $this->actingAs($landlord)
         ->get(route('units.applicants.index', $unit))
-        ->assertInertia(fn (Assert $page) => $page->has('applications', 0));
+        ->assertInertia(fn (Assert $page) => $page->has('applications.data', 0));
 });
 
 test('a non-owner cannot view another landlords applicants', function () {

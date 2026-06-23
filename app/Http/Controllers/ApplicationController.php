@@ -84,7 +84,8 @@ class ApplicationController extends Controller
     }
 
     /**
-     * List the applications submitted for a unit (newest first).
+     * List the applications submitted for a unit (newest first), paginated for
+     * units that collect many applicants.
      */
     public function index(Unit $unit): Response
     {
@@ -93,7 +94,8 @@ class ApplicationController extends Controller
         $applications = $unit->applications()
             ->withCount('documents')
             ->latest('submitted_at')
-            ->get();
+            ->paginate(20)
+            ->withQueryString();
 
         return Inertia::render('screening/applicants/Index', [
             'property' => $unit->property,

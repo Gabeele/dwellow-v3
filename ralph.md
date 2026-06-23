@@ -341,10 +341,26 @@ Guardrails (unchanged — see `.docs/decisions/`):
 
 ## Milestone D — Other gaps worth filling
 
-- [ ] Paginate the per-unit applicants list
+- [x] Paginate the per-unit applicants list
   - context: `screening/applicants/Index.vue` + `ApplicationController@index` should paginate (newest
     first) like the new global page, for units with many applicants.
   - done: a feature test asserting pagination metadata is present; build clean.
+  - NOTE: `ApplicationController@index` now `->paginate(20)->withQueryString()` (newest first, same as the
+    global page) instead of `->get()`, so the payload shape becomes `applications.data` + top-level
+    pagination keys (`total`/`per_page`). `Index.vue` reads `applications.data` (added a `PaginatedApplications`
+    interface; empty-state + `v-for` updated). No page-link UI added — mirrors `All.vue`, which paginates
+    without rendering links. Updated the three existing per-unit `index` tests to the `.data` shape and added
+    `the per-unit applicants list is paginated` (25 → 20 per page, total 25). ApplicationControllerTest green
+    (19), Pint + vue-tsc + ESLint + build clean. Follow-up: neither `Index.vue` nor `All.vue` render
+    pagination page links yet — a shared Pagination component would let users reach page 2+ (worth a task).
+
+- [ ] Add a shared Pagination component and wire it into the applicants tables
+  - context: both `screening/applicants/Index.vue` and `All.vue` now paginate server-side but render no
+    page links, so a landlord can't reach page 2+. Build one small reusable Pagination component from the
+    paginator's top-level `links` (prev/next + numbered) and use it on both pages. Preserve active filters
+    on `All.vue` (the paginator already `->withQueryString()`).
+  - done: a component/inertia assertion the links render; navigating to page 2 returns the next rows;
+    build + `vue-tsc` clean.
 
 - [ ] Export a landlord's applications to CSV
   - context: an "Export CSV" action on the Applications page that streams the landlord's applications
