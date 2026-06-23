@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import Diamond from '@/components/Diamond.vue';
 </script>
 
 <template>
     <div
-        class="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground"
+        class="flex aspect-square size-7 items-center justify-center rounded-[7px] bg-primary text-primary-foreground"
     >
-        <AppLogoIcon class="size-5 fill-current text-white dark:text-black" />
+        <Diamond :size="10" />
     </div>
-    <div class="ml-1 grid flex-1 text-left text-sm">
-        <span class="mb-0.5 truncate leading-tight font-semibold"
-            >Laravel Starter Kit</span
+    <div class="ml-1 grid flex-1 text-left">
+        <span
+            class="truncate text-[17px] leading-tight font-semibold tracking-[-0.02em]"
         >
+            Dwellow
+        </span>
     </div>
 </template>
