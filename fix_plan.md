@@ -349,7 +349,18 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
   - context: activate `inertia-vue-development` + `frontend-design`. Single root element.
   - done: an Inertia/page assertion that the apply page renders the fields; build + vue-tsc clean.
 
-- [ ] Handle application submission (create Application + snapshot + Documents)
+- [x] Handle application submission (create Application + snapshot + Documents)
+  - note: Added `PublicScreeningController@store` (POST `screening/{link:token}`, `screening.store`)
+    + `@submitted` (GET `screening/{link:token}/submitted`, `screening.submitted`), both outside
+    auth. `store` re-checks `isOpen()` (403 if closed), validates via the new
+    `StoreApplicationRequest` (builds `answers.{key}` rules dynamically from the unit's current
+    schema — required/type/options/file mimes(10MB), consent → `accepted`), snapshots the live
+    `fields` into `form_snapshot`, maps applicant contact from the identity answer keys, stores each
+    uploaded file on the private `local` disk under `applications/{id}/`, swaps the file answer for its
+    filename, and writes a `Document` row per file. `unit_id` is set directly (intentionally not
+    mass-assignable). Redirects to the thank-you `screening/Submitted.vue` (new page, already wired in
+    `app.ts`). `ApplicationSubmissionTest` (4 tests, 31 assertions) green; full suite 161 passed;
+    Pint, vue-tsc, ESLint, build all clean.
   - context: `PublicScreeningController@store` on `POST /screening/{token}` (name
     `screening.store`), outside auth. Re-check `isOpen()` (reject if closed). Validate answers
     **against the unit's current form schema** — required fields present, choice values in
