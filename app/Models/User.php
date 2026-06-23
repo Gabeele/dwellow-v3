@@ -39,12 +39,12 @@ class User extends Authenticatable implements FilamentUser
     /**
      * Determine whether the user may access the Filament admin panel.
      *
-     * The panel is for developers and founders only — access is restricted to
-     * the email allowlist in config/admin.php (set via ADMIN_EMAILS).
+     * Access is granted to users holding the Admin role, with the email
+     * allowlist in config/admin.php (set via ADMIN_EMAILS) as a fallback.
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        return in_array($this->email, config('admin.emails'), true);
+        return $this->isAdmin() || in_array($this->email, config('admin.emails'), true);
     }
 
     /**

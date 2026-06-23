@@ -14,10 +14,11 @@
   - done: unit test covering `Role::Admin->label()` and a feature/validation test asserting a registration request with `roles: ['admin']` is rejected.
   - note: Added `Role::Admin` + label; restricted registration `roleRules()` via `Rule::enum(Role::class)->only([Landlord, Tenant])`. Added `tests/Unit/RoleTest.php` and an admin-rejection case in `RoleAssignmentTest`. All green.
 
-- [ ] Gate Filament panel access by the `Admin` role (keep the email allowlist as a fallback)
+- [x] Gate Filament panel access by the `Admin` role (keep the email allowlist as a fallback)
   - context: `app/Models/User.php` `canAccessPanel()` currently only checks `config('admin.emails')`. Change it to allow access when the user `isAdmin()` OR is on the allowlist.
   - context: add an `isAdmin(): bool` helper to `app/Concerns/HasRoles.php` (mirrors existing `isLandlord()`/`isTenant()`).
   - done: feature test — an Admin-role user can access the panel; a Landlord/Tenant not on the allowlist cannot; an allowlisted user still can.
+  - note: Added `isAdmin()` to HasRoles, `canAccessPanel()` now `isAdmin() || allowlist`, added `admin()` UserFactory state, and two cases (admin allowed / landlord+tenant denied) in PanelAccessTest. Existing allowlist test still green.
 
 - [ ] Show and manage user roles in the Filament User resource
   - context: resource lives in `app/Filament/Resources/Users/`. Add roles to `Tables/UsersTable.php` (a badge column listing the user's roles) and `Schemas/UserForm.php` (a multi-select of `Role` cases) so an admin can assign/remove roles. Roles are stored via the `role_user` pivot (use the `HasRoles` trait's `assignRole`/`removeRole`, or sync on save).

@@ -79,4 +79,12 @@ trait HasRoles
     {
         return $this->hasRole(Role::Tenant);
     }
+
+    /**
+     * Determine whether the user is an administrator.
+     */
+    public function isAdmin(): bool
+    {
+        return $this->hasRole(Role::Admin);
+    }
 }
