@@ -300,11 +300,20 @@ Guardrails (unchanged — see `.docs/decisions/`):
     copy can't be prop-asserted without a browser harness (none in this project — a dep change out of
     scope), consistent with prior tasks. ApplicationSubmissionTest green (15), Pint clean.
 
-- [ ] Polish the closed / unavailable link state
+- [x] Polish the closed / unavailable link state
   - context: when a link is revoked / expired / not accepting, `Apply.vue` shows a closed state — make it
     genuinely helpful: explain the listing isn't accepting applications right now, with dwellow branding
     and no dead end. Cover all three closed reasons with consistent copy.
   - done: feature tests for revoked/expired/not-accepting each rendering the closed state; build clean.
+  - NOTE: Added `ApplicationLink::closedReason()` (null when open; `revoked` → `expired` → `not_accepting`,
+    revocation taking precedence) next to `isOpen()` so the classification has one source of truth.
+    `PublicScreeningController@show` passes `closedReason` (null when open). `Apply.vue` declares a
+    `ClosedReason` type + `closedReason` prop and a `closedCopy` computed mapping each reason to its own
+    title/body (revoked = "turned off", expired = "expired", not_accepting = "paused"), all ending in a
+    consistent "reach out to the landlord" CTA — no dead end. The closed card was redesigned on-brand
+    (centered `LockKeyhole` in a muted circle, card + shadow). Strengthened the three existing closed-state
+    tests to assert the exact `closedReason` and added an open-link `closedReason: null` test
+    (PublicScreeningControllerTest 9 green, 104 assertions). Pint + vue-tsc + ESLint + build clean.
 
 - [ ] Client-side polish on the apply form
   - context: required-field markers, inline per-field help, friendly file inputs (show chosen filename +

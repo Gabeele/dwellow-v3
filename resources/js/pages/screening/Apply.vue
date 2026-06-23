@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm, usePage } from '@inertiajs/vue3';
-import { CircleAlert, Pencil } from '@lucide/vue';
+import { CircleAlert, LockKeyhole, Pencil } from '@lucide/vue';
 import { computed, onMounted, reactive, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -42,8 +42,11 @@ interface ReferenceValue {
 
 type AnswerValue = string | boolean | string[] | File | null | ReferenceValue;
 
+type ClosedReason = 'revoked' | 'expired' | 'not_accepting';
+
 const props = defineProps<{
     isOpen: boolean;
+    closedReason: ClosedReason | null;
     unit: {
         label: string;
         address: UnitAddress;
@@ -56,6 +59,33 @@ const page = usePage();
 const allFields = computed<FormField[]>(() =>
     props.sections.flatMap((section) => section.fields),
 );
+
+// Each closed reason gets its own friendly, on-brand explanation so the applicant
+// understands why the form isn't here and what to do next — never a dead end.
+const closedCopy = computed<{ title: string; body: string }>(() => {
+    switch (props.closedReason) {
+        case 'revoked':
+            return {
+                title: 'This application link has been turned off',
+                body: 'The landlord is no longer collecting applications through this link. If you were invited to apply, reach out to them for a current link.',
+            };
+        case 'expired':
+            return {
+                title: 'This application link has expired',
+                body: 'This link was only open for a limited time and has since closed. Reach out to the landlord for an up-to-date application link.',
+            };
+        case 'not_accepting':
+            return {
+                title: "This listing isn't accepting applications right now",
+                body: 'The landlord has paused new applications for this unit. Reach out to them to find out when it reopens.',
+            };
+        default:
+            return {
+                title: 'This application is no longer accepting submissions',
+                body: 'The link you followed is no longer available. Please reach out to the landlord for an up-to-date application link.',
+            };
+    }
+});
 
 const addressLines = computed<string[]>(() => {
     const { line1, line2, city, region, postal_code } = props.unit.address;
@@ -281,16 +311,21 @@ const submit = (): void => {
 
         <div
             v-if="!isOpen"
-            class="mt-8 rounded-lg border border-border bg-card p-6 text-center shadow-card"
+            class="mt-8 flex flex-col items-center gap-4 rounded-lg border border-border bg-card p-8 text-center shadow-card"
         >
-            <h2 class="text-lg font-medium text-foreground">
-                This application is no longer accepting submissions
-            </h2>
-            <p class="mt-2 text-sm text-muted-foreground">
-                The link you followed has been paused, has expired, or is no
-                longer available. Please reach out to the landlord for an
-                up-to-date application link.
-            </p>
+            <span
+                class="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground"
+            >
+                <LockKeyhole class="size-6" />
+            </span>
+            <div class="flex flex-col gap-2">
+                <h2 class="text-lg font-medium text-foreground">
+                    {{ closedCopy.title }}
+                </h2>
+                <p class="text-sm text-muted-foreground">
+                    {{ closedCopy.body }}
+                </p>
+            </div>
         </div>
 
         <form

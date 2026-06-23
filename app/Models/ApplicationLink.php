@@ -72,6 +72,29 @@ class ApplicationLink extends Model
     }
 
     /**
+     * Why the link is closed, so the public page can show tailored copy.
+     *
+     * Returns null when the link is open; otherwise one of `revoked`, `expired`,
+     * or `not_accepting` (revocation takes precedence, then expiry).
+     */
+    public function closedReason(): ?string
+    {
+        if ($this->isOpen()) {
+            return null;
+        }
+
+        if ($this->revoked_at !== null) {
+            return 'revoked';
+        }
+
+        if ($this->expires_at !== null && $this->expires_at->isPast()) {
+            return 'expired';
+        }
+
+        return 'not_accepting';
+    }
+
+    /**
      * The unit this application link belongs to.
      *
      * @return BelongsTo<Unit, $this>

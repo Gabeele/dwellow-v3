@@ -101,7 +101,7 @@ test('a section with no enabled key is treated as enabled', function () {
         ->assertInertia(fn (Assert $page) => $page->has('sections', count($sections)));
 });
 
-test('a revoked link renders the closed state', function () {
+test('a revoked link renders the closed state with its reason', function () {
     $link = screeningLink('revoked');
 
     $this->get(route('screening.show', $link->token))
@@ -109,29 +109,43 @@ test('a revoked link renders the closed state', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('screening/Apply')
             ->where('isOpen', false)
+            ->where('closedReason', 'revoked')
             ->where('sections', []),
         );
 });
 
-test('an expired link renders the closed state', function () {
+test('an expired link renders the closed state with its reason', function () {
     $link = screeningLink('expired');
 
     $this->get(route('screening.show', $link->token))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('isOpen', false)
+            ->where('closedReason', 'expired')
             ->where('sections', []),
         );
 });
 
-test('a not-accepting link renders the closed state', function () {
+test('a not-accepting link renders the closed state with its reason', function () {
     $link = screeningLink('notAccepting');
 
     $this->get(route('screening.show', $link->token))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('isOpen', false)
+            ->where('closedReason', 'not_accepting')
             ->where('sections', []),
+        );
+});
+
+test('an open link reports no closed reason', function () {
+    $link = screeningLink();
+
+    $this->get(route('screening.show', $link->token))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('isOpen', true)
+            ->where('closedReason', null),
         );
 });
 

@@ -33,6 +33,7 @@ class PublicScreeningController extends Controller
 
         return Inertia::render('screening/Apply', [
             'isOpen' => $isOpen,
+            'closedReason' => $isOpen ? null : $link->closedReason(),
             'unit' => $this->unitPayload($link),
             'sections' => $isOpen ? ($unit->applicationForm?->enabledSections() ?? []) : [],
         ]);
