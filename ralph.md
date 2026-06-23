@@ -220,7 +220,7 @@ Guardrails (unchanged — see `.docs/decisions/`):
 
 ## Milestone C — Flesh out the applicant flow
 
-- [ ] Render the public apply form grouped by its sections
+- [x] Render the public apply form grouped by its sections
   - context: the form schema is now section-based (`ApplicationForm->sections`, each with a label +
     description). Update `PublicScreeningController@show` to pass the enabled **sections** (not just a
     flat field list) and `Apply.vue` to render section headers + descriptions with the fields beneath —
@@ -228,6 +228,17 @@ Guardrails (unchanged — see `.docs/decisions/`):
     validation/snapshot source of truth.
   - done: an inertia assertion that the apply page renders section headings and their fields; a
     submission still validates against the enabled fields; build + `vue-tsc` clean.
+  - NOTE: The feature was already built — `PublicScreeningController@show` passes `sections` via
+    `ApplicationForm::enabledSections()` (whole section arrays: key/label/description/fields), and
+    `Apply.vue` renders a `<section v-for>` with the heading (label + description, bordered) and the
+    section's fields grouped beneath; `enabledFields()` (flattened) stays the validation/snapshot source
+    of truth in `@store`. The only gap vs the definition of done was the **assertion**: existing tests
+    asserted section *counts* and *keys* but not that each section carries its heading + nested fields.
+    Added `each rendered section carries its heading and grouped fields` to PublicScreeningControllerTest —
+    asserts `sections.0` has key/label/description/fields and `sections.0.fields.0` has key/type/label/
+    required. Submission-validates-against-enabled-fields stays covered by ApplicationSubmissionTest (12).
+    PublicScreeningControllerTest green (8), ApplicationSubmissionTest green (12), Pint clean. No
+    `resources/js` change, so no vue-tsc/ESLint run needed.
 
 - [ ] Add a review-before-submit step to the apply flow
   - context: before final submit, show the applicant a read-only summary of what they entered (and the

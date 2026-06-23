@@ -42,6 +42,25 @@ test('an open link renders the apply page with the units sections', function () 
         );
 });
 
+test('each rendered section carries its heading and grouped fields', function () {
+    $link = screeningLink();
+
+    // The applicant sees section headings (label + description) with the section's
+    // fields grouped beneath, not a flat field list.
+    $this->get(route('screening.show', $link->token))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('sections.0.key', 'personal_information')
+            ->where('sections.0.label', 'Personal information')
+            ->has('sections.0.description')
+            ->has('sections.0.fields')
+            ->where('sections.0.fields.0.key', 'first_name')
+            ->has('sections.0.fields.0.type')
+            ->has('sections.0.fields.0.label')
+            ->has('sections.0.fields.0.required'),
+        );
+});
+
 test('a disabled section is omitted from the public apply payload', function () {
     $link = screeningLink();
 
