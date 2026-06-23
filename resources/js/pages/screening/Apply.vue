@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Head, useForm, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { Head, useForm, useHttp, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -81,12 +81,36 @@ for (const field of props.fields) {
     initialAnswers[field.key] = initialValue(field.type);
 }
 
-const form = useForm<{ answers: Record<string, AnswerValue> }>({
+const form = useForm<{
+    answers: Record<string, AnswerValue>;
+    verification_code: string;
+}>({
     answers: initialAnswers,
+    verification_code: '',
 });
 
 const error = (key: string): string | undefined =>
     form.errors[`answers.${key}` as keyof typeof form.errors];
+
+// Account-free email verification: the applicant requests a one-time code for the
+// email they entered above, then enters it to prove ownership. The code request is a
+// standalone XHR (useHttp) so it never reloads the page or discards the in-progress form.
+const verifier = useHttp<{ email: string }>({ email: '' });
+const codeSent = ref(false);
+
+const applicantEmail = computed<string>(
+    () => (form.answers.email as string | undefined)?.trim() ?? '',
+);
+
+const sendCode = (): void => {
+    verifier.email = applicantEmail.value;
+
+    verifier.post(`${page.url}/verify`, {
+        onSuccess: () => {
+            codeSent.value = true;
+        },
+    });
+};
 
 const reference = (key: string): ReferenceValue =>
     form.answers[key] as ReferenceValue;
@@ -325,8 +349,61 @@ const submit = (): void => {
                 <InputError :message="error(field.key)" />
             </div>
 
+            <!-- Email verification — account-free proof the applicant owns the email. -->
+            <div class="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+                <div class="flex flex-col gap-1">
+                    <h2 class="text-sm font-medium text-foreground">
+                        Verify your email
+                    </h2>
+                    <p class="text-13 text-muted-foreground">
+                        We'll email a one-time code to
+                        <span
+                            v-if="applicantEmail"
+                            class="font-medium text-foreground"
+                            >{{ applicantEmail }}</span
+                        ><span v-else>the email you entered above</span> to
+                        confirm it's yours before you submit.
+                    </p>
+                </div>
+
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <div
+                        v-if="codeSent"
+                        class="flex flex-1 flex-col gap-2"
+                    >
+                        <Label for="verification-code" class="text-13">
+                            Verification code
+                        </Label>
+                        <Input
+                            id="verification-code"
+                            v-model="form.verification_code"
+                            inputmode="numeric"
+                            autocomplete="one-time-code"
+                            placeholder="123456"
+                        />
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        :disabled="!applicantEmail || verifier.processing"
+                        @click="sendCode"
+                    >
+                        {{ codeSent ? 'Resend code' : 'Send code' }}
+                    </Button>
+                </div>
+
+                <p v-if="codeSent" class="text-13 text-muted-foreground">
+                    Enter the code we emailed you to finish your application.
+                </p>
+
+                <InputError :message="form.errors.verification_code" />
+            </div>
+
             <div class="pt-2">
-                <Button :disabled="form.processing" type="submit">
+                <Button
+                    :disabled="form.processing || !form.verification_code"
+                    type="submit"
+                >
                     Submit application
                 </Button>
             </div>

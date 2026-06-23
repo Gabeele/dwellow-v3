@@ -485,13 +485,27 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
     (3 passed, 39 assertions) proving the count is scoped to the landlord and excludes reviewed apps;
     Pint, vue-tsc, ESLint, build all clean.
 
-- [ ] (Optional, later) Lightweight email verification before submission
+- [x] (Optional, later) Lightweight email verification before submission
   - context: per `.docs/features/applicant-flow.md`, gate submission behind a one-time email code
     so applications are attributable and link spam is deterred. Send a code to the applicant's
     email, verify it, then allow the `Application` to be created. Build only after the core CRUD
     flow above is solid; this is intentionally last and optional for this milestone.
   - done: a feature test (`Notification::fake()` / `Mail::fake()`) asserting a code is sent and an
     unverified submission is blocked until the code is confirmed.
+  - note: `App\Screening\EmailVerification` issues a 6-digit code, caches it 15 min against the
+    link+email (`hash_equals`, single-use — consumed on success), and mails it via
+    `ApplicationVerificationCodeNotification` (markdown `emails.application-code`). New route
+    `screening.verify` (`POST screening/{link:token}/verify`, `VerifyApplicationEmailRequest`)
+    returns JSON after sending. `StoreApplicationRequest` now requires `verification_code` and
+    gates the link's open state in `authorize()` (so a closed link 403s before the schema rules
+    run — previously the controller's post-validation `abort_unless` only worked because validation
+    happened to pass); `PublicScreeningController@store` rejects a non-matching/expired code with a
+    `verification_code` validation error. `Apply.vue` renders a "Verify your email" block: a
+    `useHttp` "Send/Resend code" request (no page reload) + code input, and submit is disabled until
+    a code is entered. Tests: new `ApplicationEmailVerificationTest` (4 tests — code emailed, closed
+    link can't issue, bad code blocked, matching code succeeds + replay rejected) and updated
+    `ApplicationSubmissionTest` valid-path to capture the real code from the faked notification.
+    Full suite 179 passed; Pint, ESLint, vue-tsc, build all clean. This was the last milestone task.
 
 ## Research summary — what landlords screen for (informs the default form)
 

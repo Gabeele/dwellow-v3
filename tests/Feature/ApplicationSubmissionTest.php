@@ -6,8 +6,11 @@ use App\Models\ApplicationLink;
 use App\Models\Document;
 use App\Models\Property;
 use App\Models\Unit;
+use App\Notifications\ApplicationVerificationCodeNotification;
+use App\Screening\EmailVerification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
@@ -24,6 +27,30 @@ function openLink(): ApplicationLink
     $unit = Unit::factory()->for(Property::factory())->create();
 
     return ApplicationLink::factory()->for($unit)->create();
+}
+
+/**
+ * Issue a real verification code for the link + email and capture it from the
+ * (faked) notification, so a test can supply the matching code on submission.
+ */
+function issueCodeFor(ApplicationLink $link, string $email): string
+{
+    Notification::fake();
+
+    app(EmailVerification::class)->send($link, $email);
+
+    $captured = '';
+
+    Notification::assertSentOnDemand(
+        ApplicationVerificationCodeNotification::class,
+        function (ApplicationVerificationCodeNotification $notification) use (&$captured): bool {
+            $captured = $notification->code;
+
+            return true;
+        },
+    );
+
+    return $captured;
 }
 
 /**
@@ -55,8 +82,12 @@ test('a valid submission creates an application with a snapshot, answers, and st
 
     $link = openLink();
 
+    $answers = validSubmission();
+    $code = issueCodeFor($link, $answers['email']);
+
     $response = $this->post(route('screening.store', $link->token), [
-        'answers' => validSubmission(),
+        'answers' => $answers,
+        'verification_code' => $code,
     ]);
 
     $response->assertRedirect(route('screening.submitted', $link->token));

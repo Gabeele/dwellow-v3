@@ -13,12 +13,15 @@ class StoreApplicationRequest extends FormRequest
     /**
      * Determine if the user is authorized to make this request.
      *
-     * The link's open state is enforced in the controller (it needs to render a
-     * friendly closed page rather than a bare 403), so authorization is open here.
+     * A submission is only authorized while the link is open; gating here (rather
+     * than in the controller) rejects a closed link with a 403 before the
+     * schema-driven validation rules run.
      */
     public function authorize(): bool
     {
-        return true;
+        $link = $this->route('link');
+
+        return $link instanceof ApplicationLink && $link->isOpen();
     }
 
     /**
@@ -32,7 +35,10 @@ class StoreApplicationRequest extends FormRequest
      */
     public function rules(): array
     {
-        $rules = ['answers' => ['present', 'array']];
+        $rules = [
+            'answers' => ['present', 'array'],
+            'verification_code' => ['required', 'string'],
+        ];
 
         foreach ($this->schemaFields() as $field) {
             $key = $field['key'];

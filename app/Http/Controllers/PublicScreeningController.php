@@ -5,10 +5,14 @@ namespace App\Http\Controllers;
 use App\Enums\ApplicationStatus;
 use App\Enums\FieldType;
 use App\Http\Requests\StoreApplicationRequest;
+use App\Http\Requests\VerifyApplicationEmailRequest;
 use App\Models\ApplicationLink;
+use App\Screening\EmailVerification;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
@@ -48,14 +52,32 @@ class PublicScreeningController extends Controller
     }
 
     /**
+     * Email a one-time verification code to the applicant.
+     *
+     * Lightweight, account-free identity check: the applicant requests a code for
+     * their email before they can submit, so the resulting application is tied to a
+     * confirmed address. A closed link cannot issue codes.
+     */
+    public function verify(VerifyApplicationEmailRequest $request, ApplicationLink $link, EmailVerification $verification): JsonResponse
+    {
+        abort_unless($link->isOpen(), HttpResponse::HTTP_FORBIDDEN);
+
+        $verification->send($link, $request->validated()['email']);
+
+        return response()->json([
+            'message' => __('We emailed you a verification code.'),
+        ]);
+    }
+
+    /**
      * Persist a submitted application: snapshot the current form, store answers,
      * and move any uploaded documents onto the private disk.
      *
      * Validation is driven by the unit's current schema (see StoreApplicationRequest);
      * a closed link is rejected outright so a paused/expired/revoked link cannot
-     * accept new submissions.
+     * accept new submissions, and the submission is gated on a matching email code.
      */
-    public function store(StoreApplicationRequest $request, ApplicationLink $link): RedirectResponse
+    public function store(StoreApplicationRequest $request, ApplicationLink $link, EmailVerification $verification): RedirectResponse
     {
         abort_unless($link->isOpen(), HttpResponse::HTTP_FORBIDDEN);
 
@@ -63,6 +85,14 @@ class PublicScreeningController extends Controller
 
         $fields = $link->unit->applicationForm?->fields ?? [];
         $answers = $request->validated()['answers'] ?? [];
+
+        $email = (string) ($answers['email'] ?? '');
+
+        if (! $verification->verify($link, $email, $request->validated()['verification_code'])) {
+            throw ValidationException::withMessages([
+                'verification_code' => __('That code is incorrect or has expired. Request a new one and try again.'),
+            ]);
+        }
 
         $fileFields = array_filter(
             $fields,
