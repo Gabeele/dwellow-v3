@@ -70,7 +70,7 @@ Guardrails (unchanged — see `.docs/decisions/`):
     `useHttp`/`ref`/`watch` imports. `grep` over `resources/js` for the removed symbols is empty.
     vue-tsc + build clean; PublicScreeningController + ApplicationSubmission tests green (12).
 
-- [ ] Email the applicant a confirmation when they submit
+- [x] Email the applicant a confirmation when they submit
   - context: after `PublicScreeningController@store` persists the Application, send a branded
     "Thanks — we've received your application, the landlord will be in touch" email to the address the
     applicant entered (`applicant_email`). Mirror the `app/Mail/WelcomeMail.php` Mailable + markdown
@@ -80,6 +80,13 @@ Guardrails (unchanged — see `.docs/decisions/`):
     `ShouldQueue`-friendly but fine to send inline in dev (Mailpit).
   - done: a feature test (`Mail::fake()`) asserting the confirmation is sent to the applicant's email on
     a successful submission, and not sent when validation fails. Pint clean.
+  - NOTE: Added `App\Mail\ApplicationReceivedMail` (Queueable trait, sends inline — mirrors WelcomeMail)
+    + `resources/views/emails/application-received.blade.php`, passing first name, unit label, and a
+    formatted property address. `PublicScreeningController@store` now `Mail::to($applicant_email)->send(...)`
+    after persisting (guarded on a non-empty email; loads `unit.property`). Reference id not yet added
+    (that task is still open) so it's omitted from the email for now — fold it in when that task lands.
+    Two new tests in `ApplicationSubmissionTest` (`Mail::fake()`): confirmation sent to applicant on
+    success, nothing sent on validation failure. Suite green (7), Pint clean.
 
 - [ ] Notify the landlord by email when a new application arrives
   - context: when an Application is created, notify the owning landlord (`unit.property.landlord`) that

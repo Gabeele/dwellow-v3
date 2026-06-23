@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Enums\ApplicationStatus;
 use App\Enums\FieldType;
 use App\Http\Requests\StoreApplicationRequest;
+use App\Mail\ApplicationReceivedMail;
 use App\Models\ApplicationLink;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -102,6 +104,12 @@ class PublicScreeningController extends Controller
                 'mime_type' => $file->getClientMimeType(),
                 'size' => $file->getSize(),
             ]);
+        }
+
+        if ($application->applicant_email !== '') {
+            Mail::to($application->applicant_email)->send(
+                new ApplicationReceivedMail($application->loadMissing('unit.property')),
+            );
         }
 
         return to_route('screening.submitted', $link->token);

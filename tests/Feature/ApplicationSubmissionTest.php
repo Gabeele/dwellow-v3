@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\ApplicationStatus;
+use App\Mail\ApplicationReceivedMail;
 use App\Models\Application;
 use App\Models\ApplicationLink;
 use App\Models\Document;
@@ -8,6 +9,7 @@ use App\Models\Property;
 use App\Models\Unit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
@@ -87,6 +89,36 @@ test('a valid submission creates an application with a snapshot, answers, and st
     expect($photoId->original_name)->toBe('id.pdf');
     expect($photoId->disk)->toBe('local');
     Storage::disk('local')->assertExists($photoId->path);
+});
+
+test('a valid submission emails the applicant a confirmation', function () {
+    Storage::fake('local');
+    Mail::fake();
+
+    $link = openLink();
+
+    $this->post(route('screening.store', $link->token), [
+        'answers' => validSubmission(),
+    ])->assertRedirect(route('screening.submitted', $link->token));
+
+    Mail::assertSent(ApplicationReceivedMail::class, function (ApplicationReceivedMail $mail) {
+        return $mail->hasTo('dana@example.com');
+    });
+});
+
+test('a rejected submission does not email the applicant', function () {
+    Storage::fake('local');
+    Mail::fake();
+
+    $link = openLink();
+
+    $answers = validSubmission();
+    unset($answers['gross_monthly_income']);
+
+    $this->post(route('screening.store', $link->token), ['answers' => $answers])
+        ->assertSessionHasErrors('answers.gross_monthly_income');
+
+    Mail::assertNothingSent();
 });
 
 test('the submitted page renders a confirmation', function () {
