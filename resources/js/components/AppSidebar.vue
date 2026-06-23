@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import { BookOpen, FolderGit2, LayoutGrid } from '@lucide/vue';
+import { Link, usePage } from '@inertiajs/vue3';
+import { BookOpen, Building2, FolderGit2, LayoutGrid } from '@lucide/vue';
+import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -15,15 +16,28 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as properties } from '@/routes/properties';
 import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
+const page = usePage();
+const isLandlord = computed(() => page.props.auth.roles.includes('landlord'));
+
+const mainNavItems = computed<NavItem[]>(() => [
     {
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
     },
-];
+    ...(isLandlord.value
+        ? [
+              {
+                  title: 'Properties',
+                  href: properties(),
+                  icon: Building2,
+              },
+          ]
+        : []),
+]);
 
 const footerNavItems: NavItem[] = [
     {
