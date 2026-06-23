@@ -5,8 +5,10 @@ namespace App\Models;
 use App\Enums\OccupancyStatus;
 use App\Enums\PropertyType;
 use App\Enums\RentalType;
+use App\Observers\PropertyObserver;
 use Database\Factories\PropertyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -47,6 +49,7 @@ use Illuminate\Support\Carbon;
     'rent_amount',
     'status',
 ])]
+#[ObservedBy(PropertyObserver::class)]
 class Property extends Model
 {
     /** @use HasFactory<PropertyFactory> */
