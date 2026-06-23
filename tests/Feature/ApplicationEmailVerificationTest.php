@@ -121,3 +121,47 @@ test('a submission with a matching code succeeds', function () {
 
     expect(Application::query()->count())->toBe(1);
 });
+
+test('the verification flow works through a whole-rental link', function () {
+    Storage::fake('local');
+    Notification::fake();
+
+    // A whole rental auto-provisions its single backing unit (PropertyObserver),
+    // so a link against that unit drives the same account-free verification flow.
+    $property = Property::factory()->whole()->create();
+    $unit = $property->units()->sole();
+    $link = ApplicationLink::factory()->for($unit)->create();
+
+    $answers = verifiableAnswers();
+
+    $this->postJson(route('screening.verify', $link->token), [
+        'email' => $answers['email'],
+    ])->assertOk();
+
+    $code = '';
+    Notification::assertSentOnDemand(
+        ApplicationVerificationCodeNotification::class,
+        function (ApplicationVerificationCodeNotification $notification) use (&$code): bool {
+            $code = $notification->code;
+
+            return true;
+        },
+    );
+
+    // A wrong code is rejected even on a valid whole-rental link.
+    $this->post(route('screening.store', $link->token), [
+        'answers' => $answers,
+        'verification_code' => '000000',
+    ])->assertSessionHasErrors('verification_code');
+
+    expect(Application::query()->count())->toBe(0);
+
+    // The mailed code allows submission and attributes it to the backing unit.
+    $this->post(route('screening.store', $link->token), [
+        'answers' => $answers,
+        'verification_code' => $code,
+    ])->assertRedirect(route('screening.submitted', $link->token));
+
+    expect(Application::query()->count())->toBe(1);
+    expect(Application::query()->sole()->unit_id)->toBe($unit->id);
+});

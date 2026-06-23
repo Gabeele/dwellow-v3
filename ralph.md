@@ -140,7 +140,16 @@ Guardrails (unchanged from the prior milestone — see `.docs/decisions/`):
 
 ### Verification — confirm, don't rebuild
 
-- [ ] Audit the applicant email-verification flow end-to-end (do not rebuild)
+- [x] Audit the applicant email-verification flow end-to-end (do not rebuild)
+  - done: audited `EmailVerification` (issue/cache/verify with single-use `Cache::forget` + `hash_equals`),
+    `PublicScreeningController@verify`/`@store` (both `abort_unless($link->isOpen())`, store gates on a
+    matching code keyed by link+email before persisting), and the `Apply.vue` send/resend UI. The whole
+    flow is unit-scoped via `$link->unit` and never branches on `rental_type`, so a whole rental's backing
+    unit drives it unchanged — **no defect found, nothing rebuilt or duplicated.** Added one regression test
+    (`the verification flow works through a whole-rental link`) covering the new whole-rental path:
+    `Property::factory()->whole()` → auto backing unit → link → request code → wrong code rejected (0 apps)
+    → mailed code submits (1 app, attributed to the backing unit). Filter green (5 tests, 24 assertions),
+    pint clean.
   - context: this is **already implemented and tested** — `App\Screening\EmailVerification`,
     `ApplicationVerificationCodeNotification`, `emails.application-code`, the verify/store gating in
     `PublicScreeningController`, the Send/Resend-code UI in `Apply.vue`, and
