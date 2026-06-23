@@ -469,13 +469,21 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
 
 ### Integration & polish
 
-- [ ] Surface applicant activity on the dashboard / properties
+- [x] Surface applicant activity on the dashboard / properties
   - context: on the dashboard (`DashboardController` + its Vue page) and/or the properties index,
     surface a lightweight applicant signal — e.g. a count of new applications across the
     landlord's units and a link straight to the busiest unit's applicants list. Reuse existing
     card/stat patterns. Keep it read-only.
   - done: a feature test asserting the dashboard payload includes the applicant count for the
     authenticated landlord's units.
+  - note: `DashboardController` now adds `new_applications` (count of New applications scoped via
+    `whereHas('unit.property', landlord_id)`) and `busiest_unit` (the landlord's unit with the most
+    applications via `withCount`+`orderByDesc`, `{id,label,applications_count}` or null) to `stats`.
+    `Dashboard.vue` gained a "New applications" StatCard (ai/muted tone) and replaced the
+    "coming soon" placeholder with a read-only "Applicant activity" panel linking to the busiest
+    unit's applicants list (Wayfinder `applicantsIndex`). `DashboardRedesignTest` grew one test
+    (3 passed, 39 assertions) proving the count is scoped to the landlord and excludes reviewed apps;
+    Pint, vue-tsc, ESLint, build all clean.
 
 - [ ] (Optional, later) Lightweight email verification before submission
   - context: per `.docs/features/applicant-flow.md`, gate submission behind a one-time email code

@@ -6,6 +6,7 @@ import StatCard from '@/components/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import { dashboard } from '@/routes';
 import { index as propertiesIndex } from '@/routes/properties';
+import { index as applicantsIndex } from '@/routes/units/applicants';
 
 /**
  * Portfolio summary for landlords. `null` for users who don't hold the
@@ -16,6 +17,12 @@ interface DashboardStats {
     units: number;
     occupied: number;
     available: number;
+    new_applications: number;
+    busiest_unit: {
+        id: number;
+        label: string;
+        applications_count: number;
+    } | null;
 }
 
 defineProps<{
@@ -74,6 +81,12 @@ const welcomeTitle = computed(() =>
                     :value="stats.available"
                     tone="warning"
                 />
+                <StatCard
+                    label="New applications"
+                    :value="stats.new_applications"
+                    :tone="stats.new_applications > 0 ? 'ai' : 'muted'"
+                    context="Awaiting your review"
+                />
             </div>
 
             <div
@@ -90,16 +103,33 @@ const welcomeTitle = computed(() =>
             </div>
 
             <div
-                class="rounded-lg border border-dashed border-border bg-card p-8 shadow-card"
+                v-if="stats?.busiest_unit"
+                class="flex flex-col gap-4 rounded-lg border border-border bg-card p-8 shadow-card sm:flex-row sm:items-center sm:justify-between"
             >
-                <h2 class="text-base font-semibold text-foreground">
-                    Screening home — coming soon
-                </h2>
-                <p class="mt-2 max-w-prose text-sm text-muted-foreground">
-                    This space is reserved for your screening workflow:
-                    applications, background checks, and decisions at a glance.
-                    For now, manage your portfolio from the properties area.
-                </p>
+                <div>
+                    <h2 class="text-base font-semibold text-foreground">
+                        Applicant activity
+                    </h2>
+                    <p class="mt-2 max-w-prose text-sm text-muted-foreground">
+                        <strong class="text-foreground">{{
+                            stats.busiest_unit.label
+                        }}</strong>
+                        has the most interest with
+                        {{ stats.busiest_unit.applications_count }}
+                        {{
+                            stats.busiest_unit.applications_count === 1
+                                ? 'application'
+                                : 'applications'
+                        }}. Jump straight to its applicants to review them.
+                    </p>
+                </div>
+                <Button as-child>
+                    <Link
+                        :href="applicantsIndex(stats.busiest_unit.id)"
+                    >
+                        Review applicants
+                    </Link>
+                </Button>
             </div>
         </div>
     </div>
