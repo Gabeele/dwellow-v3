@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
-import { FileText, ShieldAlert } from '@lucide/vue';
+import { Head, router, useForm } from '@inertiajs/vue3';
+import { FileText, ShieldAlert, Trash2 } from '@lucide/vue';
 import { computed } from 'vue';
 import ApplicationController from '@/actions/App/Http/Controllers/ApplicationController';
 import InputError from '@/components/InputError.vue';
@@ -57,6 +57,16 @@ function saveReview(): void {
     reviewForm.put(ApplicationController.update.url(props.application.id), {
         preserveScroll: true,
     });
+}
+
+function destroyApplication(): void {
+    if (
+        confirm(
+            `Delete ${applicantName.value || 'this'} application? Its uploaded documents will be removed too.`,
+        )
+    ) {
+        router.delete(ApplicationController.destroy.url(props.application.id));
+    }
 }
 
 defineOptions({
@@ -165,6 +175,15 @@ function formatSize(bytes: number | null): string {
                 <StatusBadge :variant="status.variant">
                     {{ status.label }}
                 </StatusBadge>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    class="text-destructive hover:text-destructive"
+                    @click="destroyApplication"
+                >
+                    <Trash2 class="size-4" />
+                    Delete
+                </Button>
             </template>
         </PageHeader>
 

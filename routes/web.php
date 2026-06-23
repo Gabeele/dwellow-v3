@@ -115,6 +115,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('units/{unit}/applicants', [ApplicationController::class, 'index'])->name('units.applicants.index');
     Route::get('applicants/{application}', [ApplicationController::class, 'show'])->name('applicants.show');
     Route::put('applicants/{application}', [ApplicationController::class, 'update'])->name('applicants.update');
+    Route::delete('applicants/{application}', [ApplicationController::class, 'destroy'])->name('applicants.destroy');
 
     Route::post('units/{unit}/links', [ApplicationLinkController::class, 'store'])->name('units.links.store');
     Route::put('links/{link}', [ApplicationLinkController::class, 'update'])->name('links.update');

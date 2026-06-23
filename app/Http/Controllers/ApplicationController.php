@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateApplicationRequest;
 use App\Models\Application;
 use App\Models\Unit;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -66,5 +67,28 @@ class ApplicationController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Application updated.')]);
 
         return back();
+    }
+
+    /**
+     * Delete an application along with the documents it stored on the private disk.
+     * The document rows cascade with the application; their files must be removed by hand.
+     */
+    public function destroy(Application $application): RedirectResponse
+    {
+        $this->authorize('delete', $application);
+
+        $unit = $application->unit;
+
+        $application->load('documents');
+
+        foreach ($application->documents as $document) {
+            Storage::disk($document->disk)->delete($document->path);
+        }
+
+        $application->delete();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Application deleted.')]);
+
+        return to_route('units.applicants.index', $unit);
     }
 }

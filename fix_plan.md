@@ -439,12 +439,19 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
     status+notes mutate. `ApplicationControllerTest` grew 3 tests (now 9 passed, 56 assertions);
     Pint, vue-tsc, ESLint, build all clean.
 
-- [ ] Delete an application (and clean up its documents)
+- [x] Delete an application (and clean up its documents)
   - context: `ApplicationController@destroy` — delete the application and remove its stored files
     from disk (delete each `Document`'s file via `Storage::disk(...)->delete(...)`, then the rows
     cascade). Confirm in the UI before deleting. Authorize via policy.
   - done: a feature test (with `Storage::fake()`) asserting destroy removes the application,
     its document rows, and the files from disk; non-owner 403.
+  - note: Added `ApplicationController@destroy` (authorizes via `ApplicationPolicy::delete`, deletes
+    each document's file off its disk before `$application->delete()` so the cascade drops the rows,
+    flashes a toast, redirects to `units.applicants.index`) on route `applicants.destroy` (DELETE).
+    Wired a ghost destructive "Delete" button (Trash2 icon, `confirm()` guard) into the `Show.vue`
+    PageHeader actions via `router.delete` + Wayfinder `ApplicationController.destroy.url`.
+    `ApplicationControllerTest` grew 2 tests (now 11 passed, 63 assertions) using `Storage::fake('local')`
+    to prove the file + document row are removed; Pint, vue-tsc, ESLint, build all clean.
 
 - [ ] Secure document download for landlords
   - context: `DocumentController@download` (auth+verified) streams a `Document` from the private

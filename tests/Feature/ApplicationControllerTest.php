@@ -8,6 +8,7 @@ use App\Models\Property;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -177,4 +178,41 @@ test('a non-owner cannot update another landlords application', function () {
             'status' => ApplicationStatus::Approved->value,
         ])
         ->assertForbidden();
+});
+
+test('the owning landlord can delete an application and its documents', function () {
+    Storage::fake('local');
+
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create();
+
+    $path = "applications/{$application->id}/id.png";
+    Storage::disk('local')->put($path, 'fake-bytes');
+    $document = Document::factory()->for($application)->create([
+        'disk' => 'local',
+        'path' => $path,
+    ]);
+
+    $this->actingAs($landlord)
+        ->delete(route('applicants.destroy', $application))
+        ->assertRedirect(route('units.applicants.index', $unit));
+
+    $this->assertModelMissing($application);
+    $this->assertDatabaseMissing('documents', ['id' => $document->id]);
+    Storage::disk('local')->assertMissing($path);
+});
+
+test('a non-owner cannot delete another landlords application', function () {
+    $landlord = User::factory()->landlord()->create();
+    $otherUnit = Unit::factory()->create();
+    $otherLink = ApplicationLink::factory()->for($otherUnit)->create();
+    $application = Application::factory()->for($otherLink, 'applicationLink')->create();
+
+    $this->actingAs($landlord)
+        ->delete(route('applicants.destroy', $application))
+        ->assertForbidden();
+
+    $this->assertModelExists($application);
 });
