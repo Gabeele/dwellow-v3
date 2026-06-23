@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\OccupancyStatus;
 use App\Observers\UnitObserver;
+use App\Screening\DefaultApplicationForm;
 use Database\Factories\UnitFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -70,6 +71,18 @@ class Unit extends Model
     public function applicationForm(): HasOne
     {
         return $this->hasOne(ApplicationForm::class);
+    }
+
+    /**
+     * Get this unit's application form, seeding it from the dwellow default
+     * catalog if it does not exist yet. The seed lives here so every call site
+     * (the unit observer and the form builder) shares one source of truth.
+     */
+    public function applicationFormOrDefault(): ApplicationForm
+    {
+        return $this->applicationForm()->firstOrCreate([], [
+            'sections' => DefaultApplicationForm::sections(),
+        ]);
     }
 
     /**

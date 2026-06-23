@@ -16,9 +16,7 @@ class ApplicationFormController extends Controller
      */
     public function edit(Unit $unit): Response
     {
-        $form = $unit->applicationForm()->firstOrCreate([], [
-            'sections' => DefaultApplicationForm::sections(),
-        ]);
+        $form = $unit->applicationFormOrDefault();
 
         $this->authorize('view', $form);
 
@@ -38,9 +36,7 @@ class ApplicationFormController extends Controller
      */
     public function update(UpdateApplicationFormRequest $request, Unit $unit): RedirectResponse
     {
-        $form = $unit->applicationForm()->firstOrCreate([], [
-            'sections' => DefaultApplicationForm::sections(),
-        ]);
+        $form = $unit->applicationFormOrDefault();
 
         $this->authorize('update', $form);
 

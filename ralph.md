@@ -545,11 +545,21 @@ Guardrails (unchanged — see `.docs/decisions/`):
     `toDateTimeString()`, no url/id — not the same payload). All 27 ApplicationControllerTest pass (252
     assertions); Pint clean. No JS touched.
 
-- [ ] Consolidate the `firstOrCreate` default-form logic
+- [x] Consolidate the `firstOrCreate` default-form logic
   - context: `ApplicationFormController@edit` and `@update` both call
     `firstOrCreate([], ['sections' => DefaultApplicationForm::sections()])`. Extract to a single method
     (e.g. `Unit::applicationFormOrDefault()` or a small action) so the seed lives in one place.
   - done: both call sites use the shared method; tests green; Pint clean.
+  - NOTE: Added `Unit::applicationFormOrDefault()` wrapping the
+    `applicationForm()->firstOrCreate([], ['sections' => DefaultApplicationForm::sections()])` seed, with
+    the `DefaultApplicationForm` import moved onto the model. Routed **all three** call sites through it —
+    `ApplicationFormController@edit`, `@update`, and `UnitObserver@created` (the observer had the same
+    duplicated seed, not just the two controller methods the task named) — so the default-form seed now
+    lives in exactly one place. `@update` keeps its own `DefaultApplicationForm` import (still used for
+    `withEnabledSections`); the observer dropped its now-unused import. Two new tests in UnitObserverTest:
+    `applicationFormOrDefault` seeds the default when the form is missing, and returns the existing form
+    without duplicating it. UnitObserver + ApplicationFormController + BackingUnitProvisioner +
+    BackfillWholeRentalUnits tests green (17), Pint clean. No JS touched.
 
 - [ ] Audit & dedupe the screening TypeScript types
   - context: consolidate the `Application`, `Unit`, `Property`, `ApplicationLink`, form-field/section
