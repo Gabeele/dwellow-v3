@@ -166,7 +166,10 @@ test('the submitted page renders a confirmation', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('screening/Submitted')
-            ->has('unit.label'),
+            ->has('unit.label')
+            ->has('unit.address.line1')
+            ->has('unit.address.city')
+            ->has('reference'),
         );
 });
 

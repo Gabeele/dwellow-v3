@@ -281,11 +281,24 @@ Guardrails (unchanged — see `.docs/decisions/`):
     submitted payload exposes the reference (followingRedirects), and the email renders it. Full suite
     green (210), Pint + vue-tsc + ESLint + build clean; migration rollback/re-apply verified.
 
-- [ ] Flesh out the post-submission "Submitted" page
+- [x] Flesh out the post-submission "Submitted" page
   - context: `screening/Submitted.vue` should clearly explain what happens next (the landlord reviews and
     reaches out by email), restate the unit/property, show the reference id, and reassure them their
     documents were received securely. Polished, on-brand, mobile-first — use `frontend-design`.
   - done: an inertia assertion the page renders the next-steps copy + reference id; build clean.
+  - NOTE: Rebuilt `Submitted.vue` into three on-brand cards within the existing `PublicScreeningLayout`
+    (max-w-2xl, mobile-first): (1) a success header + a `MapPin` card restating the unit label and
+    address and the reference chip (now responsive: stacked on mobile, label/value split on `sm`) with a
+    "keep this to follow up" hint; (2) a "What happens next" numbered list — *Application received* and
+    *The landlord reviews it* (reaches out by email, replies come from the landlord not dwellow); (3) a
+    `ShieldCheck` reassurance note — documents uploaded securely, shared only with this landlord, no
+    credit/background check (reinforces ADR 0002). Swapped the inline SVG check for the `CircleCheckBig`
+    lucide icon used elsewhere. Props unchanged (`unit`, `reference`). Inertia tests assert props (no SSR),
+    so strengthened the existing "submitted page renders a confirmation" test to assert the page receives
+    `unit.address.line1`/`city` (needed to restate the property) and the `reference` prop; the
+    next-steps/security copy is static template, guarded by vue-tsc + build + ESLint (all clean). Static
+    copy can't be prop-asserted without a browser harness (none in this project — a dep change out of
+    scope), consistent with prior tasks. ApplicationSubmissionTest green (15), Pint clean.
 
 - [ ] Polish the closed / unavailable link state
   - context: when a link is revoked / expired / not accepting, `Apply.vue` shows a closed state — make it
