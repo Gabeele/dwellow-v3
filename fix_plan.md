@@ -47,9 +47,10 @@
   - done: feature test using `Notification::fake()` asserting the custom verification notification is sent to a newly registered user.
   - note: Added `VerifyEmailNotification` extending Laravel's `VerifyEmail` (keeps signed URL gen, overrides `buildMailMessage`) rendering a branded `resources/views/emails/verify-email.blade.php` Markdown mailable (dwellow name, green success button). Wired via `User::sendEmailVerificationNotification()`. Added a registration→notification test to `EmailVerificationTest`, and updated the existing `VerificationNotificationTest` assertion to the new class. All 96 green.
 
-- [ ] Send a branded welcome email after a user verifies their email
+- [x] Send a branded welcome email after a user verifies their email
   - context: listen for `Illuminate\Auth\Events\Verified` (register the listener in `app/Providers/`), and send a branded `WelcomeMail` Mailable (Markdown). Should NOT send on registration — only after verification.
   - done: feature test using `Mail::fake()`/`Notification::fake()` asserting the welcome email is sent when the `Verified` event fires, and not before.
+  - note: Added `WelcomeMail` Markdown mailable (branded `emails.welcome` view, dwellow copy + dashboard button) and a `SendWelcomeEmail` listener type-hinting `Verified` (auto-discovered, same pattern as `RecordSentEmail` — no provider wiring needed). Added `Auth/WelcomeEmailTest`: nothing sent at registration, `WelcomeMail` sent to the user after the verification link fires `Verified`. Full suite (98) green.
 
 ### Filament — properties
 
