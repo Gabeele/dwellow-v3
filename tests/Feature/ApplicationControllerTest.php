@@ -89,6 +89,95 @@ test('the all-applications page renders each application with its unit and prope
         );
 });
 
+test('the all-applications index filters by status', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+
+    $approved = Application::factory()->for($link, 'applicationLink')->create([
+        'status' => ApplicationStatus::Approved,
+    ]);
+    Application::factory()->for($link, 'applicationLink')->create([
+        'status' => ApplicationStatus::New,
+    ]);
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applications.index', ['status' => ApplicationStatus::Approved->value]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('applications.data', 1)
+            ->where('applications.data.0.id', $approved->id)
+            ->where('filters.status', ApplicationStatus::Approved->value),
+        );
+});
+
+test('the all-applications index filters by property', function () {
+    $landlord = User::factory()->landlord()->create();
+
+    $propertyA = Property::factory()->for($landlord, 'landlord')->create();
+    $unitA = Unit::factory()->for($propertyA)->create();
+    $linkA = ApplicationLink::factory()->for($unitA)->create();
+    $appA = Application::factory()->for($linkA, 'applicationLink')->create();
+
+    $propertyB = Property::factory()->for($landlord, 'landlord')->create();
+    $unitB = Unit::factory()->for($propertyB)->create();
+    $linkB = ApplicationLink::factory()->for($unitB)->create();
+    Application::factory()->for($linkB, 'applicationLink')->create();
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applications.index', ['property' => $propertyA->id]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('applications.data', 1)
+            ->where('applications.data.0.id', $appA->id)
+            ->where('filters.property', $propertyA->id),
+        );
+});
+
+test('the all-applications index searches by applicant name or email', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+
+    $match = Application::factory()->for($link, 'applicationLink')->create([
+        'applicant_first_name' => 'Geraldine',
+        'applicant_last_name' => 'Okafor',
+        'applicant_email' => 'geraldine@example.com',
+    ]);
+    Application::factory()->for($link, 'applicationLink')->create([
+        'applicant_first_name' => 'Tomas',
+        'applicant_last_name' => 'Vega',
+        'applicant_email' => 'tomas@example.com',
+    ]);
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applications.index', ['search' => 'geraldine']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('applications.data', 1)
+            ->where('applications.data.0.id', $match->id)
+            ->where('filters.search', 'geraldine'),
+        );
+});
+
+test('the all-applications index exposes filter options', function () {
+    $landlord = User::factory()->landlord()->create();
+    $property = Property::factory()->for($landlord, 'landlord')->create(['name' => 'Maple Court']);
+    Unit::factory()->for($property)->create();
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applications.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('properties.0.name', 'Maple Court')
+            ->has('statuses', 4),
+        );
+});
+
 test('the all-applications index is paginated', function () {
     $landlord = User::factory()->landlord()->create();
     $unit = applicantUnitOwnedBy($landlord);

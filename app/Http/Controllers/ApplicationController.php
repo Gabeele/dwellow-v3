@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\ApplicationStatus;
 use App\Http\Requests\UpdateApplicationRequest;
 use App\Models\Application;
+use App\Models\Property;
 use App\Models\Unit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,17 +18,34 @@ class ApplicationController extends Controller
     /**
      * List every application across all of the authenticated landlord's units,
      * newest first — the portfolio-wide running list of who has applied.
+     *
+     * Filterable by status and property, and searchable over the applicant's
+     * name/email. Filters live in the query string so a view is shareable.
      */
     public function indexAll(Request $request): Response
     {
         $user = $request->user();
 
+        $search = trim((string) $request->string('search'));
+        $status = ApplicationStatus::tryFrom((string) $request->string('status'));
+        $propertyId = $request->integer('property') ?: null;
+
         $applications = Application::query()
             ->with('unit.property')
             ->withCount('documents')
             ->whereHas('unit.property', fn ($query) => $query->where('landlord_id', $user->id))
+            ->when($status, fn ($query) => $query->where('status', $status))
+            ->when($propertyId, fn ($query, $propertyId) => $query->whereHas(
+                'unit',
+                fn ($unitQuery) => $unitQuery->where('property_id', $propertyId),
+            ))
+            ->when($search !== '', fn ($query) => $query->where(fn ($matches) => $matches
+                ->where('applicant_first_name', 'like', "%{$search}%")
+                ->orWhere('applicant_last_name', 'like', "%{$search}%")
+                ->orWhere('applicant_email', 'like', "%{$search}%")))
             ->latest('submitted_at')
             ->paginate(20)
+            ->withQueryString()
             ->through(fn (Application $application): array => [
                 'id' => $application->id,
                 'applicant_name' => trim("{$application->applicant_first_name} {$application->applicant_last_name}"),
@@ -40,8 +58,28 @@ class ApplicationController extends Controller
                 'url' => route('applicants.show', $application),
             ]);
 
+        $properties = Property::query()
+            ->where('landlord_id', $user->id)
+            ->orderBy('name')
+            ->orderBy('address_line1')
+            ->get()
+            ->map(fn (Property $property): array => [
+                'id' => $property->id,
+                'name' => $property->name ?? $property->address_line1,
+            ]);
+
         return Inertia::render('screening/applicants/All', [
             'applications' => $applications,
+            'properties' => $properties,
+            'statuses' => array_map(
+                fn (ApplicationStatus $status): array => ['value' => $status->value, 'label' => $status->label()],
+                ApplicationStatus::cases(),
+            ),
+            'filters' => [
+                'search' => $search,
+                'status' => $status?->value ?? '',
+                'property' => $propertyId,
+            ],
         ]);
     }
 

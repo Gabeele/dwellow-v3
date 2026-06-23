@@ -180,12 +180,24 @@ Guardrails (unchanged — see `.docs/decisions/`):
     authed landlord) is already covered by ApplicationControllerTest (14 green). vue-tsc + ESLint + build
     clean. Follow-up: when the dashboard task lands, the same route is the link target there too.
 
-- [ ] Filter & search the Applications table
+- [x] Filter & search the Applications table
   - context: add server-driven filtering to `applications.index`: by status, by property/unit, and a
     text search over applicant name/email. Use Inertia query params + `WhenAvailable`/`only` partial
     reloads; debounce the search input. Keep it shareable (filters in the URL).
   - done: feature tests covering the status filter, the unit/property filter, and the text search each
     narrowing the result set; build + `vue-tsc` clean.
+  - NOTE: `ApplicationController@indexAll` now reads `search`/`status`/`property` query params and applies
+    them via `->when()` (status = `ApplicationStatus::tryFrom`, property = `whereHas('unit', property_id)`,
+    search = LIKE over first/last name + email), `->withQueryString()` so pagination keeps the filters.
+    It also returns `properties` (the landlord's, id+name), `statuses` (enum cases), and the current
+    `filters` so the view is shareable + the inputs reflect the URL. `All.vue` adds a debounced (300ms)
+    search `Input` + status and property `Select`s, all driving a `router.get` partial reload
+    (`only: ['applications','filters']`, `preserveState`+`preserveScroll`+`replace`) and a Clear button.
+    Empty state now distinguishes "no matches" from "none yet". Scoped filtering to **property** (not a
+    separate unit param) — covers the property/unit dimension without dead UI. Aliased the Wayfinder
+    `index` import to `applicationsIndex` to avoid colliding with the `applications` prop (vue-tsc caught
+    it). Four new tests in ApplicationControllerTest (status / property / search narrowing + filter
+    options exposed). Suite green (18), Pint + vue-tsc + ESLint + build clean.
 
 - [ ] Surface an applications count + link on the dashboard
   - context: the dashboard already computes a `new_applications` signal — make it (and/or a total
