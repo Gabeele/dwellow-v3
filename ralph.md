@@ -91,7 +91,15 @@ Guardrails (unchanged from the prior milestone — see `.docs/decisions/`):
 
 ### Configure the application form — make it reachable and toggleable
 
-- [ ] Link to the per-unit application-form builder from the screening UI
+- [x] Link to the per-unit application-form builder from the screening UI
+  - done: added a "Customize application form" action to `UnitScreeningPanel.vue` (a Wayfinder
+    `@/routes/units/form` `edit(unit.id)` `<Link>` with a `SlidersHorizontal` icon + "Edit the fields
+    applicants fill in" hint), so it renders for both a multi-unit unit and a whole-rental backing unit.
+    The controller's `firstOrCreate` seeded-default behaviour is untouched, so a landlord who never
+    opened the builder still lands on the default form. Added a feature test in
+    `ApplicationFormControllerTest.php` asserting the linked `units.form.edit` route is reachable and
+    renders `screening/forms/Edit` for a whole-rental backing unit (new path). Filter green (8),
+    `vue-tsc` + build + eslint + pint clean.
   - context: the builder exists (`units.form.edit` → `screening/forms/Edit.vue`) but is orphaned —
     `UnitScreeningPanel.vue` links to applicants and creates links but never to the form builder. Add a
     clear "Customize application form" action in `UnitScreeningPanel` (so it appears for both a unit and a

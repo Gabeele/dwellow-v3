@@ -55,6 +55,23 @@ test('the owning landlord can load the form-builder page with the units fields',
         );
 });
 
+test('the form-builder route linked from the screening panel is reachable for a whole-rental backing unit', function () {
+    $landlord = User::factory()->landlord()->create();
+    $property = Property::factory()->whole()->for($landlord, 'landlord')->create();
+    $backingUnit = $property->units()->sole();
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('units.form.edit', $backingUnit))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('screening/forms/Edit')
+            ->where('unit.id', $backingUnit->id)
+            ->has('fields'),
+        );
+});
+
 test('the owning landlord can update the form schema and it persists', function () {
     $landlord = User::factory()->landlord()->create();
     $property = Property::factory()->for($landlord, 'landlord')->create();

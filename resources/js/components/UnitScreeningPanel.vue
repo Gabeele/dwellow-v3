@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { Ban, Check, Copy, Plus, Users } from '@lucide/vue';
+import { Ban, Check, Copy, Plus, SlidersHorizontal, Users } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import ApplicationLinkController from '@/actions/App/Http/Controllers/ApplicationLinkController';
 import StatusBadge from '@/components/StatusBadge.vue';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { index as applicantsIndex } from '@/routes/units/applicants';
+import { edit as formEdit } from '@/routes/units/form';
 import type { ApplicationLink, Unit } from '@/types/property';
 
 const props = defineProps<{
@@ -101,6 +102,20 @@ async function copyUrl(link: ApplicationLink): Promise<void> {
                 }}
             </Link>
         </div>
+
+        <!-- Configure which fields this unit's applicants must fill in -->
+        <Link
+            :href="formEdit(unit.id)"
+            class="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2.5 text-sm transition-colors hover:border-foreground/30 hover:bg-muted/50"
+        >
+            <span class="flex items-center gap-2 font-medium text-foreground">
+                <SlidersHorizontal class="size-4 text-muted-foreground" />
+                Customize application form
+            </span>
+            <span class="text-xs text-muted-foreground">
+                Edit the fields applicants fill in
+            </span>
+        </Link>
 
         <!-- Existing links -->
         <div v-if="links.length" class="flex flex-col gap-3">
