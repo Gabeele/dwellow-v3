@@ -21,6 +21,19 @@ class PropertyObserver
      */
     public function created(Property $property): void
     {
+        $this->provisionBackingUnit($property);
+    }
+
+    /**
+     * Ensure a whole-rental property has its single backing unit.
+     *
+     * Idempotent and safe to call outside the created event (e.g. a backfill
+     * for legacy whole rentals): firstOrCreate guarantees at most one unit and
+     * the UnitObserver provisions its default form. A no-op for multi-unit
+     * properties, which carry their own units.
+     */
+    public function provisionBackingUnit(Property $property): void
+    {
         if ($property->rental_type !== RentalType::Whole) {
             return;
         }

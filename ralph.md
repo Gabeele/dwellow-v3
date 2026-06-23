@@ -55,7 +55,15 @@ Guardrails (unchanged from the prior milestone — see `.docs/decisions/`):
     form), creating a `MultiUnit` property yields zero auto units, and re-saving a whole property does
     not add a second unit.
 
-- [ ] Backfill a backing unit for existing whole-rental properties
+- [x] Backfill a backing unit for existing whole-rental properties
+  - done: added `properties:backfill-backing-units` command (`BackfillWholeRentalUnits`) that finds
+    `Whole` properties with `doesntHave('units')` and calls the extracted
+    `PropertyObserver@provisionBackingUnit`, so the backfill and live-creation paths share one
+    definition; `UnitObserver` provisions the default form. Idempotent (query filter + observer
+    `firstOrCreate`). A data migration (`2026_06_23_201315_backfill_backing_units_for_whole_rentals`)
+    invokes the command on deploy. Covered by `tests/Feature/BackfillWholeRentalUnitsTest.php` (4 tests:
+    unit-less whole gets one unit+form, double-run adds nothing, existing-unit untouched, multi-unit
+    skipped). PropertyObserver + backfill tests green (7).
   - context: any `Whole` property created before the observer has no unit. Add a migration (or an
     idempotent artisan command invoked by a migration) that creates the single backing unit + default
     form for each existing `Whole` property that has none. Idempotent — safe to run twice.
