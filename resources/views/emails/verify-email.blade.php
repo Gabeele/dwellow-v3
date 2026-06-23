@@ -1,5 +1,5 @@
 @component('mail::message')
-# Welcome to dwellow
+# Welcome to Dwellow
 
 Thanks for signing up. Before you can get started, please confirm your email address so we know it's really you.
 
@@ -7,10 +7,10 @@ Thanks for signing up. Before you can get started, please confirm your email add
 Verify Email Address
 @endcomponent
 
-This link expires shortly for your security. If you did not create a dwellow account, no further action is required.
+This link expires shortly for your security. If you did not create a Dwellow account, no further action is required.
 
 Thanks,<br>
-The dwellow team
+The Dwellow team
 
 @component('mail::subcopy')
 If you're having trouble clicking the "Verify Email Address" button, copy and paste the URL below into your web browser:

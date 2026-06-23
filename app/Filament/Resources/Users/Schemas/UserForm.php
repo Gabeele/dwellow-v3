@@ -30,7 +30,7 @@ class UserForm
                         fn (Role $role): array => [$role->value => $role->label()],
                     ))
                     ->dehydrated(false)
-                    ->helperText('Roles control what the user can do across dwellow.'),
+                    ->helperText('Roles control what the user can do across Dwellow.'),
                 TextInput::make('password')
                     ->password()
                     ->revealable()

@@ -9,7 +9,7 @@ use Illuminate\Notifications\Messages\MailMessage;
  * Branded replacement for the default email-verification notification.
  *
  * Inherits the signed verification URL generation from the base class and
- * only customises the presentation with a dwellow-branded Markdown mailable.
+ * only customises the presentation with a Dwellow-branded Markdown mailable.
  */
 class VerifyEmailNotification extends VerifyEmail
 {
@@ -19,7 +19,7 @@ class VerifyEmailNotification extends VerifyEmail
     protected function buildMailMessage($url): MailMessage
     {
         return (new MailMessage)
-            ->subject('Verify your dwellow email address')
+            ->subject('Verify your Dwellow email address')
             ->markdown('emails.verify-email', ['url' => $url]);
     }
 }

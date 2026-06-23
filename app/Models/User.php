@@ -63,7 +63,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     }
 
     /**
-     * Send the branded dwellow email verification notification.
+     * Send the branded Dwellow email verification notification.
      */
     public function sendEmailVerificationNotification(): void
     {
