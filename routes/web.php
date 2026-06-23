@@ -4,6 +4,7 @@ use App\Http\Controllers\ApplicationFormController;
 use App\Http\Controllers\ApplicationLinkController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PropertyController;
+use App\Http\Controllers\PublicScreeningController;
 use App\Http\Controllers\UnitController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -93,6 +94,9 @@ Route::get('/', function () {
         ],
     ]);
 })->name('home');
+
+// Public applicant flow — no account; the link is resolved by its unguessable token.
+Route::get('screening/{link:token}', [PublicScreeningController::class, 'show'])->name('screening.show');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');

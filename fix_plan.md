@@ -303,7 +303,16 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
 
 ### Applicant — public screening flow (no account)
 
-- [ ] Add the public screening route + controller (resolve token, gate state)
+- [x] Add the public screening route + controller (resolve token, gate state)
+  - note: Added `PublicScreeningController@show` rendering `screening/Apply`, with route
+    `screening.show` = `GET screening/{link:token}` placed OUTSIDE the auth/verified group (binds
+    `ApplicationLink` by `token`, not id — landlord routes still bind by id). Eager-loads
+    `unit.property` + `unit.applicationForm`. Passes `isOpen` (from `isOpen()`), `unit.label` +
+    `unit.address` (applicant-facing only, no landlord internals), and `fields` (the form schema when
+    open, `[]` when closed). Closed links (revoked/expired/not-accepting) render 200 with
+    `isOpen=false`; unknown token 404s via implicit binding. `PublicScreeningControllerTest`
+    (5 tests, 49 assertions) green; test sets `inertia.testing.ensure_pages_exist=false` +
+    `withoutVite()` since `screening/Apply.vue` is the next task. Pint clean.
   - context: new `PublicScreeningController@show` bound to `/screening/{token}` (route name
     `screening.show`) — **outside** the `auth`/`verified` group (applicants have no account).
     Route-model-bind `ApplicationLink` by its `token` column (define `getRouteKeyName()` or bind
