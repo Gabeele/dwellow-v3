@@ -81,4 +81,14 @@ class Unit extends Model
     {
         return $this->hasMany(ApplicationLink::class);
     }
+
+    /**
+     * The applications submitted for this unit.
+     *
+     * @return HasMany<Application, $this>
+     */
+    public function applications(): HasMany
+    {
+        return $this->hasMany(Application::class);
+    }
 }

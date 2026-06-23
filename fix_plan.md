@@ -156,7 +156,7 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
     `notAccepting()` states). Added `applicationLinks(): HasMany` to `Unit`. `ApplicationLinkTest`
     (9 tests, 10 assertions) green; full suite 129 passed; Pint clean.
 
-- [ ] Create the `Application` model, migration, and factory
+- [x] Create the `Application` model, migration, and factory
   - context: `make:model Application -mf`. Columns: `id`, `application_link_id` (foreignId,
     constrained, cascade), `unit_id` (foreignId, constrained, cascade — denormalized for easy
     querying), `applicant_first_name`, `applicant_last_name`, `applicant_email`,
@@ -171,6 +171,13 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
     `status` = New, `submitted_at` = now.
   - done: a feature test asserting an application persists with array casts intact and belongs to
     its link + unit.
+  - note: Added `Application` model (`#[Fillable]`; `answers`/`form_snapshot`=>array, `status`=>
+    `ApplicationStatus`, `submitted_at`=>datetime; `applicationLink()`/`unit()` BelongsTo,
+    `documents()` HasMany — `Document` created next task), migration (FK cascade to link + unit,
+    json answers/snapshot, status default `new`, nullable notes/submitted_at), and factory
+    (`unit_id` derived from the link via deferred closure, snapshot from `DefaultApplicationForm`).
+    Added `applications(): HasMany` to `Unit`. `ApplicationTest` (3 tests, 9 assertions) green;
+    Pint clean.
 
 - [ ] Create the `Document` model, migration, and factory
   - context: `make:model Document -mf`. Columns: `id`, `application_id` (foreignId, constrained,
