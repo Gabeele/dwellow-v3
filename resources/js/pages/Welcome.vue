@@ -1,36 +1,58 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { CircleCheckBig, Sparkles, Users } from '@lucide/vue';
+import {
+    ArrowRight,
+    Building2,
+    ClipboardList,
+    FileSearch,
+    Link2,
+    Scale,
+    Send,
+    ShieldCheck,
+} from '@lucide/vue';
+import type { Component } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import { login, register } from '@/routes';
 
-const features = [
-    {
-        icon: Sparkles,
-        title: 'AI screening',
-        description:
-            'Surface risk and fit from every application with AI that reads the details so you don’t have to.',
-    },
-    {
-        icon: Users,
-        title: 'Applicant pipeline',
-        description:
-            'Keep every prospective tenant in one organized pipeline, from first inquiry to signed lease.',
-    },
-    {
-        icon: CircleCheckBig,
-        title: 'Fast decisions',
-        description:
-            'Get a clear, consistent recommendation in minutes and fill vacancies with confidence.',
-    },
+interface Step {
+    title: string;
+    description: string;
+}
+
+interface Feature {
+    title: string;
+    description: string;
+}
+
+interface RoadmapPhase {
+    phase: string;
+    title: string;
+    items: string[];
+    current: boolean;
+}
+
+defineProps<{
+    steps: Step[];
+    features: Feature[];
+    roadmap: RoadmapPhase[];
+}>();
+
+const stepIcons: Component[] = [
+    Building2,
+    ClipboardList,
+    Link2,
+    FileSearch,
+    Scale,
 ];
+
+const featureIcons: Component[] = [ShieldCheck, Send, Scale];
 </script>
 
 <template>
     <div class="bg-ambient flex min-h-screen flex-col text-foreground">
-        <Head title="AI tenant screening for small landlords" />
+        <Head title="Tenant screening for small landlords" />
 
-        <header class="border-b border-border">
+        <header class="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur">
             <div
                 class="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4"
             >
@@ -59,32 +81,35 @@ const features = [
         </header>
 
         <main class="flex-1">
+            <!-- Hero -->
             <section class="mx-auto w-full max-w-5xl px-6 py-20 lg:py-28">
                 <div class="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
                     <div>
                         <p
                             class="mb-4 text-13 font-medium tracking-wide text-muted-foreground uppercase"
                         >
-                            For small landlords
+                            For DIY landlords · 1–20 units
                         </p>
                         <h1
                             class="text-34 leading-tight font-semibold tracking-tight"
                         >
-                            AI tenant screening that pays for itself
+                            Screen tenants with confidence, not guesswork
                         </h1>
                         <p
                             class="mt-5 max-w-md text-17 leading-relaxed text-muted-foreground"
                         >
-                            Dwellow reviews every applicant, flags what matters,
-                            and gives you a clear recommendation — so you can
-                            choose great tenants without the guesswork.
+                            Dwellow turns every application into a clear,
+                            comparable Score — reading documents, checking
+                            references, and ranking applicants against your
+                            criteria. No bureau accounts, no spreadsheets.
                         </p>
                         <div class="mt-8 flex items-center gap-3">
                             <Link
                                 :href="register()"
-                                class="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-card transition-opacity hover:opacity-90"
+                                class="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-card transition-opacity hover:opacity-90"
                             >
-                                Get started
+                                Start screening
+                                <ArrowRight :size="16" />
                             </Link>
                             <Link
                                 :href="login()"
@@ -112,7 +137,7 @@ const features = [
                                     </p>
                                 </div>
                                 <span
-                                    class="rounded-full bg-success px-3 py-1 text-xs font-medium text-primary-foreground"
+                                    class="rounded-full bg-success px-3 py-1 text-xs font-medium text-success-foreground"
                                 >
                                     Recommended
                                 </span>
@@ -130,8 +155,8 @@ const features = [
                                             value: 'No flags',
                                         },
                                         {
-                                            label: 'Credit signal',
-                                            value: 'Strong',
+                                            label: 'References',
+                                            value: '2 of 2 replied',
                                         },
                                     ]"
                                     :key="row.label"
@@ -157,29 +182,191 @@ const features = [
                 </div>
             </section>
 
+            <!-- How it works -->
             <section class="border-t border-border bg-card/40">
-                <div class="mx-auto w-full max-w-5xl px-6 py-16">
-                    <div class="grid gap-6 md:grid-cols-3">
-                        <div
-                            v-for="feature in features"
-                            :key="feature.title"
-                            class="rounded-xl border border-border bg-card p-6 shadow-card"
+                <div class="mx-auto w-full max-w-5xl px-6 py-20">
+                    <div class="max-w-xl">
+                        <p
+                            class="mb-3 text-13 font-medium tracking-wide text-muted-foreground uppercase"
                         >
-                            <div
-                                class="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground"
-                            >
-                                <component :is="feature.icon" :size="20" />
+                            How it works
+                        </p>
+                        <h2
+                            class="text-28 leading-tight font-semibold tracking-tight"
+                        >
+                            From listing to lease in five steps
+                        </h2>
+                    </div>
+
+                    <ol class="mt-12 grid gap-px overflow-hidden rounded-xl border border-border bg-border md:grid-cols-2 lg:grid-cols-5">
+                        <li
+                            v-for="(step, index) in steps"
+                            :key="step.title"
+                            class="flex flex-col bg-card p-6"
+                        >
+                            <div class="flex items-center justify-between">
+                                <span
+                                    class="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary"
+                                >
+                                    <component
+                                        :is="stepIcons[index]"
+                                        :size="18"
+                                    />
+                                </span>
+                                <span
+                                    class="font-mono text-13 text-muted-foreground"
+                                >
+                                    {{
+                                        String(index + 1).padStart(2, '0')
+                                    }}
+                                </span>
                             </div>
-                            <h2 class="mt-4 text-17 font-semibold">
-                                {{ feature.title }}
-                            </h2>
+                            <h3 class="mt-5 text-sm font-semibold">
+                                {{ step.title }}
+                            </h3>
                             <p
-                                class="mt-2 text-sm leading-relaxed text-muted-foreground"
+                                class="mt-2 text-13 leading-relaxed text-muted-foreground"
                             >
-                                {{ feature.description }}
+                                {{ step.description }}
                             </p>
+                        </li>
+                    </ol>
+                </div>
+            </section>
+
+            <!-- Features / benefits -->
+            <section class="mx-auto w-full max-w-5xl px-6 py-20">
+                <div class="max-w-xl">
+                    <p
+                        class="mb-3 text-13 font-medium tracking-wide text-muted-foreground uppercase"
+                    >
+                        Why dwellow
+                    </p>
+                    <h2
+                        class="text-28 leading-tight font-semibold tracking-tight"
+                    >
+                        Built for the way small landlords actually work
+                    </h2>
+                </div>
+
+                <div class="mt-12 grid gap-6 md:grid-cols-3">
+                    <div
+                        v-for="(feature, index) in features"
+                        :key="feature.title"
+                        class="rounded-xl border border-border bg-card p-6 shadow-card"
+                    >
+                        <div
+                            class="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground"
+                        >
+                            <component
+                                :is="featureIcons[index]"
+                                :size="20"
+                            />
+                        </div>
+                        <h3 class="mt-4 text-17 font-semibold">
+                            {{ feature.title }}
+                        </h3>
+                        <p
+                            class="mt-2 text-sm leading-relaxed text-muted-foreground"
+                        >
+                            {{ feature.description }}
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Roadmap -->
+            <section class="border-t border-border bg-card/40">
+                <div class="mx-auto w-full max-w-5xl px-6 py-20">
+                    <div class="max-w-xl">
+                        <p
+                            class="mb-3 text-13 font-medium tracking-wide text-muted-foreground uppercase"
+                        >
+                            Where we're headed
+                        </p>
+                        <h2
+                            class="text-28 leading-tight font-semibold tracking-tight"
+                        >
+                            Screening today, your whole rental business next
+                        </h2>
+                        <p
+                            class="mt-4 text-sm leading-relaxed text-muted-foreground"
+                        >
+                            We're making screening best-in-class first, then
+                            growing into the full rental lifecycle — lease, rent,
+                            maintenance, and accounting.
+                        </p>
+                    </div>
+
+                    <div class="mt-12 grid gap-6 md:grid-cols-3">
+                        <div
+                            v-for="phase in roadmap"
+                            :key="phase.phase"
+                            class="relative rounded-xl border border-border bg-card p-6"
+                            :class="
+                                phase.current
+                                    ? 'ring-1 ring-success/40'
+                                    : ''
+                            "
+                        >
+                            <div class="flex items-center gap-2">
+                                <span
+                                    class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
+                                    :class="
+                                        phase.current
+                                            ? 'bg-success/15 text-success'
+                                            : 'bg-muted text-muted-foreground'
+                                    "
+                                >
+                                    {{ phase.phase }}
+                                </span>
+                            </div>
+                            <h3 class="mt-4 text-17 font-semibold">
+                                {{ phase.title }}
+                            </h3>
+                            <ul class="mt-4 space-y-2.5">
+                                <li
+                                    v-for="item in phase.items"
+                                    :key="item"
+                                    class="flex items-start gap-2.5 text-13 text-muted-foreground"
+                                >
+                                    <span
+                                        class="mt-1.5 size-1.5 shrink-0 rounded-full"
+                                        :class="
+                                            phase.current
+                                                ? 'bg-success'
+                                                : 'bg-border'
+                                        "
+                                    />
+                                    <span>{{ item }}</span>
+                                </li>
+                            </ul>
                         </div>
                     </div>
+                </div>
+            </section>
+
+            <!-- Closing CTA -->
+            <section class="mx-auto w-full max-w-5xl px-6 py-20">
+                <div
+                    class="flex flex-col items-center gap-6 rounded-2xl border border-border bg-gradient-to-b from-card to-card/60 px-6 py-14 text-center shadow-card"
+                >
+                    <h2
+                        class="max-w-md text-28 leading-tight font-semibold tracking-tight"
+                    >
+                        Ready to fill your next vacancy?
+                    </h2>
+                    <p class="max-w-md text-sm leading-relaxed text-muted-foreground">
+                        Create your first property and start screening
+                        applicants today.
+                    </p>
+                    <Link
+                        :href="register()"
+                        class="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-card transition-opacity hover:opacity-90"
+                    >
+                        Get started
+                        <ArrowRight :size="16" />
+                    </Link>
                 </div>
             </section>
         </main>
