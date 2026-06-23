@@ -67,10 +67,11 @@
 
 ### Units on the tenant/landlord app
 
-- [ ] Show associated units on the property detail page
+- [x] Show associated units on the property detail page
   - context: a property is either rented "whole" (single house) or as multiple independent units — this is the `rental_type` field (`App\Enums\RentalType`). On the Inertia property show page (`resources/js/pages/properties/Show.vue`, served by `app/Http/Controllers/PropertyController.php@show`), when `rental_type` is multi-unit, list the associated units with their label/bedrooms/bathrooms/rent/status; when "whole", show the property's own rentable details.
   - context: eager-load `units` in the controller's `show` method. Reuse existing display patterns from the Index/Show pages.
   - done: feature test asserting the show response includes the property's units for a multi-unit property.
+  - note: Already fully implemented by prior redesign work — `PropertyController@show` eager-loads `units` (`$property->load('units')`), and `Show.vue` branches on `rental_type`: a units DataTable (label/bedrooms/bathrooms/rent/status) for multi-unit, and the property's own rentable metrics for whole rentals. `PropertyShowRedesignTest` already covers the done criterion (multi-unit asserts `property.units` has 2; whole-rental asserts the units array is present). Verified green (2 tests, 21 assertions). No code change needed.
 
 ### Landing page
 
