@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, useForm, usePage } from '@inertiajs/vue3';
-import { CircleAlert } from '@lucide/vue';
-import { computed, onMounted, reactive } from 'vue';
+import { CircleAlert, Pencil } from '@lucide/vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -183,10 +183,80 @@ const textInputType = (type: string): string => {
 
 const canSubmit = computed<boolean>(() => !form.processing);
 
+// Applicants apply on a phone, so the final step is a read-only recap of what
+// they entered (and the files they attached) before anything is sent. `submit`
+// only fires from the review panel; the form's own button just opens the recap.
+const reviewing = ref<boolean>(false);
+
+const openReview = (): void => {
+    reviewing.value = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+const backToEdit = (): void => {
+    reviewing.value = false;
+};
+
+const referenceLines = (key: string): string[] => {
+    const value = reference(key);
+
+    return [value.name, value.relationship, value.email, value.phone].filter(
+        (line): line is string => !!line && line.trim() !== '',
+    );
+};
+
+const attachedFile = (key: string): File | null => {
+    const value = form.answers[key];
+
+    return value instanceof File ? value : null;
+};
+
+const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) {
+        return `${bytes} B`;
+    }
+
+    if (bytes < 1024 * 1024) {
+        return `${Math.round(bytes / 1024)} KB`;
+    }
+
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+// A human-readable rendering of a single answer for the recap panel. Files and
+// references are rendered separately in the template (they have richer markup).
+const displayValue = (field: FormField): string => {
+    const value = form.answers[field.key];
+
+    switch (field.type) {
+        case 'boolean':
+            return value ? 'Yes' : 'No';
+        case 'consent':
+            return value ? 'Acknowledged' : 'Not acknowledged';
+        case 'multi_choice': {
+            const choices = (value as string[]) ?? [];
+
+            return choices.length ? choices.join(', ') : '—';
+        }
+        case 'currency':
+            return value ? `$${value}` : '—';
+        default: {
+            const text = value == null ? '' : String(value).trim();
+
+            return text === '' ? '—' : text;
+        }
+    }
+};
+
 const submit = (): void => {
     form.post(page.url, {
         forceFormData: true,
         preserveScroll: true,
+        // A rejected submission needs the highlighted fields, so drop back to
+        // the form rather than stranding the applicant on the recap.
+        onError: () => {
+            reviewing.value = false;
+        },
     });
 };
 </script>
@@ -223,7 +293,12 @@ const submit = (): void => {
             </p>
         </div>
 
-        <form v-else class="mt-8 flex flex-col gap-8" @submit.prevent="submit">
+        <form
+            v-else
+            v-show="!reviewing"
+            class="mt-8 flex flex-col gap-8"
+            @submit.prevent="openReview"
+        >
             <!-- Honeypot: hidden from humans and assistive tech; bots fill it. -->
             <div aria-hidden="true" class="hidden">
                 <label for="contact_channel">Preferred contact channel</label>
@@ -472,10 +547,111 @@ const submit = (): void => {
             </div>
 
             <div class="pt-2">
-                <Button :disabled="!canSubmit" type="submit">
+                <Button type="submit"> Review application </Button>
+            </div>
+        </form>
+
+        <!-- Read-only recap so the applicant can confirm before submitting. -->
+        <section v-if="isOpen && reviewing" class="mt-8 flex flex-col gap-8">
+            <div class="flex flex-col gap-1 border-b border-border pb-2">
+                <h2 class="text-15 font-semibold text-foreground">
+                    Review your application
+                </h2>
+                <p class="text-13 text-muted-foreground">
+                    Check everything looks right. You can go back and edit any
+                    answer before submitting.
+                </p>
+            </div>
+
+            <div
+                v-for="section in sections"
+                :key="section.key"
+                class="flex flex-col gap-3"
+            >
+                <h3 class="text-sm font-semibold text-foreground">
+                    {{ section.label }}
+                </h3>
+
+                <dl class="flex flex-col divide-y divide-border">
+                    <div
+                        v-for="field in section.fields"
+                        :key="field.key"
+                        class="flex flex-col gap-1 py-2 sm:flex-row sm:gap-4"
+                    >
+                        <dt
+                            class="text-13 text-muted-foreground sm:w-1/3 sm:shrink-0"
+                        >
+                            {{ field.label }}
+                        </dt>
+                        <dd class="text-sm text-foreground sm:w-2/3">
+                            <!-- A reference is a small block of contact lines. -->
+                            <ul
+                                v-if="field.type === 'reference'"
+                                class="flex flex-col gap-0.5"
+                            >
+                                <li
+                                    v-for="line in referenceLines(field.key)"
+                                    :key="line"
+                                >
+                                    {{ line }}
+                                </li>
+                                <li
+                                    v-if="!referenceLines(field.key).length"
+                                    class="text-muted-foreground"
+                                >
+                                    —
+                                </li>
+                            </ul>
+
+                            <!-- An uploaded file shows its name and size. -->
+                            <span v-else-if="field.type === 'file'">
+                                <template v-if="attachedFile(field.key)">
+                                    {{ attachedFile(field.key)?.name }}
+                                    <span class="text-muted-foreground">
+                                        ({{
+                                            formatFileSize(
+                                                attachedFile(field.key)!.size,
+                                            )
+                                        }})
+                                    </span>
+                                </template>
+                                <span v-else class="text-muted-foreground"
+                                    >No file attached</span
+                                >
+                            </span>
+
+                            <span v-else>{{ displayValue(field) }}</span>
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+
+            <!-- A rejected submit drops back to the form, so surface why here too. -->
+            <div
+                v-if="hasErrors"
+                class="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-13 text-destructive"
+            >
+                <CircleAlert class="mt-0.5 size-4 shrink-0" />
+                <span>
+                    Some answers need a closer look — check the highlighted
+                    fields and try again.
+                </span>
+            </div>
+
+            <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
+                <Button
+                    type="button"
+                    variant="outline"
+                    :disabled="form.processing"
+                    @click="backToEdit"
+                >
+                    <Pencil class="size-4" />
+                    Edit answers
+                </Button>
+                <Button type="button" :disabled="!canSubmit" @click="submit">
                     {{ form.processing ? 'Submitting…' : 'Submit application' }}
                 </Button>
             </div>
-        </form>
+        </section>
     </div>
 </template>

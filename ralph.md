@@ -240,12 +240,27 @@ Guardrails (unchanged — see `.docs/decisions/`):
     PublicScreeningControllerTest green (8), ApplicationSubmissionTest green (12), Pint clean. No
     `resources/js` change, so no vue-tsc/ESLint run needed.
 
-- [ ] Add a review-before-submit step to the apply flow
+- [x] Add a review-before-submit step to the apply flow
   - context: before final submit, show the applicant a read-only summary of what they entered (and the
     files they attached) so they can confirm or go back and edit. Multi-step or a single review panel —
     keep it mobile-first (applicants apply on a phone, see `.docs/features/applicant-flow.md`).
   - done: an inertia/component assertion of the review step; the existing submission test still passes;
     build clean.
+  - NOTE: `Apply.vue` now gates submission behind a recap. The form's button is "Review application"
+    (`@submit.prevent="openReview"`); a `reviewing` ref swaps the form (kept mounted via `v-show` so the
+    native file input doesn't lose its picked file) for a read-only `<dl>` recap grouped by section.
+    Each answer is rendered by a typed `displayValue` (Yes/No, Acknowledged, joined multi-choice,
+    `$`-prefixed currency, `—` for empties); references render as contact lines, files as name + size
+    (`formatFileSize`). The recap has "Edit answers" (back) and "Submit application" (the real
+    `form.post`) buttons; `submit`'s `onError` drops back to the form so highlighted fields are visible,
+    and the error banner is shown on the recap too. Mobile-first (stacked `<dl>` rows → 1/3·2/3 on `sm`,
+    `flex-col-reverse` action buttons). Reused the existing `reference()` helper rather than duplicating.
+    No client-side assertion possible: there's no browser-test harness (no Pest-browser/Playwright) and
+    adding one is a dep change out of scope — the change is guarded by vue-tsc + build + ESLint + Prettier
+    (all clean) and the server contract is unchanged, so PublicScreeningControllerTest (component still
+    renders) + ApplicationSubmissionTest (submission still works) stay green (20). Pint clean. Follow-up:
+    when the review step is later folded into the reference-id / "Submitted" page work, the recap copy can
+    restate the reference id once that column exists.
 
 - [ ] Give each application a public reference id and show it on the thank-you page
   - context: add a short, unguessable public reference (e.g. a ULID column `public_id` on `applications`,
