@@ -33,13 +33,9 @@ import type {
     FormSnapshotField,
     Property,
     ReferenceAnswer,
+    StatusOption,
     Unit,
 } from '@/types/property';
-
-interface StatusOption {
-    value: string;
-    label: string;
-}
 
 const props = defineProps<{
     property: Property;

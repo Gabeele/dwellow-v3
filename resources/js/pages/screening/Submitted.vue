@@ -8,21 +8,10 @@ import {
 } from '@lucide/vue';
 import { computed } from 'vue';
 import { formatAddressLines } from '@/lib/address';
-
-interface UnitAddress {
-    line1: string;
-    line2: string | null;
-    city: string;
-    region: string;
-    postal_code: string;
-    country: string;
-}
+import type { PublicUnit } from '@/types/property';
 
 const props = defineProps<{
-    unit: {
-        label: string;
-        address: UnitAddress;
-    };
+    unit: PublicUnit;
     reference: string | null;
 }>();
 

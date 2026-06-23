@@ -9,30 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { index, show } from '@/routes/properties';
-import type { Property, Unit } from '@/types/property';
-
-interface SectionField {
-    key: string;
-    type: string;
-    label: string;
-    required: boolean;
-    help: string | null;
-    options: string[] | null;
-}
-
-interface FormSection {
-    key: string;
-    label: string;
-    description: string;
-    locked: boolean;
-    enabled: boolean;
-    fields: SectionField[];
-}
+import type { EditableFormSection, Property, Unit } from '@/types/property';
 
 const props = defineProps<{
     property: Property;
     unit: Unit;
-    sections: FormSection[];
+    sections: EditableFormSection[];
 }>();
 
 defineOptions({
@@ -44,7 +26,7 @@ defineOptions({
     },
 });
 
-const clone = (sections: FormSection[]): FormSection[] =>
+const clone = (sections: EditableFormSection[]): EditableFormSection[] =>
     sections.map((section) => ({
         ...section,
         // A locked section is always included regardless of what was saved.
@@ -53,7 +35,7 @@ const clone = (sections: FormSection[]): FormSection[] =>
     }));
 
 // Local, reactive copy drives the toggles; the form payload is just the keys.
-const sections = reactive<FormSection[]>(clone(props.sections));
+const sections = reactive<EditableFormSection[]>(clone(props.sections));
 
 const enabledKeys = (): string[] =>
     sections
@@ -73,7 +55,7 @@ const syncForm = (): void => {
     form.enabled_sections = enabledKeys();
 };
 
-const toggle = (section: FormSection): void => {
+const toggle = (section: EditableFormSection): void => {
     if (section.locked) {
         return;
     }
@@ -97,7 +79,7 @@ const submit = (): void => {
     });
 };
 
-const requiredCount = (section: FormSection): number =>
+const requiredCount = (section: EditableFormSection): number =>
     section.fields.filter((field) => field.required).length;
 </script>
 

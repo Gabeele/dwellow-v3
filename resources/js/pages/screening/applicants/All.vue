@@ -22,29 +22,12 @@ import {
     index as applicationsIndex,
 } from '@/routes/applications';
 import type { Paginated } from '@/types';
-import type { ApplicationStatus } from '@/types/property';
-
-interface ApplicationRow {
-    id: number;
-    applicant_name: string;
-    applicant_email: string;
-    property_name: string;
-    unit_label: string;
-    submitted_at: string | null;
-    status: ApplicationStatus;
-    documents_count: number;
-    url: string;
-}
-
-interface StatusOption {
-    value: ApplicationStatus;
-    label: string;
-}
-
-interface PropertyOption {
-    id: number;
-    name: string;
-}
+import type {
+    ApplicationRow,
+    ApplicationStatus,
+    PropertyOption,
+    StatusOption,
+} from '@/types/property';
 
 const props = defineProps<{
     applications: Paginated<ApplicationRow>;

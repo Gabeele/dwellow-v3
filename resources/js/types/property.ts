@@ -14,13 +14,44 @@ export interface ApplicationLink {
 
 export type ApplicationStatus = 'new' | 'reviewing' | 'approved' | 'rejected';
 
-export interface FormSnapshotField {
+export interface FormField {
     key: string;
     type: string;
     label: string;
     required: boolean;
     help: string | null;
     options: string[] | null;
+}
+
+/** The same field shape, as captured in an application's immutable snapshot. */
+export type FormSnapshotField = FormField;
+
+export interface FormSection {
+    key: string;
+    label: string;
+    description: string;
+    fields: FormField[];
+}
+
+/** A section in the form builder, which can toggle and lock sections. */
+export interface EditableFormSection extends FormSection {
+    locked: boolean;
+    enabled: boolean;
+}
+
+export interface UnitAddress {
+    line1: string;
+    line2: string | null;
+    city: string;
+    region: string;
+    postal_code: string;
+    country: string;
+}
+
+/** The public-facing unit shape shown on the applicant flow. */
+export interface PublicUnit {
+    label: string;
+    address: UnitAddress;
 }
 
 export interface ReferenceAnswer {
@@ -107,6 +138,29 @@ export interface Property {
     units?: Unit[];
     created_at: string;
     updated_at: string;
+}
+
+export interface ApplicationRow {
+    id: number;
+    applicant_name: string;
+    applicant_email: string;
+    /** Only present on the portfolio-wide list, which spans properties. */
+    property_name?: string;
+    unit_label: string;
+    submitted_at: string | null;
+    status: ApplicationStatus;
+    documents_count: number;
+    url: string;
+}
+
+export interface StatusOption {
+    value: ApplicationStatus;
+    label: string;
+}
+
+export interface PropertyOption {
+    id: number;
+    name: string;
 }
 
 export interface SelectOption {

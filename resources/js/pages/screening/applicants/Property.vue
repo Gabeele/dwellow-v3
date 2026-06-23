@@ -10,21 +10,10 @@ import TableRow from '@/components/TableRow.vue';
 import { applicationStatusBadge } from '@/lib/applicationStatus';
 import { index, show } from '@/routes/properties';
 import type { Paginated } from '@/types';
-import type { ApplicationStatus } from '@/types/property';
-
-interface ApplicationRow {
-    id: number;
-    applicant_name: string;
-    applicant_email: string;
-    unit_label: string;
-    submitted_at: string | null;
-    status: ApplicationStatus;
-    documents_count: number;
-    url: string;
-}
+import type { ApplicationRow, PropertyOption } from '@/types/property';
 
 defineProps<{
-    property: { id: number; name: string };
+    property: PropertyOption;
     applications: Paginated<ApplicationRow>;
 }>();
 

@@ -561,11 +561,29 @@ Guardrails (unchanged — see `.docs/decisions/`):
     without duplicating it. UnitObserver + ApplicationFormController + BackingUnitProvisioner +
     BackfillWholeRentalUnits tests green (17), Pint clean. No JS touched.
 
-- [ ] Audit & dedupe the screening TypeScript types
+- [x] Audit & dedupe the screening TypeScript types
   - context: consolidate the `Application`, `Unit`, `Property`, `ApplicationLink`, form-field/section
     types in `resources/js/types/` so pages import one canonical definition instead of redeclaring shapes
     inline (e.g. `FormField`/`SectionField` interfaces duplicated across pages).
   - done: pages import shared types; no duplicated interfaces; `vue-tsc` clean.
+  - NOTE: Added canonical types to `resources/js/types/property.ts` and removed the inline redeclarations
+    across the screening pages. `Apply.vue`'s `FormField` and `forms/Edit.vue`'s `SectionField` were
+    byte-identical to the existing `FormSnapshotField` — collapsed to one `FormField`, with
+    `FormSnapshotField` kept as an alias (`export type FormSnapshotField = FormField`) so `Show.vue` is
+    untouched. Added `FormSection` (key/label/description/fields) used by `Apply.vue`, and
+    `EditableFormSection extends FormSection` (adds `locked`/`enabled`) for the builder — `Edit.vue` no
+    longer re-lists the base fields. Added `UnitAddress` + `PublicUnit` (the `{label, address}` shape that
+    `Apply.vue` and `Submitted.vue` both declared inline). `Apply.vue`'s `ReferenceValue` was identical to
+    the existing `ReferenceAnswer` — replaced (kept its local `AnswerValue` since that one includes `File`).
+    Added shared `ApplicationRow` (with `property_name?` optional — the portfolio-wide `All.vue` sets it,
+    per-property `Property.vue` doesn't), `StatusOption` (`value: ApplicationStatus`, used by `All.vue` +
+    `Show.vue`), and `PropertyOption` (`{id, name}`, used by `All.vue`'s prop and `Property.vue`'s inline
+    `property` shape). No JS test harness exists (no vitest/jsdom), and this is a behaviour-preserving
+    type-only refactor with an unchanged server contract, so it's guarded by vue-tsc + ESLint + build (all
+    clean). The 58 feature tests that render these pages stay green (ApplicationController /
+    PublicScreeningController / ApplicationFormController / ApplicationSubmission). Pre-existing Prettier
+    warnings on `Submitted.vue`/`Show.vue` predate this change (confirmed against the committed version);
+    `Edit.vue` is Prettier-clean. No PHP touched, so Pint is a no-op (passed).
 
 - [ ] Centralize status → badge variant mapping
   - context: ensure `ApplicationStatus` → badge variant (and any `OccupancyStatus` mapping) lives in one

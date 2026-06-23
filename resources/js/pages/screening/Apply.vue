@@ -9,50 +9,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { formatAddressLines } from '@/lib/address';
+import type {
+    FormField,
+    FormSection,
+    PublicUnit,
+    ReferenceAnswer,
+} from '@/types/property';
 
-interface FormField {
-    key: string;
-    type: string;
-    label: string;
-    required: boolean;
-    help: string | null;
-    options: string[] | null;
-}
-
-interface FormSection {
-    key: string;
-    label: string;
-    description: string;
-    fields: FormField[];
-}
-
-interface UnitAddress {
-    line1: string;
-    line2: string | null;
-    city: string;
-    region: string;
-    postal_code: string;
-    country: string;
-}
-
-interface ReferenceValue {
-    name: string;
-    email: string;
-    phone: string;
-    relationship: string;
-}
-
-type AnswerValue = string | boolean | string[] | File | null | ReferenceValue;
+type AnswerValue = string | boolean | string[] | File | null | ReferenceAnswer;
 
 type ClosedReason = 'revoked' | 'expired' | 'not_accepting';
 
 const props = defineProps<{
     isOpen: boolean;
     closedReason: ClosedReason | null;
-    unit: {
-        label: string;
-        address: UnitAddress;
-    };
+    unit: PublicUnit;
     sections: FormSection[];
 }>();
 
@@ -93,7 +64,7 @@ const addressLines = computed<string[]>(() =>
     formatAddressLines(props.unit.address),
 );
 
-const referenceDefault = (): ReferenceValue => ({
+const referenceDefault = (): ReferenceAnswer => ({
     name: '',
     email: '',
     phone: '',
@@ -225,8 +196,8 @@ const clearFile = (key: string): void => {
     }
 };
 
-const reference = (key: string): ReferenceValue =>
-    form.answers[key] as ReferenceValue;
+const reference = (key: string): ReferenceAnswer =>
+    form.answers[key] as ReferenceAnswer;
 
 const selectedChoices = (key: string): string[] =>
     (form.answers[key] as string[]) ?? [];
