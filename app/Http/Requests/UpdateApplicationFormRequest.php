@@ -23,6 +23,8 @@ class UpdateApplicationFormRequest extends FormRequest
             'fields.*.type' => ['required', Rule::enum(FieldType::class)],
             'fields.*.label' => ['required', 'string', 'max:255'],
             'fields.*.required' => ['required', 'boolean'],
+            // Backward compatible: a field with no `enabled` key is treated as enabled.
+            'fields.*.enabled' => ['sometimes', 'boolean'],
             'fields.*.help' => ['nullable', 'string', 'max:1000'],
             'fields.*.options' => ['nullable', 'array'],
             'fields.*.options.*' => ['required', 'string', 'max:255'],

@@ -110,7 +110,21 @@ Guardrails (unchanged from the prior milestone — see `.docs/decisions/`):
   - done: a feature/inertia test asserting the screening UI exposes a working route to `units.form.edit`;
     `vue-tsc` + build clean.
 
-- [ ] Add a per-field enable/disable toggle to the form builder
+- [x] Add a per-field enable/disable toggle to the form builder
+  - done: added an `enabled` boolean (default `true`) to the field shape end-to-end. Backend:
+    `DefaultApplicationForm::field()` now emits `enabled: true` on every default field;
+    `UpdateApplicationFormRequest` validates `fields.*.enabled` as `sometimes|boolean` (missing key =
+    enabled, backward compatible); `StoreApplicationRequest::rules()` skips fields where
+    `enabled === false` so a disabled field is neither required nor validated; a new
+    `PublicScreeningController@enabledFields` helper filters disabled fields out of both the public
+    `show` render payload and the `store` path (so the `form_snapshot` and stored documents reflect only
+    active fields). Frontend: `screening/forms/Edit.vue` gained an `enabled` field, a visible
+    Included/"Hidden from applicants" checkbox per card, and dims the card body (opacity) when disabled;
+    `clone`/`addField` default `enabled` to true. `Apply.vue` needed no change — the server filters.
+    Covered by new tests in `ApplicationFormControllerTest` (toggle off→persist→on), `PublicScreeningControllerTest`
+    (disabled field absent from payload; legacy form with no `enabled` key renders all fields), and
+    `ApplicationSubmissionTest` (submission omitting a disabled required field succeeds, snapshot + docs
+    exclude it). Screening suites green (55), pint + vue-tsc + eslint + build clean.
   - context: a landlord should be able to switch a dwellow-default requirement (e.g. pay stubs, photo ID,
     a reference) **on or off per unit without deleting it**, then turn it back on later. Add an `enabled`
     boolean to the field shape (default `true`) across: `App\Screening\DefaultApplicationForm::fields()`

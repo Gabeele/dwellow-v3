@@ -14,7 +14,7 @@ class DefaultApplicationForm
      * applicants submit their own information and documents — dwellow never pulls
      * credit/background numbers (see `references.md` / ADR 0002).
      *
-     * @return list<array{key: string, type: string, label: string, required: bool, help: ?string, options: ?array<int, string>}>
+     * @return list<array{key: string, type: string, label: string, required: bool, enabled: bool, help: ?string, options: ?array<int, string>}>
      */
     public static function fields(): array
     {
@@ -80,8 +80,12 @@ class DefaultApplicationForm
     /**
      * Build a single field shape with every key present.
      *
+     * Every default field is `enabled` — a landlord can switch one off per unit
+     * (without deleting it) so it disappears from the public form and is skipped
+     * during submission validation, then turn it back on later.
+     *
      * @param  ?array<int, string>  $options
-     * @return array{key: string, type: string, label: string, required: bool, help: ?string, options: ?array<int, string>}
+     * @return array{key: string, type: string, label: string, required: bool, enabled: bool, help: ?string, options: ?array<int, string>}
      */
     private static function field(
         string $key,
@@ -96,6 +100,7 @@ class DefaultApplicationForm
             'type' => $type->value,
             'label' => $label,
             'required' => $required,
+            'enabled' => true,
             'help' => $help,
             'options' => $options,
         ];

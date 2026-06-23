@@ -89,6 +89,34 @@ test('the owning landlord can update the form schema and it persists', function 
         ->and($fields[1]['options'])->toBe(['Full-time', 'Part-time']);
 });
 
+test('a field can be toggled disabled and the enabled flag persists, then re-enabled', function () {
+    $landlord = User::factory()->landlord()->create();
+    $property = Property::factory()->for($landlord, 'landlord')->create();
+    $unit = Unit::factory()->for($property)->create();
+
+    $payload = formSchemaPayload(['fields' => [
+        ['key' => 'first_name', 'type' => 'short_text', 'label' => 'First name', 'required' => true, 'enabled' => true, 'help' => null, 'options' => null],
+        ['key' => 'pay_stubs', 'type' => 'file', 'label' => 'Pay stubs', 'required' => false, 'enabled' => false, 'help' => null, 'options' => null],
+    ]]);
+
+    $this->actingAs($landlord)
+        ->put(route('units.form.update', $unit), $payload)
+        ->assertRedirect(route('units.form.edit', $unit));
+
+    $fields = $unit->fresh()->applicationForm->fields;
+    expect($fields[0]['enabled'])->toBeTrue()
+        ->and($fields[1]['enabled'])->toBeFalse();
+
+    // Turning the field back on persists too.
+    $payload['fields'][1]['enabled'] = true;
+
+    $this->actingAs($landlord)
+        ->put(route('units.form.update', $unit), $payload)
+        ->assertRedirect(route('units.form.edit', $unit));
+
+    expect($unit->fresh()->applicationForm->fields[1]['enabled'])->toBeTrue();
+});
+
 test('a duplicate field key is rejected', function () {
     $landlord = User::factory()->landlord()->create();
     $property = Property::factory()->for($landlord, 'landlord')->create();

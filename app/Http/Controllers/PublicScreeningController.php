@@ -47,7 +47,7 @@ class PublicScreeningController extends Controller
                     'country' => $property->country,
                 ],
             ],
-            'fields' => $isOpen ? ($unit->applicationForm?->fields ?? []) : [],
+            'fields' => $isOpen ? $this->enabledFields($unit->applicationForm?->fields ?? []) : [],
         ]);
     }
 
@@ -83,7 +83,8 @@ class PublicScreeningController extends Controller
 
         $link->load('unit.applicationForm');
 
-        $fields = $link->unit->applicationForm?->fields ?? [];
+        // Only fields that were active at submit time render, validate, and snapshot.
+        $fields = $this->enabledFields($link->unit->applicationForm?->fields ?? []);
         $answers = $request->validated()['answers'] ?? [];
 
         $email = (string) ($answers['email'] ?? '');
@@ -144,6 +145,23 @@ class PublicScreeningController extends Controller
         }
 
         return to_route('screening.submitted', $link->token);
+    }
+
+    /**
+     * Keep only the fields a landlord has left enabled.
+     *
+     * A field with no `enabled` key is treated as enabled, so forms saved before
+     * the toggle existed render and validate unchanged.
+     *
+     * @param  array<int, array<string, mixed>>  $fields
+     * @return list<array<string, mixed>>
+     */
+    private function enabledFields(array $fields): array
+    {
+        return array_values(array_filter(
+            $fields,
+            fn (array $field): bool => ($field['enabled'] ?? true) !== false,
+        ));
     }
 
     /**

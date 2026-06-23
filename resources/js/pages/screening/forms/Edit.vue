@@ -25,6 +25,7 @@ interface FormField {
     type: string;
     label: string;
     required: boolean;
+    enabled: boolean;
     help: string | null;
     options: string[] | null;
 }
@@ -56,6 +57,8 @@ defineOptions({
 const clone = (fields: FormField[]): FormField[] =>
     fields.map((field) => ({
         ...field,
+        // Forms saved before the toggle existed have no `enabled` key — treat them as enabled.
+        enabled: field.enabled ?? true,
         options: field.options ? [...field.options] : null,
     }));
 
@@ -88,6 +91,7 @@ const addField = (): void => {
         type: 'short_text',
         label: '',
         required: false,
+        enabled: true,
         help: null,
         options: null,
     });
@@ -182,11 +186,20 @@ const submit = (): void => {
                 class="rounded-lg border border-border bg-card p-5 shadow-card"
             >
                 <div class="flex items-start justify-between gap-3">
-                    <span
-                        class="mt-2 text-13 font-medium text-muted-foreground"
-                    >
-                        Field {{ index + 1 }}
-                    </span>
+                    <div class="flex items-center gap-3">
+                        <span class="text-13 font-medium text-muted-foreground">
+                            Field {{ index + 1 }}
+                        </span>
+                        <label
+                            class="flex items-center gap-2 text-13 text-foreground"
+                        >
+                            <Checkbox v-model="field.enabled" />
+                            <span v-if="field.enabled">Included</span>
+                            <span v-else class="text-muted-foreground"
+                                >Hidden from applicants</span
+                            >
+                        </label>
+                    </div>
                     <div class="flex items-center gap-1">
                         <Button
                             type="button"
@@ -221,6 +234,7 @@ const submit = (): void => {
                     </div>
                 </div>
 
+                <div :class="{ 'opacity-60': !field.enabled }">
                 <div class="mt-2 grid gap-4 sm:grid-cols-2">
                     <div class="grid gap-2">
                         <Label :for="`label-${index}`" class="text-sm">
@@ -342,6 +356,7 @@ const submit = (): void => {
                             Add option
                         </Button>
                     </div>
+                </div>
                 </div>
             </div>
 

@@ -129,6 +129,41 @@ test('the submitted page renders a confirmation', function () {
         );
 });
 
+test('a submission omitting a disabled field succeeds and the snapshot reflects only active fields', function () {
+    Storage::fake('local');
+
+    $link = openLink();
+
+    // Disable the required pay_stubs file field so it no longer renders or validates.
+    $fields = array_map(function (array $field): array {
+        if ($field['key'] === 'pay_stubs') {
+            $field['enabled'] = false;
+        }
+
+        return $field;
+    }, $link->unit->applicationForm->fields);
+    $link->unit->applicationForm->update(['fields' => $fields]);
+
+    $answers = validSubmission();
+    unset($answers['pay_stubs']);
+
+    $code = issueCodeFor($link, $answers['email']);
+
+    $this->post(route('screening.store', $link->token), [
+        'answers' => $answers,
+        'verification_code' => $code,
+    ])->assertRedirect(route('screening.submitted', $link->token));
+
+    $application = Application::query()->sole();
+
+    // The snapshot captures only the fields that were active at submit time.
+    expect(collect($application->form_snapshot)->pluck('key'))->not->toContain('pay_stubs');
+
+    // Only the still-enabled photo_id file is stored as a document.
+    expect($application->documents)->toHaveCount(1);
+    expect($application->documents->firstWhere('field_key', 'pay_stubs'))->toBeNull();
+});
+
 test('a submission missing a required field is rejected', function () {
     Storage::fake('local');
 

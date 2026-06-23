@@ -45,6 +45,12 @@ class StoreApplicationRequest extends FormRequest
             $type = FieldType::tryFrom($field['type'] ?? '');
             $required = (bool) ($field['required'] ?? false);
 
+            // A disabled field is not rendered, so it contributes no rule.
+            // A field with no `enabled` key is treated as enabled (backward compatible).
+            if (($field['enabled'] ?? true) === false) {
+                continue;
+            }
+
             if ($type === null) {
                 continue;
             }
