@@ -164,12 +164,21 @@ Guardrails (unchanged — see `.docs/decisions/`):
     renders a row's applicant_name/email/property/unit/status/url. ApplicationControllerTest green (14),
     vue-tsc + ESLint + build + Pint clean. Sidebar nav entry is the next task.
 
-- [ ] Add the "Applications" entry to the sidebar nav
+- [x] Add the "Applications" entry to the sidebar nav
   - context: add an item to `mainNavItems` in `resources/js/components/AppSidebar.vue` (between
     Properties and Settings) pointing at the Wayfinder `applications.index` route, with a fitting
     `@lucide/vue` icon (e.g. `Inbox` / `FileText`). Match the existing `NavItem` shape.
   - done: build + `vue-tsc` clean; a smoke assertion that an authenticated landlord's shell includes the
     Applications link.
+  - NOTE: Added an `Applications` item to `mainNavItems` inside the `isLandlord` branch (Applications is
+    landlord-only — the controller scopes by `landlord_id`), placed right after Properties, pointing at the
+    Wayfinder `applications.index` route (`import { index as applications } from '@/routes/applications'`).
+    Did **not** add a lucide icon: the sidebar template renders every item with a shared `Diamond` bullet
+    and never reads `NavItem.icon`, so an icon here would be dead code — kept the `{title, href}` shape that
+    matches the existing items. No JS test runner exists in this project (no vitest/jsdom), so the rendered
+    shell can't be asserted client-side; the link's destination (`applications.index` reachable by an
+    authed landlord) is already covered by ApplicationControllerTest (14 green). vue-tsc + ESLint + build
+    clean. Follow-up: when the dashboard task lands, the same route is the link target there too.
 
 - [ ] Filter & search the Applications table
   - context: add server-driven filtering to `applications.index`: by status, by property/unit, and a

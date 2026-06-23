@@ -7,6 +7,7 @@ import NavUser from '@/components/NavUser.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
+import { index as applications } from '@/routes/applications';
 import { edit as editProfile } from '@/routes/profile';
 import { index as properties } from '@/routes/properties';
 import type { NavItem } from '@/types';
@@ -26,6 +27,10 @@ const mainNavItems = computed<NavItem[]>(() => [
               {
                   title: 'Properties',
                   href: properties(),
+              },
+              {
+                  title: 'Applications',
+                  href: applications(),
               },
           ]
         : []),
