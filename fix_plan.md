@@ -422,13 +422,22 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
   - done: a feature test asserting the detail page renders an application's snapshot answers and
     its documents for the owner; non-owner 403.
 
-- [ ] Update application status + landlord notes
+- [x] Update application status + landlord notes
   - context: `ApplicationController@update` — change `status` (validate against
     `ApplicationStatus`) and edit `landlord_notes`. Wire status actions
     (New / Reviewing / Approved / Rejected) + a notes field into `Show.vue`. dwellow never
     auto-decides — this is purely the landlord's manual action.
   - done: a feature test asserting the owner can move an application Reviewing→Approved and save
     notes, and the change persists; non-owner 403.
+  - note: Added `ApplicationController@update` (authorizes via `ApplicationPolicy::update`, flashes
+    a toast, redirects `back()`) + `UpdateApplicationRequest` (`status` `sometimes|required` via
+    `Rule::enum(ApplicationStatus)`, `landlord_notes` nullable string max 5000) on route
+    `applicants.update` (PUT). `show()` now passes a `statuses` prop (enum value+label, mirroring
+    `fieldTypes`). Wired a "Review" card into `screening/applicants/Show.vue`: status `Select`
+    (v-model on a `useForm`) + private-notes textarea, PUT via Wayfinder
+    `ApplicationController.update.url`, `preserveScroll`. Snapshot/answers untouched — only
+    status+notes mutate. `ApplicationControllerTest` grew 3 tests (now 9 passed, 56 assertions);
+    Pint, vue-tsc, ESLint, build all clean.
 
 - [ ] Delete an application (and clean up its documents)
   - context: `ApplicationController@destroy` — delete the application and remove its stored files

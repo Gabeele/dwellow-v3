@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ApplicationStatus;
+use App\Http\Requests\UpdateApplicationRequest;
 use App\Models\Application;
 use App\Models\Unit;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -43,6 +46,25 @@ class ApplicationController extends Controller
             'unit' => $application->unit,
             'application' => $application,
             'documents' => $application->documents,
+            'statuses' => array_map(
+                fn (ApplicationStatus $status): array => ['value' => $status->value, 'label' => $status->label()],
+                ApplicationStatus::cases(),
+            ),
         ]);
+    }
+
+    /**
+     * Update an application's status and the landlord's private notes. dwellow never
+     * decides for the landlord — this is purely their manual review action.
+     */
+    public function update(UpdateApplicationRequest $request, Application $application): RedirectResponse
+    {
+        $this->authorize('update', $application);
+
+        $application->update($request->validated());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Application updated.')]);
+
+        return back();
     }
 }

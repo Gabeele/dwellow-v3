@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ApplicationStatus;
 use App\Models\Application;
 use App\Models\ApplicationLink;
 use App\Models\Document;
@@ -127,5 +128,53 @@ test('a non-owner cannot view another landlords application detail', function ()
 
     $this->actingAs($landlord)
         ->get(route('applicants.show', $application))
+        ->assertForbidden();
+});
+
+test('the owning landlord can update an applications status and notes', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+
+    $application = Application::factory()->for($link, 'applicationLink')->create([
+        'status' => ApplicationStatus::Reviewing,
+        'landlord_notes' => null,
+    ]);
+
+    $this->actingAs($landlord)
+        ->from(route('applicants.show', $application))
+        ->put(route('applicants.update', $application), [
+            'status' => ApplicationStatus::Approved->value,
+            'landlord_notes' => 'Strong references, approved.',
+        ])
+        ->assertRedirect(route('applicants.show', $application));
+
+    $application->refresh();
+
+    expect($application->status)->toBe(ApplicationStatus::Approved)
+        ->and($application->landlord_notes)->toBe('Strong references, approved.');
+});
+
+test('an application cannot be moved to an invalid status', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create();
+
+    $this->actingAs($landlord)
+        ->put(route('applicants.update', $application), ['status' => 'archived'])
+        ->assertSessionHasErrors('status');
+});
+
+test('a non-owner cannot update another landlords application', function () {
+    $landlord = User::factory()->landlord()->create();
+    $otherUnit = Unit::factory()->create();
+    $otherLink = ApplicationLink::factory()->for($otherUnit)->create();
+    $application = Application::factory()->for($otherLink, 'applicationLink')->create();
+
+    $this->actingAs($landlord)
+        ->put(route('applicants.update', $application), [
+            'status' => ApplicationStatus::Approved->value,
+        ])
         ->assertForbidden();
 });

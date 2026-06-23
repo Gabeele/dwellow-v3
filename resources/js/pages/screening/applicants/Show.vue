@@ -1,16 +1,27 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import { FileText, ShieldAlert } from '@lucide/vue';
 import { computed } from 'vue';
+import ApplicationController from '@/actions/App/Http/Controllers/ApplicationController';
+import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { applicationStatusBadge } from '@/lib/applicationStatus';
 import { index } from '@/routes/properties';
 import { index as applicantsIndex } from '@/routes/units/applicants';
@@ -24,12 +35,29 @@ import type {
     Unit,
 } from '@/types/property';
 
+interface StatusOption {
+    value: string;
+    label: string;
+}
+
 const props = defineProps<{
     property: Property;
     unit: Unit;
     application: Application;
     documents: Document[];
+    statuses: StatusOption[];
 }>();
+
+const reviewForm = useForm({
+    status: props.application.status,
+    landlord_notes: props.application.landlord_notes ?? '',
+});
+
+function saveReview(): void {
+    reviewForm.put(ApplicationController.update.url(props.application.id), {
+        preserveScroll: true,
+    });
+}
 
 defineOptions({
     layout: {
@@ -149,6 +177,57 @@ function formatSize(bytes: number | null): string {
                     been independently verified by dwellow.
                 </AlertDescription>
             </Alert>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Review</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <form
+                        class="flex flex-col gap-5"
+                        @submit.prevent="saveReview"
+                    >
+                        <div class="grid gap-2">
+                            <Label for="status">Status</Label>
+                            <Select v-model="reviewForm.status">
+                                <SelectTrigger id="status" class="w-full sm:w-60">
+                                    <SelectValue>
+                                        {{ applicationStatusBadge(reviewForm.status).label }}
+                                    </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="option in statuses"
+                                        :key="option.value"
+                                        :value="option.value"
+                                    >
+                                        {{ option.label }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <InputError :message="reviewForm.errors.status" />
+                        </div>
+
+                        <div class="grid gap-2">
+                            <Label for="landlord_notes">Private notes</Label>
+                            <textarea
+                                id="landlord_notes"
+                                v-model="reviewForm.landlord_notes"
+                                rows="4"
+                                placeholder="Notes only you can see…"
+                                class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                            ></textarea>
+                            <InputError :message="reviewForm.errors.landlord_notes" />
+                        </div>
+
+                        <div>
+                            <Button type="submit" :disabled="reviewForm.processing">
+                                Save review
+                            </Button>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
 
             <Card>
                 <CardHeader>
