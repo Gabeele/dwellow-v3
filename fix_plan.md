@@ -233,7 +233,15 @@ terms (Applicant, Application, Application Form, Application Link, etc.) in code
     `inertia.testing.ensure_pages_exist=false` since `screening/forms/Edit.vue` is the next task.
     Full suite 146 passed; Pint clean.
 
-- [ ] Build the form-builder UI page
+- [x] Build the form-builder UI page
+  - note: Added `resources/js/pages/screening/forms/Edit.vue` — `useForm` over the `fields` array
+    with add/remove/reorder (up/down buttons; stable `uids` keys preserve input focus on reorder),
+    label/key/type/required/help editing, per-type choice-option rows (shown when the type's
+    `expectsOptions` meta is true; `onTypeChange` seeds/clears `options`), inline per-field errors
+    keyed by `fields.N.attr`, and a "Reset to default" action repopulating from the `defaultFields`
+    prop. Submits PUT via the Wayfinder `ApplicationFormController.update.url(unit)`. Updated the
+    edit-page controller test to drop the page-skip and assert `fieldTypes` (11) + `defaultFields`
+    (7 passed). `vue-tsc`, ESLint, build, and Pint all clean.
   - context: new `resources/js/pages/screening/forms/Edit.vue` using `AppLayout` and existing
     `resources/js/components/ui/*` (input, select, checkbox, button, card, separator). Let the
     landlord add / edit / remove / **reorder** fields, set the label, pick a `FieldType`, mark

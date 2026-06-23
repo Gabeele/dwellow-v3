@@ -42,9 +42,7 @@ test('the owning landlord can load the form-builder page with the units fields',
     $property = Property::factory()->for($landlord, 'landlord')->create();
     $unit = Unit::factory()->for($property)->create();
 
-    // The Vue page is built in the next task; skip the on-disk render + existence checks.
     $this->withoutVite();
-    config()->set('inertia.testing.ensure_pages_exist', false);
 
     $this->actingAs($landlord)
         ->get(route('units.form.edit', $unit))
@@ -52,7 +50,8 @@ test('the owning landlord can load the form-builder page with the units fields',
             ->component('screening/forms/Edit')
             ->has('unit')
             ->has('fields')
-            ->has('fieldTypes'),
+            ->has('fieldTypes', 11)
+            ->has('defaultFields'),
         );
 });
 
