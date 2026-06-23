@@ -120,6 +120,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('units/{unit}/form', [ApplicationFormController::class, 'update'])->name('units.form.update');
 
     Route::get('applications', [ApplicationController::class, 'indexAll'])->name('applications.index');
+    Route::get('applications/export', [ApplicationController::class, 'exportAll'])->name('applications.export');
 
     Route::get('units/{unit}/applicants', [ApplicationController::class, 'index'])->name('units.applicants.index');
     Route::get('applicants/{application}', [ApplicationController::class, 'show'])->name('applicants.show');

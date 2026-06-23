@@ -220,6 +220,63 @@ test('the all-applications index exposes pagination links and a reachable second
         );
 });
 
+test('the applications export streams a landlord-scoped csv with a header row', function () {
+    $landlord = User::factory()->landlord()->create();
+
+    $property = Property::factory()->for($landlord, 'landlord')->create(['name' => 'Maple Court']);
+    $unit = Unit::factory()->for($property)->create(['label' => 'Unit 1']);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    Application::factory()->for($link, 'applicationLink')->create([
+        'applicant_first_name' => 'Rosa',
+        'applicant_last_name' => 'Lin',
+        'applicant_email' => 'rosa@example.com',
+        'status' => ApplicationStatus::Reviewing,
+    ]);
+
+    $otherUnit = Unit::factory()->create();
+    $otherLink = ApplicationLink::factory()->for($otherUnit)->create();
+    Application::factory()->for($otherLink, 'applicationLink')->create([
+        'applicant_first_name' => 'Hidden',
+        'applicant_email' => 'hidden@example.com',
+    ]);
+
+    $response = $this->actingAs($landlord)->get(route('applications.export'));
+
+    $response->assertOk();
+    $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
+    $csv = $response->streamedContent();
+    $rows = array_map('str_getcsv', array_values(array_filter(explode("\n", $csv), fn ($line) => $line !== '')));
+
+    expect($rows[0])->toBe(['Applicant name', 'Email', 'Property', 'Unit', 'Status', 'Submitted at']);
+    expect(array_slice($rows[1], 0, 5))->toBe(['Rosa Lin', 'rosa@example.com', 'Maple Court', 'Unit 1', 'Reviewing']);
+    expect($rows[1][5])->not->toBe('');
+    expect($csv)->not->toContain('hidden@example.com');
+});
+
+test('the applications export respects the active status filter', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+
+    Application::factory()->for($link, 'applicationLink')->create([
+        'applicant_email' => 'approved@example.com',
+        'status' => ApplicationStatus::Approved,
+    ]);
+    Application::factory()->for($link, 'applicationLink')->create([
+        'applicant_email' => 'new@example.com',
+        'status' => ApplicationStatus::New,
+    ]);
+
+    $response = $this->actingAs($landlord)
+        ->get(route('applications.export', ['status' => ApplicationStatus::Approved->value]));
+
+    $csv = $response->streamedContent();
+
+    expect($csv)->toContain('approved@example.com')
+        ->not->toContain('new@example.com');
+});
+
 test('the owning landlord sees their units applications newest first', function () {
     $landlord = User::factory()->landlord()->create();
     $unit = applicantUnitOwnedBy($landlord);

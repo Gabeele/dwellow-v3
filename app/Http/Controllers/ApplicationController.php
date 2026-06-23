@@ -7,11 +7,13 @@ use App\Http\Requests\UpdateApplicationRequest;
 use App\Models\Application;
 use App\Models\Property;
 use App\Models\Unit;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ApplicationController extends Controller
 {
@@ -30,20 +32,9 @@ class ApplicationController extends Controller
         $status = ApplicationStatus::tryFrom((string) $request->string('status'));
         $propertyId = $request->integer('property') ?: null;
 
-        $applications = Application::query()
+        $applications = $this->landlordApplicationsQuery($request)
             ->with('unit.property')
             ->withCount('documents')
-            ->whereHas('unit.property', fn ($query) => $query->where('landlord_id', $user->id))
-            ->when($status, fn ($query) => $query->where('status', $status))
-            ->when($propertyId, fn ($query, $propertyId) => $query->whereHas(
-                'unit',
-                fn ($unitQuery) => $unitQuery->where('property_id', $propertyId),
-            ))
-            ->when($search !== '', fn ($query) => $query->where(fn ($matches) => $matches
-                ->where('applicant_first_name', 'like', "%{$search}%")
-                ->orWhere('applicant_last_name', 'like', "%{$search}%")
-                ->orWhere('applicant_email', 'like', "%{$search}%")))
-            ->latest('submitted_at')
             ->paginate(20)
             ->withQueryString()
             ->through(fn (Application $application): array => [
@@ -81,6 +72,69 @@ class ApplicationController extends Controller
                 'property' => $propertyId,
             ],
         ]);
+    }
+
+    /**
+     * Stream the authenticated landlord's applications as a CSV, respecting the
+     * same status/property/search filters as the index. Contact details, unit /
+     * property, status, and submitted date only — documents stay private and are
+     * never included.
+     */
+    public function exportAll(Request $request): StreamedResponse
+    {
+        $applications = $this->landlordApplicationsQuery($request)->with('unit.property');
+
+        $headers = ['Applicant name', 'Email', 'Property', 'Unit', 'Status', 'Submitted at'];
+
+        return response()->streamDownload(function () use ($applications, $headers): void {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, $headers);
+
+            $applications->chunk(200, function ($chunk) use ($handle): void {
+                foreach ($chunk as $application) {
+                    fputcsv($handle, [
+                        trim("{$application->applicant_first_name} {$application->applicant_last_name}"),
+                        $application->applicant_email,
+                        $application->unit->property->name ?? $application->unit->property->address_line1,
+                        $application->unit->label,
+                        $application->status->label(),
+                        $application->submitted_at?->toDateTimeString() ?? '',
+                    ]);
+                }
+            });
+
+            fclose($handle);
+        }, 'applications.csv', [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
+    /**
+     * Build the base query for the authenticated landlord's applications, scoped
+     * to their units and narrowed by the request's status/property/search filters.
+     * Shared by the index page and the CSV export so both honour the same filters.
+     */
+    private function landlordApplicationsQuery(Request $request): Builder
+    {
+        $user = $request->user();
+
+        $search = trim((string) $request->string('search'));
+        $status = ApplicationStatus::tryFrom((string) $request->string('status'));
+        $propertyId = $request->integer('property') ?: null;
+
+        return Application::query()
+            ->whereHas('unit.property', fn ($query) => $query->where('landlord_id', $user->id))
+            ->when($status, fn ($query) => $query->where('status', $status))
+            ->when($propertyId, fn ($query, $propertyId) => $query->whereHas(
+                'unit',
+                fn ($unitQuery) => $unitQuery->where('property_id', $propertyId),
+            ))
+            ->when($search !== '', fn ($query) => $query->where(fn ($matches) => $matches
+                ->where('applicant_first_name', 'like', "%{$search}%")
+                ->orWhere('applicant_last_name', 'like', "%{$search}%")
+                ->orWhere('applicant_email', 'like', "%{$search}%")))
+            ->latest('submitted_at');
     }
 
     /**

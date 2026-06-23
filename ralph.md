@@ -377,12 +377,26 @@ Guardrails (unchanged — see `.docs/decisions/`):
     + build clean; new files are Prettier-clean (the two pre-existing All.vue/Index.vue Prettier warnings
     predate this change — untouched lines).
 
-- [ ] Export a landlord's applications to CSV
+- [x] Export a landlord's applications to CSV
   - context: an "Export CSV" action on the Applications page that streams the landlord's applications
     (respecting active filters) — applicant contact, unit/property, status, submitted date. Streamed
     download, owner-scoped. Documents are NOT included (files stay private).
   - done: a feature test asserting the export streams a CSV scoped to the landlord with the expected
     header row; Pint clean.
+  - NOTE: Extracted the landlord-scoped filtered query out of `indexAll` into a shared private
+    `landlordApplicationsQuery(Request)` (status / property / search + `latest('submitted_at')`), now used
+    by both the index and the export so they honour identical filters. Added `ApplicationController@exportAll`
+    streaming via `response()->streamDownload()` + `fputcsv` over a `->chunk(200)` (flat memory): header
+    `Applicant name, Email, Property, Unit, Status, Submitted at` then one row per application — contact,
+    property (name ?? line1), unit label, status label, `submitted_at->toDateTimeString()`. Documents are
+    deliberately excluded (files stay private). Route `GET /applications/export` name `applications.export`
+    in the auth+verified group. `All.vue` gained an "Export CSV" anchor (plain `<a>` for a real file
+    download, not Inertia) whose href is an `exportHref` computed that mirrors the active search/status/
+    property filters, so the export matches what's on screen. Wayfinder regenerated — note it sanitizes the
+    `export`-prefixed action to `exportMethod` (imported aliased as `applicationsExport`). Two new tests in
+    ApplicationControllerTest: header + scoped/own row present & another landlord's excluded (parsed with
+    `str_getcsv` since PHP 8.5's `fputcsv` quotes space-containing fields), and the status filter narrows the
+    export. Suite green (22), Pint + vue-tsc + ESLint + build clean.
 
 - [ ] Add a property-level applicants view
   - context: aggregate applicants across all units of one property (multi-unit landlords want a

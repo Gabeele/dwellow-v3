@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { FileText, Inbox, Search } from '@lucide/vue';
+import { Download, FileText, Inbox, Search } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import DataTable from '@/components/DataTable.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -16,7 +16,10 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { applicationStatusBadge } from '@/lib/applicationStatus';
-import { index as applicationsIndex } from '@/routes/applications';
+import {
+    exportMethod as applicationsExport,
+    index as applicationsIndex,
+} from '@/routes/applications';
 import type { Paginated } from '@/types';
 import type { ApplicationStatus } from '@/types/property';
 
@@ -125,6 +128,17 @@ const propertyLabel = computed(() =>
         : (props.properties.find((option) => String(option.id) === property.value)
               ?.name ?? 'All properties'),
 );
+
+const exportHref = computed(
+    () =>
+        applicationsExport({
+            query: {
+                search: search.value || undefined,
+                status: status.value === ALL ? undefined : status.value,
+                property: property.value === ALL ? undefined : property.value,
+            },
+        }).url,
+);
 </script>
 
 <template>
@@ -194,6 +208,14 @@ const propertyLabel = computed(() =>
             >
                 Clear
             </button>
+
+            <a
+                :href="exportHref"
+                class="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-foreground shadow-card transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:ml-auto"
+            >
+                <Download class="size-4" />
+                Export CSV
+            </a>
         </div>
 
         <div
