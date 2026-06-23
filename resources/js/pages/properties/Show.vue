@@ -12,6 +12,7 @@ import TableRow from '@/components/TableRow.vue';
 import { Button } from '@/components/ui/button';
 import UnitScreeningPanel from '@/components/UnitScreeningPanel.vue';
 import { formatAddress } from '@/lib/address';
+import { formatCurrency } from '@/lib/currency';
 import { edit, index } from '@/routes/properties';
 import { index as propertyApplicants } from '@/routes/properties/applicants';
 import { create as createUnit } from '@/routes/properties/units';
@@ -80,16 +81,6 @@ const rentRoll = computed(() => {
 
     return Number(props.property.rent_amount ?? 0);
 });
-
-const currency = new Intl.NumberFormat('en-CA', {
-    style: 'currency',
-    currency: 'CAD',
-    maximumFractionDigits: 0,
-});
-
-function formatCurrency(value: number): string {
-    return currency.format(value);
-}
 
 function unitRent(unit: Unit): string {
     return unit.rent_amount

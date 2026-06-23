@@ -506,10 +506,22 @@ Guardrails (unchanged — see `.docs/decisions/`):
     (all clean); existing PublicScreeningController + PropertyController feature tests that render these
     pages stay green (17). No PHP touched, so Pint N/A.
 
-- [ ] Extract a currency formatter composable (frontend)
+- [x] Extract a currency formatter composable (frontend)
   - context: the `Intl.NumberFormat('en-CA', { currency: 'CAD' })` logic in `properties/Show.vue` (and
     anywhere rent is rendered) should be a single `useCurrency`/`formatCurrency` helper.
   - done: rent rendering uses the shared helper; build clean.
+  - NOTE: Added `resources/js/lib/currency.ts` exporting `formatCurrency(value, fractionDigits = 0)` —
+    `en-CA` CAD formatter, whole dollars by default (matches the prior `maximumFractionDigits: 0`), with a
+    per-`fractionDigits` `Map` cache so formatters are built once (mirrors how Show.vue had hoisted its
+    formatter to module scope). Deleted the local `currency` formatter + `formatCurrency` wrapper from
+    `properties/Show.vue` and imported the shared one; the four call sites (`unitRent`, the two `rentRoll`
+    MetricCards) are unchanged, so rent renders identically. Left `Apply.vue`'s review-recap
+    `case 'currency': $${value}` (line ~313) as-is: it `$`-prefixes arbitrary applicant input (not rent,
+    no `Intl.NumberFormat`), so routing it through the helper would change output (thousands separators)
+    and risk NaN — Milestone E forbids behaviour change. (Same precedent as the address task leaving
+    `properties/Index.vue`'s `cityLine`.) No JS test harness exists (no vitest/jsdom); the refactor is
+    behaviour-preserving with an unchanged server contract, guarded by vue-tsc + ESLint + build + Prettier
+    (all clean). PropertyControllerTest (renders Show.vue) green (7). No PHP touched, so Pint N/A.
 
 - [ ] Introduce Eloquent API Resources for screening payloads (backend)
   - context: controllers hand-build Inertia payload arrays for Unit / Application / Property (e.g.
