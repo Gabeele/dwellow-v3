@@ -442,11 +442,24 @@ Guardrails (unchanged — see `.docs/decisions/`):
   - FOLLOW-UP: `properties/Show.vue` and `UnitScreeningPanel.vue` still use bespoke empty-state markup; a
     later pass could fold them into `EmptyState` with a `compact`/`size` variant if visual parity is kept.
 
-- [ ] Show application source + timeline on the detail page
+- [x] Show application source + timeline on the detail page
   - context: on `screening/applicants/Show.vue` show which link (label) the application came through and
     a simple timeline (submitted at, status last changed). Read-only, from existing columns where
     possible; add a `status_changed_at` column only if needed (reversible migration).
   - done: a feature assertion the detail payload includes the link label + submitted timestamp; build clean.
+  - NOTE: Added a reversible migration for a nullable `status_changed_at` timestamp on `applications`
+    (needed because `updated_at` also moves on note-only edits, so it can't represent "status last
+    changed"). `Application::booted()` now stamps `status_changed_at` in an `updating` hook when
+    `isDirty('status')`, and casts the column to `datetime`; the docblock + cast were updated. The new
+    column serializes with the whole `$application` payload automatically. `ApplicationController@show`
+    now eager-loads `applicationLink` and passes `source` => the link's `label` (nullable). `Show.vue`
+    gained a "Source & timeline" card (Applied through · Submitted · Status last changed — "Not yet
+    reviewed" until first stamped) between Contact and Application; `source` defaults to "Shared link"
+    when the link has no label; added `source` prop + `status_changed_at` to the `Application` TS type.
+    Two new tests in ApplicationControllerTest: detail payload exposes `source` label + `submitted_at`
+    (and null `status_changed_at`), and a status change stamps `status_changed_at` while a notes-only
+    edit does not re-stamp it. ApplicationControllerTest green (27), Pint + vue-tsc + ESLint + build
+    clean; migration rollback/re-apply verified.
 
 - [ ] Flesh out `README.md`
   - context: the README is a single line. Write a real project README: what dwellow is (small-landlord

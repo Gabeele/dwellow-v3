@@ -63,6 +63,7 @@ export interface Application {
     answers?: Record<string, AnswerValue>;
     form_snapshot?: FormSnapshotField[];
     status: ApplicationStatus;
+    status_changed_at: string | null;
     landlord_notes: string | null;
     documents_count?: number;
     submitted_at: string | null;

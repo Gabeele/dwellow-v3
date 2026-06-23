@@ -202,12 +202,13 @@ class ApplicationController extends Controller
     {
         $this->authorize('view', $application);
 
-        $application->load(['documents', 'unit.property']);
+        $application->load(['documents', 'unit.property', 'applicationLink']);
 
         return Inertia::render('screening/applicants/Show', [
             'property' => $application->unit->property,
             'unit' => $application->unit,
             'application' => $application,
+            'source' => $application->applicationLink?->label,
             'documents' => $application->documents,
             'statuses' => array_map(
                 fn (ApplicationStatus $status): array => ['value' => $status->value, 'label' => $status->label()],

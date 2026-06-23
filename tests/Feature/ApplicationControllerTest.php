@@ -455,6 +455,57 @@ test('the owning landlord sees an applications snapshot and documents', function
         );
 });
 
+test('the detail page exposes the source link label and submitted timestamp', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create(['label' => 'Kijiji listing']);
+
+    $application = Application::factory()->for($link, 'applicationLink')->create([
+        'submitted_at' => now()->subDay(),
+    ]);
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applicants.show', $application))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('screening/applicants/Show')
+            ->where('source', 'Kijiji listing')
+            ->where('application.submitted_at', $application->submitted_at->toJSON())
+            ->where('application.status_changed_at', null),
+        );
+});
+
+test('changing an applications status stamps status_changed_at', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+
+    $application = Application::factory()->for($link, 'applicationLink')->create([
+        'status' => ApplicationStatus::New,
+        'status_changed_at' => null,
+    ]);
+
+    $this->actingAs($landlord)
+        ->put(route('applicants.update', $application), [
+            'status' => ApplicationStatus::Approved->value,
+            'landlord_notes' => null,
+        ]);
+
+    expect($application->refresh()->status_changed_at)->not->toBeNull();
+
+    // Editing only the notes must not re-stamp the status timeline.
+    $stampedAt = $application->status_changed_at;
+
+    $this->actingAs($landlord)
+        ->put(route('applicants.update', $application), [
+            'status' => ApplicationStatus::Approved->value,
+            'landlord_notes' => 'Looks good.',
+        ]);
+
+    expect($application->refresh()->status_changed_at->equalTo($stampedAt))->toBeTrue();
+});
+
 test('a non-owner cannot view another landlords application detail', function () {
     $landlord = User::factory()->landlord()->create();
     $otherUnit = Unit::factory()->create();

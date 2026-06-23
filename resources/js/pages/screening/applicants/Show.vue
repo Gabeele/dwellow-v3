@@ -45,6 +45,7 @@ const props = defineProps<{
     property: Property;
     unit: Unit;
     application: Application;
+    source: string | null;
     documents: Document[];
     statuses: StatusOption[];
 }>();
@@ -94,6 +95,14 @@ const submittedOn = computed(() =>
         ? dateFormatter.format(new Date(props.application.submitted_at))
         : '—',
 );
+
+const statusChangedOn = computed(() =>
+    props.application.status_changed_at
+        ? dateFormatter.format(new Date(props.application.status_changed_at))
+        : null,
+);
+
+const source = computed(() => props.source ?? 'Shared link');
 
 const snapshot = computed<FormSnapshotField[]>(
     () => props.application.form_snapshot ?? [],
@@ -280,6 +289,40 @@ function formatSize(bytes: number | null): string {
                         </span>
                         <span class="font-mono text-sm text-foreground">
                             {{ application.public_id }}
+                        </span>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Source &amp; timeline</CardTitle>
+                </CardHeader>
+                <CardContent class="grid gap-4 sm:grid-cols-2">
+                    <div class="flex flex-col gap-0.5">
+                        <span class="text-13 text-muted-foreground">
+                            Applied through
+                        </span>
+                        <span class="text-sm text-foreground">{{ source }}</span>
+                    </div>
+                    <div class="flex flex-col gap-0.5">
+                        <span class="text-13 text-muted-foreground">
+                            Submitted
+                        </span>
+                        <span class="text-sm text-foreground">
+                            {{ submittedOn }}
+                        </span>
+                    </div>
+                    <div class="flex flex-col gap-0.5">
+                        <span class="text-13 text-muted-foreground">
+                            Status last changed
+                        </span>
+                        <span class="text-sm text-foreground">
+                            {{
+                                statusChangedOn
+                                    ? `${status.label} · ${statusChangedOn}`
+                                    : 'Not yet reviewed'
+                            }}
                         </span>
                     </div>
                 </CardContent>

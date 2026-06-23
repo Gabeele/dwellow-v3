@@ -24,6 +24,7 @@ use Illuminate\Support\Str;
  * @property array<string, mixed> $answers
  * @property array<int, array<string, mixed>> $form_snapshot
  * @property ApplicationStatus $status
+ * @property Carbon|null $status_changed_at
  * @property string|null $landlord_notes
  * @property Carbon|null $submitted_at
  * @property Carbon|null $created_at
@@ -55,6 +56,12 @@ class Application extends Model
                 $application->public_id = (string) Str::ulid();
             }
         });
+
+        static::updating(function (Application $application): void {
+            if ($application->isDirty('status')) {
+                $application->status_changed_at = $application->freshTimestamp();
+            }
+        });
     }
 
     /**
@@ -68,6 +75,7 @@ class Application extends Model
             'answers' => 'array',
             'form_snapshot' => 'array',
             'status' => ApplicationStatus::class,
+            'status_changed_at' => 'datetime',
             'submitted_at' => 'datetime',
         ];
     }
