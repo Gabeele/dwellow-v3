@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { Building2 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import DataTable from '@/components/DataTable.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
 import type { FilterTab } from '@/components/FilterTabs.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -167,22 +168,18 @@ function openProperty(property: Property): void {
             </template>
         </PageHeader>
 
-        <div
+        <EmptyState
             v-if="properties.length === 0"
-            class="flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card p-16 text-center shadow-card"
+            :icon="Building2"
+            tone="primary"
         >
-            <div
-                class="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground"
-            >
-                <Building2 class="size-5" />
-            </div>
-            <p class="text-sm text-muted-foreground">
-                You haven't added any properties yet.
-            </p>
-            <Button as-child variant="outline">
-                <Link :href="create()">Add property</Link>
-            </Button>
-        </div>
+            You haven't added any properties yet.
+            <template #action>
+                <Button as-child variant="outline">
+                    <Link :href="create()">Add property</Link>
+                </Button>
+            </template>
+        </EmptyState>
 
         <div v-else class="flex flex-col gap-6">
             <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

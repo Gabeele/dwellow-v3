@@ -2,6 +2,7 @@
 import { Head, router } from '@inertiajs/vue3';
 import { FileText, Users } from '@lucide/vue';
 import DataTable from '@/components/DataTable.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import Pagination from '@/components/Pagination.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
@@ -63,20 +64,10 @@ function submittedOn(application: ApplicationRow): string {
             Every application across all units of this property, newest first.
         </p>
 
-        <div
-            v-if="applications.data.length === 0"
-            class="flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card p-16 text-center shadow-card"
-        >
-            <div
-                class="flex size-11 items-center justify-center rounded-xl bg-muted text-muted-foreground"
-            >
-                <Users class="size-5" />
-            </div>
-            <p class="text-sm text-muted-foreground">
-                No one has applied to this property yet. Share a unit's
-                application link to start collecting applicants.
-            </p>
-        </div>
+        <EmptyState v-if="applications.data.length === 0" :icon="Users">
+            No one has applied to this property yet. Share a unit's application
+            link to start collecting applicants.
+        </EmptyState>
 
         <DataTable v-else>
             <template #head>

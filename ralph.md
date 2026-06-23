@@ -420,12 +420,27 @@ Guardrails (unchanged — see `.docs/decisions/`):
     Wayfinder regen added `.form` route definitions, which also cleared the pre-existing `.form` vue-tsc
     errors across the auth/settings pages — vue-tsc is now fully clean.)
 
-- [ ] Empty / loading states audit across screening pages
+- [x] Empty / loading states audit across screening pages
   - context: ensure every screening list and panel (`properties/Index`, `Show`, applicants Index/All,
     `UnitScreeningPanel`) has a clear empty state and, where data is deferred, a pulsing skeleton (per the
     Inertia v3 deferred-prop guidance in `CLAUDE.md`). Reuse a shared empty-state component if one exists;
     otherwise create one small reusable component.
   - done: inertia/component assertions for a couple of the empty states; build clean.
+  - NOTE: Every screening list/panel already had an empty state — the gap was that the full-page list
+    empty states were duplicated markup. Extracted a reusable `resources/js/components/EmptyState.vue`
+    (props: optional `icon` component + `tone: 'muted' | 'primary'`; default slot for the message, `action`
+    slot for a button) that reproduces the existing dashed-border card *exactly*, and wired it into the four
+    identical full-page list empty states: applicants `Index`/`All`/`Property` (muted icon) and
+    `properties/Index` (primary tone + Add-property action). Left the visually-distinct smaller variants in
+    `properties/Show.vue` (`bg-card/50 p-10`, no icon) and `UnitScreeningPanel.vue` as-is to avoid changing
+    their look. **Skeletons are N/A**: grep for `Inertia::defer`/`optional`/`WhenAvailable` across `app/` is
+    empty — no list arrives deferred, so every page has its data on first render and a skeleton would be dead
+    UI. No JS test harness exists (no vitest/jsdom), so the empty-state DOM can't be asserted client-side;
+    added a feature test (`...renders the empty state when the landlord has no applications`) asserting the
+    All page renders with `applications.data` empty + `total` 0 (exercises the empty-state data branch).
+    ApplicationControllerTest green (25), vue-tsc + ESLint + build + Prettier + Pint clean.
+  - FOLLOW-UP: `properties/Show.vue` and `UnitScreeningPanel.vue` still use bespoke empty-state markup; a
+    later pass could fold them into `EmptyState` with a `compact`/`size` variant if visual parity is kept.
 
 - [ ] Show application source + timeline on the detail page
   - context: on `screening/applicants/Show.vue` show which link (label) the application came through and

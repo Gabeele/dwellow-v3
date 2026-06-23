@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/vue3';
 import { Download, FileText, Inbox, Search } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import DataTable from '@/components/DataTable.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import Pagination from '@/components/Pagination.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
@@ -66,7 +67,9 @@ const ALL = 'all';
 
 const search = ref(props.filters.search);
 const status = ref(props.filters.status || ALL);
-const property = ref(props.filters.property ? String(props.filters.property) : ALL);
+const property = ref(
+    props.filters.property ? String(props.filters.property) : ALL,
+);
 
 const hasActiveFilters = computed(
     () => search.value !== '' || status.value !== ALL || property.value !== ALL,
@@ -125,8 +128,9 @@ const statusLabel = computed(() =>
 const propertyLabel = computed(() =>
     property.value === ALL
         ? 'All properties'
-        : (props.properties.find((option) => String(option.id) === property.value)
-              ?.name ?? 'All properties'),
+        : (props.properties.find(
+              (option) => String(option.id) === property.value,
+          )?.name ?? 'All properties'),
 );
 
 const exportHref = computed(
@@ -145,10 +149,7 @@ const exportHref = computed(
     <Head title="Applications" />
 
     <div class="flex h-full flex-1 flex-col p-6 lg:p-10">
-        <PageHeader
-            eyebrow="Screening"
-            title="Applications"
-        />
+        <PageHeader eyebrow="Screening" title="Applications" />
 
         <p class="-mt-4 mb-6 text-sm text-muted-foreground">
             Every application across all of your units, newest first.
@@ -169,7 +170,10 @@ const exportHref = computed(
             </div>
 
             <Select v-model="status">
-                <SelectTrigger class="w-full sm:w-48" aria-label="Filter by status">
+                <SelectTrigger
+                    class="w-full sm:w-48"
+                    aria-label="Filter by status"
+                >
                     <SelectValue>{{ statusLabel }}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -185,7 +189,10 @@ const exportHref = computed(
             </Select>
 
             <Select v-model="property">
-                <SelectTrigger class="w-full sm:w-56" aria-label="Filter by property">
+                <SelectTrigger
+                    class="w-full sm:w-56"
+                    aria-label="Filter by property"
+                >
                     <SelectValue>{{ propertyLabel }}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -218,23 +225,13 @@ const exportHref = computed(
             </a>
         </div>
 
-        <div
-            v-if="applications.data.length === 0"
-            class="flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card p-16 text-center shadow-card"
-        >
-            <div
-                class="flex size-11 items-center justify-center rounded-xl bg-muted text-muted-foreground"
-            >
-                <Inbox class="size-5" />
-            </div>
-            <p class="text-sm text-muted-foreground">
-                {{
-                    hasActiveFilters
-                        ? 'No applications match your filters.'
-                        : "No applications yet. Share a unit's application link to start collecting applicants."
-                }}
-            </p>
-        </div>
+        <EmptyState v-if="applications.data.length === 0" :icon="Inbox">
+            {{
+                hasActiveFilters
+                    ? 'No applications match your filters.'
+                    : "No applications yet. Share a unit's application link to start collecting applicants."
+            }}
+        </EmptyState>
 
         <DataTable v-else>
             <template #head>
@@ -262,7 +259,8 @@ const exportHref = computed(
                     </div>
                 </td>
                 <td class="px-4 py-3 text-muted-foreground">
-                    {{ application.property_name }} · {{ application.unit_label }}
+                    {{ application.property_name }} ·
+                    {{ application.unit_label }}
                 </td>
                 <td class="px-4 py-3 text-muted-foreground">
                     {{ submittedOn(application) }}
@@ -275,7 +273,9 @@ const exportHref = computed(
                 </td>
                 <td class="px-4 py-3 text-right">
                     <StatusBadge
-                        :variant="applicationStatusBadge(application.status).variant"
+                        :variant="
+                            applicationStatusBadge(application.status).variant
+                        "
                     >
                         {{ applicationStatusBadge(application.status).label }}
                     </StatusBadge>

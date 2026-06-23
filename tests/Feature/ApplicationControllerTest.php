@@ -60,6 +60,20 @@ test('the all-applications index lists every application across the landlords un
         );
 });
 
+test('the all-applications index renders the empty state when the landlord has no applications', function () {
+    $landlord = User::factory()->landlord()->create();
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applications.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('screening/applicants/All')
+            ->has('applications.data', 0)
+            ->where('applications.total', 0),
+        );
+});
+
 test('the all-applications page renders each application with its unit and property', function () {
     $landlord = User::factory()->landlord()->create();
 
