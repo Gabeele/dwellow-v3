@@ -60,9 +60,10 @@
   - done: feature test asserting an admin can load the property list page and it renders an existing property (use `Property` factory).
   - note: Added read-only `PropertyResource` (mirrors `SentEmailResource`: `canCreate`/`canEdit` false, index+view pages) with `PropertiesTable` (name/address/city + type/rental_type/status badges via `->formatStateUsing(label())` + landlord) and `PropertyInfolist`. The existing `PropertyPolicy` is landlord/ownership-scoped and denied admins (403), so overrode `canViewAny()`/`canView()` to `true` on the resource — panel access is already admin-gated by `canAccessPanel()`. Added `Filament/PropertyResourceTest` (list + view). Full suite (100) green.
 
-- [ ] Show a property's units in Filament
+- [x] Show a property's units in Filament
   - context: `Property hasMany Unit` (see `app/Models/Property.php`). Add a Units relation manager to the `PropertyResource` so an admin can see the units under a property (label, bedrooms, bathrooms, rent_amount, status).
   - done: feature test asserting the relation manager lists a property's units (use `Property` + `Unit` factories).
+  - note: Generated `UnitsRelationManager` and made it read-only to match the read-only `PropertyResource` (removed create/edit/dissociate/delete actions — only `ViewAction`). Table + infolist show label/bedrooms/bathrooms/rent_amount (money usd)/status (badge via `label()`). Registered via `PropertyResource::getRelations()` (auto-renders on the View page). Added `Filament/PropertyUnitsRelationManagerTest` (lists owned units, excludes another property's unit). All 12 Filament tests green.
 
 ### Units on the tenant/landlord app
 
