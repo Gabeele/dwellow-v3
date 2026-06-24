@@ -684,11 +684,29 @@ Guardrails (unchanged — see `.docs/decisions/`):
     block into a Concern would add indirection with zero reuse. No code change, so no test/Pint/vue-tsc
     needed (nothing touched).
 
-- [ ] Naming & glossary consistency pass
+- [x] Naming & glossary consistency pass
   - context: align code/UI vocabulary with `.docs/domain/glossary.md` (Applicant vs Application vs
     Application Link, etc.) — route names, variable names, page titles, button copy. Small, surgical
     renames only; keep public URLs stable.
   - done: terminology matches the glossary; suite green; build clean.
+  - NOTE: The glossary's rule is about the *person* — "Prefer Applicant over 'tenant' until approved;
+    they aren't a tenant yet." Audited user-facing copy (an Explore sweep over `resources/js` + `app` +
+    blade) for the screened person being mislabelled "tenant". Two genuine violations — both phrased
+    "screen **tenants**" (verb+object → the people being screened, who are applicants): `Welcome.vue:104`
+    ("Screen tenants with confidence…" → "Screen applicants…") and `resources/views/emails/welcome.blade.php:4`
+    ("screen tenants with confidence" → "screen applicants…"). **Deliberately left** the compound
+    product-category term "tenant screening" (`AuthSplitLayout.vue:74` "AI tenant screening…",
+    `Dashboard.vue:119` "Tenant screening tools") — that's dwellow's own established self-description
+    (README/product memory), the *activity* not the *person*; and `AuthSplitLayout.vue:77` "choose your
+    next tenant" is correct (post-approval, they *are* a tenant). `Register.vue`'s `tenant` value is a
+    user-account role (landlord vs tenant accounts), a different concept from a screening applicant —
+    left. All screening page `<Head title>`s already use glossary terms (Applications/Applicants/Apply/
+    Application form). Route names, variable names, models, columns already match the glossary
+    (Application/Applicant/ApplicationLink/Unit/Property) — no renames needed (and columns/URLs must stay
+    stable anyway). Programmatic coverage: strengthened `EmailBrandingTest`'s welcome-email test to assert
+    `screen applicants with confidence` is present and `screen tenants` is absent (EmailBrandingTest green,
+    2/10). The `Welcome.vue` copy has no JS test harness (no vitest/jsdom — consistent with prior tasks),
+    guarded by vue-tsc + ESLint + build (all clean). Pint clean. No backend logic touched.
 
 - [ ] Add a screening smoke test (Pest browser / page render)
   - context: a lightweight smoke test that visits the key landlord screening pages (properties show,

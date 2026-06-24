@@ -15,6 +15,8 @@ test('the welcome email is branded with the Dwellow logo and capitalisation', fu
     expect($rendered)
         ->toContain('Welcome to Dwellow, Jane')
         ->toContain('images/dwellow-email-logo.png')
+        ->toContain('screen applicants with confidence')
+        ->not->toContain('screen tenants')
         ->not->toContain('laravel.com/img/notification-logo')
         ->not->toContain('Welcome to dwellow');
 });
