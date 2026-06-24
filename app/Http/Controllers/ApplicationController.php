@@ -3,14 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ApplicationStatus;
+use App\Http\Requests\ApproveApplicationRequest;
+use App\Http\Requests\RejectApplicationRequest;
 use App\Http\Requests\UpdateApplicationRequest;
 use App\Http\Resources\ApplicationRowResource;
+use App\Mail\ApplicationApprovedMail;
+use App\Mail\ApplicationRejectedMail;
 use App\Models\Application;
 use App\Models\Property;
 use App\Models\Unit;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -218,6 +224,9 @@ class ApplicationController extends Controller
                 fn (ApplicationStatus $status): array => ['value' => $status->value, 'label' => $status->label()],
                 ApplicationStatus::cases(),
             ),
+            // How many other applicants for this unit are still awaiting a
+            // decision — drives the "decline the others" option when approving.
+            'otherActiveCount' => $this->applicationsAwaitingDecision($application)->count(),
         ]);
     }
 
@@ -234,6 +243,86 @@ class ApplicationController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Application updated.')]);
 
         return back();
+    }
+
+    /**
+     * Approve an application. Optionally emails the applicant, and optionally
+     * declines the other applicants still in the running for the same unit —
+     * emailing them too if asked. Each side effect is a toggle the landlord
+     * chose in the confirmation dialog; nothing happens unless they opt in.
+     */
+    public function approve(ApproveApplicationRequest $request, Application $application): RedirectResponse
+    {
+        $this->authorize('update', $application);
+
+        $application->load('unit.property');
+        $application->update(['status' => ApplicationStatus::Approved]);
+
+        if ($request->boolean('notify_applicant')) {
+            Mail::to($application->applicant_email)->send(new ApplicationApprovedMail($application));
+        }
+
+        $declinedCount = 0;
+
+        if ($request->boolean('decline_others')) {
+            $others = $this->applicationsAwaitingDecision($application)->with('unit.property')->get();
+
+            foreach ($others as $other) {
+                $other->update(['status' => ApplicationStatus::Rejected]);
+
+                if ($request->boolean('notify_declined')) {
+                    Mail::to($other->applicant_email)->send(new ApplicationRejectedMail($other));
+                }
+            }
+
+            $declinedCount = $others->count();
+        }
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => $declinedCount > 0
+                ? __('Application approved.').' '.trans_choice(
+                    ':count other applicant was declined.|:count other applicants were declined.',
+                    $declinedCount,
+                    ['count' => $declinedCount],
+                )
+                : __('Application approved.'),
+        ]);
+
+        return back();
+    }
+
+    /**
+     * Decline an application, optionally emailing the applicant. The landlord
+     * confirms this in a dialog before it runs.
+     */
+    public function reject(RejectApplicationRequest $request, Application $application): RedirectResponse
+    {
+        $this->authorize('update', $application);
+
+        $application->load('unit.property');
+        $application->update(['status' => ApplicationStatus::Rejected]);
+
+        if ($request->boolean('notify_applicant')) {
+            Mail::to($application->applicant_email)->send(new ApplicationRejectedMail($application));
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Application declined.')]);
+
+        return back();
+    }
+
+    /**
+     * The other applications for this one's unit that are still awaiting a
+     * decision (New or Reviewing) — the cohort affected when it is approved.
+     *
+     * @return HasMany<Application, Unit>
+     */
+    private function applicationsAwaitingDecision(Application $application): HasMany
+    {
+        return $application->unit->applications()
+            ->whereKeyNot($application->getKey())
+            ->whereIn('status', [ApplicationStatus::New, ApplicationStatus::Reviewing]);
     }
 
     /**

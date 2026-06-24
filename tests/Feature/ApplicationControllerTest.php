@@ -1,6 +1,8 @@
 <?php
 
 use App\Enums\ApplicationStatus;
+use App\Mail\ApplicationApprovedMail;
+use App\Mail\ApplicationRejectedMail;
 use App\Models\Application;
 use App\Models\ApplicationLink;
 use App\Models\Document;
@@ -8,6 +10,7 @@ use App\Models\Property;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -609,4 +612,213 @@ test('a non-owner cannot delete another landlords application', function () {
         ->assertForbidden();
 
     $this->assertModelExists($application);
+});
+
+test('the detail page exposes how many other applicants are still awaiting a decision', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+
+    $application = Application::factory()->for($link, 'applicationLink')->create([
+        'status' => ApplicationStatus::Reviewing,
+    ]);
+    Application::factory()->for($link, 'applicationLink')->create(['status' => ApplicationStatus::New]);
+    Application::factory()->for($link, 'applicationLink')->create(['status' => ApplicationStatus::Reviewing]);
+    // An already-decided sibling must not be counted.
+    Application::factory()->for($link, 'applicationLink')->create(['status' => ApplicationStatus::Rejected]);
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applicants.show', $application))
+        ->assertInertia(fn (Assert $page) => $page->where('otherActiveCount', 2));
+});
+
+test('approving an application sets the status and emails the applicant when asked', function () {
+    Mail::fake();
+
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create([
+        'applicant_email' => 'applicant@example.com',
+        'status' => ApplicationStatus::Reviewing,
+    ]);
+
+    $this->actingAs($landlord)
+        ->from(route('applicants.show', $application))
+        ->post(route('applicants.approve', $application), ['notify_applicant' => true])
+        ->assertRedirect(route('applicants.show', $application));
+
+    expect($application->refresh()->status)->toBe(ApplicationStatus::Approved);
+
+    Mail::assertQueued(
+        ApplicationApprovedMail::class,
+        fn (ApplicationApprovedMail $mail) => $mail->hasTo('applicant@example.com'),
+    );
+});
+
+test('approving without notifying does not email the applicant', function () {
+    Mail::fake();
+
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create([
+        'status' => ApplicationStatus::Reviewing,
+    ]);
+
+    $this->actingAs($landlord)
+        ->post(route('applicants.approve', $application), ['notify_applicant' => false]);
+
+    expect($application->refresh()->status)->toBe(ApplicationStatus::Approved);
+    Mail::assertNothingOutgoing();
+});
+
+test('approving can auto-decline the other applicants still in the running', function () {
+    Mail::fake();
+
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+
+    $approved = Application::factory()->for($link, 'applicationLink')->create([
+        'status' => ApplicationStatus::Reviewing,
+    ]);
+    $siblingNew = Application::factory()->for($link, 'applicationLink')->create([
+        'status' => ApplicationStatus::New,
+    ]);
+    $siblingReviewing = Application::factory()->for($link, 'applicationLink')->create([
+        'status' => ApplicationStatus::Reviewing,
+    ]);
+    // Already decided — must be left untouched.
+    $alreadyRejected = Application::factory()->for($link, 'applicationLink')->create([
+        'status' => ApplicationStatus::Rejected,
+    ]);
+
+    $this->actingAs($landlord)
+        ->post(route('applicants.approve', $approved), [
+            'notify_applicant' => false,
+            'decline_others' => true,
+            'notify_declined' => false,
+        ]);
+
+    expect($approved->refresh()->status)->toBe(ApplicationStatus::Approved)
+        ->and($siblingNew->refresh()->status)->toBe(ApplicationStatus::Rejected)
+        ->and($siblingReviewing->refresh()->status)->toBe(ApplicationStatus::Rejected)
+        ->and($alreadyRejected->refresh()->status)->toBe(ApplicationStatus::Rejected);
+
+    // notify_declined was false, so no decline emails should go out.
+    Mail::assertNotQueued(ApplicationRejectedMail::class);
+});
+
+test('auto-declined applicants are emailed when notify_declined is set', function () {
+    Mail::fake();
+
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+
+    $approved = Application::factory()->for($link, 'applicationLink')->create([
+        'status' => ApplicationStatus::Reviewing,
+    ]);
+    Application::factory()->for($link, 'applicationLink')->create([
+        'applicant_email' => 'loser@example.com',
+        'status' => ApplicationStatus::New,
+    ]);
+
+    $this->actingAs($landlord)
+        ->post(route('applicants.approve', $approved), [
+            'notify_applicant' => false,
+            'decline_others' => true,
+            'notify_declined' => true,
+        ]);
+
+    Mail::assertQueued(
+        ApplicationRejectedMail::class,
+        fn (ApplicationRejectedMail $mail) => $mail->hasTo('loser@example.com'),
+    );
+});
+
+test('approving without decline_others leaves the other applicants alone', function () {
+    Mail::fake();
+
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+
+    $approved = Application::factory()->for($link, 'applicationLink')->create([
+        'status' => ApplicationStatus::Reviewing,
+    ]);
+    $sibling = Application::factory()->for($link, 'applicationLink')->create([
+        'status' => ApplicationStatus::New,
+    ]);
+
+    $this->actingAs($landlord)
+        ->post(route('applicants.approve', $approved), [
+            'notify_applicant' => false,
+            'decline_others' => false,
+        ]);
+
+    expect($sibling->refresh()->status)->toBe(ApplicationStatus::New);
+});
+
+test('declining an application sets the status and emails the applicant when asked', function () {
+    Mail::fake();
+
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create([
+        'applicant_email' => 'applicant@example.com',
+        'status' => ApplicationStatus::Reviewing,
+    ]);
+
+    $this->actingAs($landlord)
+        ->from(route('applicants.show', $application))
+        ->post(route('applicants.reject', $application), ['notify_applicant' => true])
+        ->assertRedirect(route('applicants.show', $application));
+
+    expect($application->refresh()->status)->toBe(ApplicationStatus::Rejected);
+
+    Mail::assertQueued(
+        ApplicationRejectedMail::class,
+        fn (ApplicationRejectedMail $mail) => $mail->hasTo('applicant@example.com'),
+    );
+});
+
+test('declining without notifying does not email the applicant', function () {
+    Mail::fake();
+
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create([
+        'status' => ApplicationStatus::Reviewing,
+    ]);
+
+    $this->actingAs($landlord)
+        ->post(route('applicants.reject', $application), ['notify_applicant' => false]);
+
+    expect($application->refresh()->status)->toBe(ApplicationStatus::Rejected);
+    Mail::assertNothingOutgoing();
+});
+
+test('a non-owner cannot approve or decline another landlords application', function () {
+    Mail::fake();
+
+    $landlord = User::factory()->landlord()->create();
+    $otherUnit = Unit::factory()->create();
+    $otherLink = ApplicationLink::factory()->for($otherUnit)->create();
+    $application = Application::factory()->for($otherLink, 'applicationLink')->create();
+
+    $this->actingAs($landlord)
+        ->post(route('applicants.approve', $application), ['notify_applicant' => true])
+        ->assertForbidden();
+
+    $this->actingAs($landlord)
+        ->post(route('applicants.reject', $application), ['notify_applicant' => true])
+        ->assertForbidden();
+
+    Mail::assertNothingOutgoing();
 });

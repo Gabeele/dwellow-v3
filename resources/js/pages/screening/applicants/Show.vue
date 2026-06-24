@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import {
+    Ban,
+    CircleCheck,
     CreditCard,
     FileText,
     Hourglass,
@@ -11,21 +13,18 @@ import {
     Trash2,
     TrendingUp,
 } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import ApplicationController from '@/actions/App/Http/Controllers/ApplicationController';
 import DocumentController from '@/actions/App/Http/Controllers/DocumentController';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -56,6 +55,7 @@ const props = defineProps<{
     source: string | null;
     documents: Document[];
     statuses: StatusOption[];
+    otherActiveCount: number;
 }>();
 
 const reviewForm = useForm({
@@ -69,14 +69,59 @@ function saveReview(): void {
     });
 }
 
+// Decision dialogs — approve / decline / delete each confirm before acting.
+const showApprove = ref(false);
+const showDecline = ref(false);
+const showDelete = ref(false);
+
+// Approval carries three opt-out toggles: email the applicant, decline the
+// other applicants still in the running for this unit, and email those too.
+const approveForm = useForm({
+    notify_applicant: true,
+    decline_others: props.otherActiveCount > 0,
+    notify_declined: true,
+});
+
+const declineForm = useForm({
+    notify_applicant: true,
+});
+
+function openApprove(): void {
+    approveForm.notify_applicant = true;
+    approveForm.decline_others = props.otherActiveCount > 0;
+    approveForm.notify_declined = true;
+    showApprove.value = true;
+}
+
+function approve(): void {
+    approveForm.post(ApplicationController.approve.url(props.application.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showApprove.value = false;
+        },
+    });
+}
+
+function openDecline(): void {
+    declineForm.notify_applicant = true;
+    showDecline.value = true;
+}
+
+function decline(): void {
+    declineForm.post(ApplicationController.reject.url(props.application.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showDecline.value = false;
+        },
+    });
+}
+
 function destroyApplication(): void {
-    if (
-        confirm(
-            `Delete ${applicantName.value || 'this'} application? Its uploaded documents will be removed too.`,
-        )
-    ) {
-        router.delete(ApplicationController.destroy.url(props.application.id));
-    }
+    router.delete(ApplicationController.destroy.url(props.application.id), {
+        onSuccess: () => {
+            showDelete.value = false;
+        },
+    });
 }
 
 defineOptions({
@@ -191,7 +236,9 @@ const applyingForLine = computed<string>(() => {
     return [
         props.unit.label,
         locality,
-        rentAmount.value !== null ? `${formatCurrency(rentAmount.value)}/mo` : null,
+        rentAmount.value !== null
+            ? `${formatCurrency(rentAmount.value)}/mo`
+            : null,
     ]
         .filter(Boolean)
         .join(' · ');
@@ -215,7 +262,8 @@ const incomeToRent = computed<{
     }
 
     const ratio = statedIncome.value / rentAmount.value;
-    const tone: Tone = ratio >= 3 ? 'success' : ratio >= 2 ? 'warning' : 'danger';
+    const tone: Tone =
+        ratio >= 3 ? 'success' : ratio >= 2 ? 'warning' : 'danger';
     const tag = ratio >= 3 ? 'Strong' : ratio >= 2 ? 'Okay' : 'Low';
 
     return {
@@ -258,7 +306,10 @@ const timeline = computed(() => {
     const events: { title: string; meta: string; current?: boolean }[] = [];
 
     if (props.application.submitted_at) {
-        events.push({ title: 'Application submitted', meta: submittedOn.value });
+        events.push({
+            title: 'Application submitted',
+            meta: submittedOn.value,
+        });
     }
 
     if (props.documents.length > 0) {
@@ -328,9 +379,7 @@ function formatSize(bytes: number | null): string {
 
     const kb = bytes / 1024;
 
-    return kb < 1024
-        ? `${Math.round(kb)} KB`
-        : `${(kb / 1024).toFixed(1)} MB`;
+    return kb < 1024 ? `${Math.round(kb)} KB` : `${(kb / 1024).toFixed(1)} MB`;
 }
 </script>
 
@@ -354,7 +403,7 @@ function formatSize(bytes: number | null): string {
                     variant="ghost"
                     size="sm"
                     class="text-destructive hover:text-destructive"
-                    @click="destroyApplication"
+                    @click="showDelete = true"
                 >
                     <Trash2 class="size-4" />
                     Delete
@@ -367,7 +416,9 @@ function formatSize(bytes: number | null): string {
             <div class="flex flex-col gap-6 lg:col-span-2">
                 <!-- Hero: score (pending) + applicant identity + at-a-glance stats. -->
                 <Card>
-                    <CardContent class="flex flex-col gap-6 sm:flex-row sm:items-center">
+                    <CardContent
+                        class="flex flex-col gap-6 sm:flex-row sm:items-center"
+                    >
                         <!-- Fit score gauge — not scored until AI screening ships. -->
                         <div
                             class="flex size-28 shrink-0 flex-col items-center justify-center rounded-full border-2 border-dashed border-border text-muted-foreground"
@@ -382,7 +433,9 @@ function formatSize(bytes: number | null): string {
 
                         <div class="flex flex-1 flex-col gap-3">
                             <div class="flex flex-wrap items-center gap-3">
-                                <h2 class="text-xl font-semibold text-foreground">
+                                <h2
+                                    class="text-xl font-semibold text-foreground"
+                                >
                                     {{ applicantName }}
                                 </h2>
                                 <StatusBadge :variant="status.variant">
@@ -402,7 +455,9 @@ function formatSize(bytes: number | null): string {
                                     >
                                         Move-in
                                     </span>
-                                    <span class="text-sm font-medium text-foreground">
+                                    <span
+                                        class="text-sm font-medium text-foreground"
+                                    >
                                         {{ moveIn ?? '—' }}
                                     </span>
                                 </div>
@@ -412,7 +467,9 @@ function formatSize(bytes: number | null): string {
                                     >
                                         Documents
                                     </span>
-                                    <span class="text-sm font-medium text-foreground">
+                                    <span
+                                        class="text-sm font-medium text-foreground"
+                                    >
                                         {{ documents.length }} uploaded
                                     </span>
                                 </div>
@@ -422,7 +479,9 @@ function formatSize(bytes: number | null): string {
                                     >
                                         Occupants
                                     </span>
-                                    <span class="text-sm font-medium text-foreground">
+                                    <span
+                                        class="text-sm font-medium text-foreground"
+                                    >
                                         {{ occupants ?? '—' }}
                                     </span>
                                 </div>
@@ -451,9 +510,13 @@ function formatSize(bytes: number | null): string {
                             <p class="text-sm text-muted-foreground">
                                 AI screening and the fit score aren't available
                                 for this applicant yet. The figures below are
-                                what {{ application.applicant_first_name || 'the applicant' }}
-                                submitted — review them and set a decision on the
-                                right.
+                                what
+                                {{
+                                    application.applicant_first_name ||
+                                    'the applicant'
+                                }}
+                                submitted — review them and set a decision on
+                                the right.
                             </p>
                         </div>
                     </CardContent>
@@ -464,11 +527,15 @@ function formatSize(bytes: number | null): string {
                     <!-- Income-to-rent (computed from stated income ÷ unit rent). -->
                     <Card>
                         <CardContent class="flex flex-col gap-2">
-                            <div class="flex items-center justify-between gap-2">
+                            <div
+                                class="flex items-center justify-between gap-2"
+                            >
                                 <span
                                     class="flex items-center gap-1.5 text-sm font-medium text-foreground"
                                 >
-                                    <TrendingUp class="size-4 text-muted-foreground" />
+                                    <TrendingUp
+                                        class="size-4 text-muted-foreground"
+                                    />
                                     Income-to-rent
                                 </span>
                                 <Badge
@@ -479,7 +546,9 @@ function formatSize(bytes: number | null): string {
                                 </Badge>
                                 <Badge v-else variant="neutral">No data</Badge>
                             </div>
-                            <span class="text-2xl font-semibold text-foreground">
+                            <span
+                                class="text-2xl font-semibold text-foreground"
+                            >
                                 {{ incomeToRent?.value ?? '—' }}
                             </span>
                             <span class="text-13 text-muted-foreground">
@@ -494,16 +563,22 @@ function formatSize(bytes: number | null): string {
                     <!-- Credit score (self-reported bracket). -->
                     <Card>
                         <CardContent class="flex flex-col gap-2">
-                            <div class="flex items-center justify-between gap-2">
+                            <div
+                                class="flex items-center justify-between gap-2"
+                            >
                                 <span
                                     class="flex items-center gap-1.5 text-sm font-medium text-foreground"
                                 >
-                                    <CreditCard class="size-4 text-muted-foreground" />
+                                    <CreditCard
+                                        class="size-4 text-muted-foreground"
+                                    />
                                     Credit score
                                 </span>
                                 <Badge variant="neutral">Self-reported</Badge>
                             </div>
-                            <span class="text-2xl font-semibold text-foreground">
+                            <span
+                                class="text-2xl font-semibold text-foreground"
+                            >
                                 {{ creditShort ?? '—' }}
                             </span>
                             <span class="text-13 text-muted-foreground">
@@ -515,20 +590,30 @@ function formatSize(bytes: number | null): string {
                     <!-- Employment (self-reported). -->
                     <Card>
                         <CardContent class="flex flex-col gap-2">
-                            <div class="flex items-center justify-between gap-2">
+                            <div
+                                class="flex items-center justify-between gap-2"
+                            >
                                 <span
                                     class="flex items-center gap-1.5 text-sm font-medium text-foreground"
                                 >
-                                    <ScrollText class="size-4 text-muted-foreground" />
+                                    <ScrollText
+                                        class="size-4 text-muted-foreground"
+                                    />
                                     Employment
                                 </span>
                                 <Badge variant="neutral">Self-reported</Badge>
                             </div>
-                            <span class="text-2xl font-semibold text-foreground">
+                            <span
+                                class="text-2xl font-semibold text-foreground"
+                            >
                                 {{ answerText('employment_type') ?? '—' }}
                             </span>
                             <span class="text-13 text-muted-foreground">
-                                {{ employer ? employer : 'Employer not provided' }}
+                                {{
+                                    employer
+                                        ? employer
+                                        : 'Employer not provided'
+                                }}
                             </span>
                         </CardContent>
                     </Card>
@@ -536,18 +621,28 @@ function formatSize(bytes: number | null): string {
                     <!-- Identity & documents — uploaded, not yet verified. -->
                     <Card>
                         <CardContent class="flex flex-col gap-2">
-                            <div class="flex items-center justify-between gap-2">
+                            <div
+                                class="flex items-center justify-between gap-2"
+                            >
                                 <span
                                     class="flex items-center gap-1.5 text-sm font-medium text-foreground"
                                 >
-                                    <ShieldCheck class="size-4 text-muted-foreground" />
+                                    <ShieldCheck
+                                        class="size-4 text-muted-foreground"
+                                    />
                                     Identity
                                 </span>
-                                <Badge :variant="hasPhotoId ? 'success' : 'neutral'">
+                                <Badge
+                                    :variant="
+                                        hasPhotoId ? 'success' : 'neutral'
+                                    "
+                                >
                                     {{ hasPhotoId ? 'ID on file' : 'No ID' }}
                                 </Badge>
                             </div>
-                            <span class="text-2xl font-semibold text-foreground">
+                            <span
+                                class="text-2xl font-semibold text-foreground"
+                            >
                                 {{ hasPhotoId ? 'Uploaded' : '—' }}
                             </span>
                             <span class="text-13 text-muted-foreground">
@@ -575,8 +670,8 @@ function formatSize(bytes: number | null): string {
                             </span>
                             <span class="text-13 text-muted-foreground">
                                 Cross-checks across pay stubs, ID and the
-                                application will appear here once AI screening is
-                                available.
+                                application will appear here once AI screening
+                                is available.
                             </span>
                         </div>
                     </CardContent>
@@ -593,7 +688,9 @@ function formatSize(bytes: number | null): string {
                             :key="field.key"
                             class="flex flex-col gap-1 border-b border-border pb-4 last:border-0 last:pb-0"
                         >
-                            <span class="text-13 font-medium text-muted-foreground">
+                            <span
+                                class="text-13 font-medium text-muted-foreground"
+                            >
                                 {{ field.label }}
                             </span>
 
@@ -607,19 +704,31 @@ function formatSize(bytes: number | null): string {
                             >
                                 <span>
                                     Name:
-                                    {{ (answers[field.key] as ReferenceAnswer).name || '—' }}
+                                    {{
+                                        (answers[field.key] as ReferenceAnswer)
+                                            .name || '—'
+                                    }}
                                 </span>
                                 <span>
                                     Relationship:
-                                    {{ (answers[field.key] as ReferenceAnswer).relationship || '—' }}
+                                    {{
+                                        (answers[field.key] as ReferenceAnswer)
+                                            .relationship || '—'
+                                    }}
                                 </span>
                                 <span>
                                     Email:
-                                    {{ (answers[field.key] as ReferenceAnswer).email || '—' }}
+                                    {{
+                                        (answers[field.key] as ReferenceAnswer)
+                                            .email || '—'
+                                    }}
                                 </span>
                                 <span>
                                     Phone:
-                                    {{ (answers[field.key] as ReferenceAnswer).phone || '—' }}
+                                    {{
+                                        (answers[field.key] as ReferenceAnswer)
+                                            .phone || '—'
+                                    }}
                                 </span>
                             </div>
 
@@ -629,7 +738,9 @@ function formatSize(bytes: number | null): string {
                                 class="flex flex-col gap-1"
                             >
                                 <li
-                                    v-for="document in documentsForField(field.key)"
+                                    v-for="document in documentsForField(
+                                        field.key,
+                                    )"
                                     :key="document.id"
                                     class="flex items-center gap-2 text-sm text-foreground"
                                 >
@@ -637,7 +748,11 @@ function formatSize(bytes: number | null): string {
                                         class="size-4 shrink-0 text-muted-foreground"
                                     />
                                     <a
-                                        :href="DocumentController.download.url(document)"
+                                        :href="
+                                            DocumentController.download.url(
+                                                document,
+                                            )
+                                        "
                                         class="font-medium text-primary underline-offset-4 hover:underline"
                                     >
                                         {{ document.original_name }}
@@ -650,7 +765,10 @@ function formatSize(bytes: number | null): string {
                                     </span>
                                 </li>
                                 <li
-                                    v-if="documentsForField(field.key).length === 0"
+                                    v-if="
+                                        documentsForField(field.key).length ===
+                                        0
+                                    "
                                     class="text-sm text-muted-foreground"
                                 >
                                     —
@@ -658,7 +776,10 @@ function formatSize(bytes: number | null): string {
                             </ul>
 
                             <!-- Scalar / choice / boolean answers. -->
-                            <span v-else class="text-sm whitespace-pre-line text-foreground">
+                            <span
+                                v-else
+                                class="text-sm whitespace-pre-line text-foreground"
+                            >
                                 {{ displayAnswer(field) }}
                             </span>
                         </div>
@@ -673,7 +794,31 @@ function formatSize(bytes: number | null): string {
                     <CardHeader>
                         <CardTitle>Your decision</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent class="flex flex-col gap-5">
+                        <!-- Primary actions: approve / decline, each confirmed. -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <Button type="button" @click="openApprove">
+                                <CircleCheck class="size-4" />
+                                Approve
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                @click="openDecline"
+                            >
+                                <Ban class="size-4" />
+                                Decline
+                            </Button>
+                        </div>
+
+                        <div
+                            class="flex items-center gap-3 text-xs text-muted-foreground"
+                        >
+                            <span class="h-px flex-1 bg-border" />
+                            or update status
+                            <span class="h-px flex-1 bg-border" />
+                        </div>
+
                         <form
                             class="flex flex-col gap-5"
                             @submit.prevent="saveReview"
@@ -683,7 +828,11 @@ function formatSize(bytes: number | null): string {
                                 <Select v-model="reviewForm.status">
                                     <SelectTrigger id="status" class="w-full">
                                         <SelectValue>
-                                            {{ applicationStatusBadge(reviewForm.status).label }}
+                                            {{
+                                                applicationStatusBadge(
+                                                    reviewForm.status,
+                                                ).label
+                                            }}
                                         </SelectValue>
                                     </SelectTrigger>
                                     <SelectContent>
@@ -696,11 +845,15 @@ function formatSize(bytes: number | null): string {
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <InputError :message="reviewForm.errors.status" />
+                                <InputError
+                                    :message="reviewForm.errors.status"
+                                />
                             </div>
 
                             <div class="grid gap-2">
-                                <Label for="landlord_notes">Private notes</Label>
+                                <Label for="landlord_notes"
+                                    >Private notes</Label
+                                >
                                 <textarea
                                     id="landlord_notes"
                                     v-model="reviewForm.landlord_notes"
@@ -708,10 +861,15 @@ function formatSize(bytes: number | null): string {
                                     placeholder="Notes only you can see…"
                                     class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                 ></textarea>
-                                <InputError :message="reviewForm.errors.landlord_notes" />
+                                <InputError
+                                    :message="reviewForm.errors.landlord_notes"
+                                />
                             </div>
 
-                            <Button type="submit" :disabled="reviewForm.processing">
+                            <Button
+                                type="submit"
+                                :disabled="reviewForm.processing"
+                            >
                                 Save review
                             </Button>
                         </form>
@@ -731,11 +889,16 @@ function formatSize(bytes: number | null): string {
                                 {{ initials || '—' }}
                             </span>
                             <div class="flex min-w-0 flex-col">
-                                <span class="truncate text-sm font-medium text-foreground">
+                                <span
+                                    class="truncate text-sm font-medium text-foreground"
+                                >
                                     {{ application.applicant_email || '—' }}
                                 </span>
                                 <span class="text-13 text-muted-foreground">
-                                    {{ application.applicant_phone || 'No phone' }}
+                                    {{
+                                        application.applicant_phone ||
+                                        'No phone'
+                                    }}
                                 </span>
                             </div>
                         </div>
@@ -748,7 +911,9 @@ function formatSize(bytes: number | null): string {
                             </span>
                         </div>
                         <div class="flex items-center justify-between text-13">
-                            <span class="text-muted-foreground">Applied through</span>
+                            <span class="text-muted-foreground"
+                                >Applied through</span
+                            >
                             <span class="text-foreground">{{ source }}</span>
                         </div>
                     </CardContent>
@@ -772,7 +937,11 @@ function formatSize(bytes: number | null): string {
                             </span>
                             <div class="flex min-w-0 flex-1 flex-col">
                                 <a
-                                    :href="DocumentController.download.url(document)"
+                                    :href="
+                                        DocumentController.download.url(
+                                            document,
+                                        )
+                                    "
                                     class="truncate text-sm font-medium text-primary underline-offset-4 hover:underline"
                                 >
                                     {{ document.original_name }}
@@ -842,5 +1011,87 @@ function formatSize(bytes: number | null): string {
                 </Alert>
             </div>
         </div>
+
+        <!-- Approve: optional applicant email + auto-decline of the others. -->
+        <ConfirmDialog
+            v-model:open="showApprove"
+            title="Approve this applicant?"
+            :description="`${applicantName || 'This applicant'} will be marked approved.`"
+            confirm-label="Approve"
+            :processing="approveForm.processing"
+            @confirm="approve"
+        >
+            <label class="flex items-start gap-2.5 text-sm text-foreground">
+                <Checkbox
+                    v-model="approveForm.notify_applicant"
+                    class="mt-0.5"
+                />
+                <span>
+                    Email
+                    {{ application.applicant_first_name || 'the applicant' }}
+                    an approval notice
+                </span>
+            </label>
+
+            <template v-if="otherActiveCount > 0">
+                <label class="flex items-start gap-2.5 text-sm text-foreground">
+                    <Checkbox
+                        v-model="approveForm.decline_others"
+                        class="mt-0.5"
+                    />
+                    <span>
+                        Decline the {{ otherActiveCount }} other
+                        {{
+                            otherActiveCount === 1 ? 'applicant' : 'applicants'
+                        }}
+                        still in the running for this unit
+                    </span>
+                </label>
+
+                <label
+                    v-if="approveForm.decline_others"
+                    class="ml-6 flex items-start gap-2.5 text-sm text-foreground"
+                >
+                    <Checkbox
+                        v-model="approveForm.notify_declined"
+                        class="mt-0.5"
+                    />
+                    <span>Email those applicants a decline notice</span>
+                </label>
+            </template>
+        </ConfirmDialog>
+
+        <!-- Decline: confirm, with an optional email to the applicant. -->
+        <ConfirmDialog
+            v-model:open="showDecline"
+            title="Decline this applicant?"
+            :description="`Are you sure you want to decline ${applicantName || 'this applicant'}?`"
+            confirm-label="Decline"
+            destructive
+            :processing="declineForm.processing"
+            @confirm="decline"
+        >
+            <label class="flex items-start gap-2.5 text-sm text-foreground">
+                <Checkbox
+                    v-model="declineForm.notify_applicant"
+                    class="mt-0.5"
+                />
+                <span>
+                    Email
+                    {{ application.applicant_first_name || 'the applicant' }}
+                    a decline notice
+                </span>
+            </label>
+        </ConfirmDialog>
+
+        <!-- Delete: irreversible; removes the application and its documents. -->
+        <ConfirmDialog
+            v-model:open="showDelete"
+            title="Delete application?"
+            :description="`Delete ${applicantName || 'this'} application? Its uploaded documents will be removed too.`"
+            confirm-label="Delete"
+            destructive
+            @confirm="destroyApplication"
+        />
     </div>
 </template>
