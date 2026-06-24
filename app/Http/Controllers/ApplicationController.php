@@ -11,7 +11,6 @@ use App\Models\Unit;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -221,20 +220,14 @@ class ApplicationController extends Controller
     }
 
     /**
-     * Delete an application along with the documents it stored on the private disk.
-     * The document rows cascade with the application; their files must be removed by hand.
+     * Delete an application. Its document rows cascade with it, and the
+     * Application delete event purges the stored files from the private disk.
      */
     public function destroy(Application $application): RedirectResponse
     {
         $this->authorize('delete', $application);
 
         $unit = $application->unit;
-
-        $application->load('documents');
-
-        foreach ($application->documents as $document) {
-            Storage::disk($document->disk)->delete($document->path);
-        }
 
         $application->delete();
 

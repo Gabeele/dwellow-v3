@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ApplicationStatus;
+use App\Screening\ApplicationFileStore;
 use Database\Factories\ApplicationFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -61,6 +62,10 @@ class Application extends Model
             if ($application->isDirty('status')) {
                 $application->status_changed_at = $application->freshTimestamp();
             }
+        });
+
+        static::deleting(function (Application $application): void {
+            ApplicationFileStore::purge($application->id);
         });
     }
 
