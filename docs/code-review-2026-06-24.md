@@ -57,3 +57,7 @@ with a covering test.
   `indexAll`/`exportAll` rely solely on `landlord_id` query scoping; a non-landlord authenticated user
   reaches them and gets empty results instead of a 403, unlike `PropertyController::index` which calls
   `authorize('viewAny', ...)`. *Fix:* add an explicit landlord gate for consistency and a correct 403.
+
+- **L4 — Larastan (level 7) failure in `RecordSentEmail::bodyFor`.** Symfony's `Email::getHtmlBody()` /
+  `getTextBody()` return `string|resource|null`, but `bodyFor()` is typed `?string`, so static analysis
+  fails (pre-existing on `main`). *Fix:* normalize a resource body to a string before returning.

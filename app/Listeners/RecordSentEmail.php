@@ -57,7 +57,14 @@ class RecordSentEmail
             return self::REDACTED_BODY;
         }
 
-        return $message->getHtmlBody() ?? $message->getTextBody();
+        $body = $message->getHtmlBody() ?? $message->getTextBody();
+
+        // Symfony may hold a body as a string or a stream resource (or null).
+        return match (true) {
+            is_string($body) => $body,
+            is_resource($body) => (string) stream_get_contents($body),
+            default => null,
+        };
     }
 
     /**
