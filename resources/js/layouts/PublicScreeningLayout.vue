@@ -7,9 +7,7 @@ import { home } from '@/routes';
 <template>
     <div class="flex min-h-svh flex-col bg-background">
         <header class="border-b border-border">
-            <div
-                class="mx-auto flex w-full max-w-2xl items-center px-6 py-4"
-            >
+            <div class="mx-auto flex w-full max-w-2xl items-center px-6 py-4">
                 <Link
                     :href="home()"
                     class="flex items-center gap-2 font-semibold text-foreground"

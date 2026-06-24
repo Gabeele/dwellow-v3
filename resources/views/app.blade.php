@@ -82,6 +82,25 @@
                     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}
                 </script>
             @endif
+
+            @php($faq = $page['props']['faq'] ?? null)
+            @if (! empty($faq))
+                {{-- FAQPage schema powers rich results and answer-engine (AEO) visibility. --}}
+                <script type="application/ld+json">
+                    {!! json_encode([
+                        '@context' => 'https://schema.org',
+                        '@type' => 'FAQPage',
+                        'mainEntity' => collect($faq)->map(fn ($item) => [
+                            '@type' => 'Question',
+                            'name' => $item['question'],
+                            'acceptedAnswer' => [
+                                '@type' => 'Answer',
+                                'text' => $item['answer'],
+                            ],
+                        ])->all(),
+                    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}
+                </script>
+            @endif
         </x-inertia::head>
     </head>
     <body class="font-sans antialiased">

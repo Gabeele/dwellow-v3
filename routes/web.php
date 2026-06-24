@@ -5,97 +5,17 @@ use App\Http\Controllers\ApplicationFormController;
 use App\Http\Controllers\ApplicationLinkController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\PublicScreeningController;
 use App\Http\Controllers\UnitController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/', function () {
-    if (auth()->check()) {
-        return redirect()->route('dashboard');
-    }
-
-    return Inertia::render('Welcome', [
-        'seo' => [
-            'title' => 'Dwellow — Tenant screening for small landlords',
-            'description' => 'Dwellow turns every rental application into a clear, comparable Score — reading documents, checking references, and ranking applicants against your criteria. No bureau accounts, no spreadsheets.',
-            'url' => route('home'),
-            'image' => asset('apple-touch-icon.png'),
-        ],
-        'steps' => [
-            [
-                'title' => 'Add your property',
-                'description' => 'List a property and its units in a couple of minutes.',
-            ],
-            [
-                'title' => 'Build the application',
-                'description' => 'Customize a form for each unit — ask exactly what you need.',
-            ],
-            [
-                'title' => 'Share one link',
-                'description' => 'Applicants apply and upload documents — no account required.',
-            ],
-            [
-                'title' => 'Let AI do the legwork',
-                'description' => 'Dwellow reads every submission, emails references, and scores it.',
-            ],
-            [
-                'title' => 'Compare and decide',
-                'description' => 'Review applicants side by side and pick the right tenant.',
-            ],
-        ],
-        'features' => [
-            [
-                'title' => 'Document-based, not bureau-based',
-                'description' => 'Applicants provide their own documents, so you skip credit-bureau accounts and the compliance overhead.',
-            ],
-            [
-                'title' => 'References, handled',
-                'description' => 'Dwellow emails references for you and folds their responses into the Score.',
-            ],
-            [
-                'title' => 'One Score, easy to compare',
-                'description' => 'Every applicant gets a consistent Score against your criteria — no gut feel, no apples to oranges.',
-            ],
-        ],
-        'roadmap' => [
-            [
-                'phase' => 'Now',
-                'title' => 'Tenant screening',
-                'current' => true,
-                'items' => [
-                    'Custom application forms per unit',
-                    'Link-only applicants, no accounts',
-                    'Automated references and AI scoring',
-                    'Compare-and-decide dashboard',
-                ],
-            ],
-            [
-                'phase' => 'Next',
-                'title' => 'Best-in-class screening',
-                'current' => false,
-                'items' => [
-                    'Reusable form templates',
-                    'Portfolio-wide applicant view',
-                    'Optional verified bureau checks',
-                    'Landlord subscriptions',
-                ],
-            ],
-            [
-                'phase' => 'Later',
-                'title' => 'The full rental lifecycle',
-                'current' => false,
-                'items' => [
-                    'Leases and onboarding',
-                    'Online rent collection',
-                    'Maintenance requests',
-                    'Per-property accounting',
-                ],
-            ],
-        ],
-    ]);
-})->name('home');
+// Public marketing surface.
+Route::get('/', [MarketingController::class, 'home'])->name('home');
+Route::get('pricing', [MarketingController::class, 'pricing'])->name('pricing');
+Route::get('docs', [MarketingController::class, 'docs'])->name('docs');
+Route::get('roadmap', [MarketingController::class, 'roadmap'])->name('roadmap');
 
 // Public applicant flow — no account; the link is resolved by its unguessable token.
 // These endpoints are account-free, so a per-IP throttle is the floor of abuse

@@ -1,11 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import {
-    CircleCheckBig,
-    Mail,
-    MapPin,
-    ShieldCheck,
-} from '@lucide/vue';
+import { CircleCheckBig, Mail, MapPin, ShieldCheck } from '@lucide/vue';
 import { computed } from 'vue';
 import { formatAddressLines } from '@/lib/address';
 import type { PublicUnit } from '@/types/property';
@@ -64,7 +59,7 @@ const addressLines = computed<string[]>(() =>
                 class="mt-4 flex flex-col gap-1 rounded-md border border-border bg-muted/40 p-4 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left"
             >
                 <span
-                    class="text-13 font-medium uppercase tracking-wide text-muted-foreground"
+                    class="text-13 font-medium tracking-wide text-muted-foreground uppercase"
                 >
                     Your reference
                 </span>

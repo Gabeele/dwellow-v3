@@ -13,7 +13,7 @@ defineProps<{
 <template>
     <div class="grid min-h-dvh lg:grid-cols-2">
         <div class="bg-ambient flex flex-col px-6 py-10 sm:px-10">
-<Link
+            <Link
                 :href="home()"
                 class="flex items-center lg:hidden"
                 aria-label="Dwellow home"
@@ -58,7 +58,7 @@ defineProps<{
                 class="pointer-events-none absolute -bottom-32 -left-20 h-80 w-80 rounded-full bg-ai/15 blur-3xl"
             />
 
-<Link
+            <Link
                 :href="home()"
                 class="relative flex items-center gap-2"
                 aria-label="Dwellow home"

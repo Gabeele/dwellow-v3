@@ -45,9 +45,7 @@ const description = computed(
             aria-label="Dwellow home"
         >
             <AppLogoIcon class="size-7 shrink-0" />
-            <span
-                class="ml-2 text-17 font-semibold tracking-[-0.02em]"
-            >
+            <span class="ml-2 text-17 font-semibold tracking-[-0.02em]">
                 Dwellow
             </span>
         </Link>
@@ -69,9 +67,7 @@ const description = computed(
                     {{ description }}
                 </p>
 
-                <div
-                    class="mt-8 flex flex-col items-center gap-3 sm:flex-row"
-                >
+                <div class="mt-8 flex flex-col items-center gap-3 sm:flex-row">
                     <Button as-child>
                         <Link :href="home()">Back to home</Link>
                     </Button>

@@ -538,7 +538,11 @@ const submit = (): void => {
                     class="flex items-baseline justify-between text-13 font-medium"
                 >
                     <span class="text-foreground">
-                        {{ reviewing ? 'Review your application' : currentSection?.label }}
+                        {{
+                            reviewing
+                                ? 'Review your application'
+                                : currentSection?.label
+                        }}
                     </span>
                     <span class="text-muted-foreground">{{ stepLabel }}</span>
                 </div>
@@ -565,7 +569,9 @@ const submit = (): void => {
             >
                 <!-- Honeypot: hidden from humans and assistive tech; bots fill it. -->
                 <div aria-hidden="true" class="hidden">
-                    <label for="contact_channel">Preferred contact channel</label>
+                    <label for="contact_channel"
+                        >Preferred contact channel</label
+                    >
                     <input
                         id="contact_channel"
                         v-model="form.contact_channel"
@@ -811,7 +817,8 @@ const submit = (): void => {
                                     "
                                     class="text-sm text-foreground file:mr-3 file:rounded-md file:border file:border-border file:bg-transparent file:px-3 file:py-1.5 file:text-sm file:font-medium"
                                     @change="
-                                        (event) => onFileChange(field.key, event)
+                                        (event) =>
+                                            onFileChange(field.key, event)
                                     "
                                 />
                                 <p class="text-13 text-muted-foreground">

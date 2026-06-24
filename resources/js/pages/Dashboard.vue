@@ -84,9 +84,7 @@ const welcomeTitle = computed(() =>
                     tone="warning"
                 />
                 <Link
-                    :href="
-                        applicationsIndex({ query: { status: 'new' } })
-                    "
+                    :href="applicationsIndex({ query: { status: 'new' } })"
                     class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >
                     <StatCard
@@ -143,9 +141,7 @@ const welcomeTitle = computed(() =>
                     </p>
                 </div>
                 <Button as-child>
-                    <Link
-                        :href="applicantsIndex(stats.busiest_unit.id)"
-                    >
+                    <Link :href="applicantsIndex(stats.busiest_unit.id)">
                         Review applicants
                     </Link>
                 </Button>

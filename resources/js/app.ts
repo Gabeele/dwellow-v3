@@ -19,6 +19,9 @@ createInertiaApp({
     layout: (name) => {
         switch (true) {
             case name === 'Welcome':
+            // Public marketing pages bring their own PublicLayout chrome and
+            // must not inherit the authenticated app shell (sidebar).
+            case name.startsWith('marketing/'):
             // The error page carries its own chrome; it must not inherit the
             // authenticated app shell (sidebar) or any other layout.
             case name === 'ErrorPage':
