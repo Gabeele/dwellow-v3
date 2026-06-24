@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Pencil, Plus, Trash2 } from '@lucide/vue';
-import { computed } from 'vue';
+import { ChevronDown, Link2, Pencil, Plus, Trash2, Users } from '@lucide/vue';
+import { computed, reactive } from 'vue';
 import PropertyController from '@/actions/App/Http/Controllers/PropertyController';
 import UnitController from '@/actions/App/Http/Controllers/UnitController';
 import DataTable from '@/components/DataTable.vue';
@@ -10,7 +10,11 @@ import PageHeader from '@/components/PageHeader.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import TableRow from '@/components/TableRow.vue';
 import { Button } from '@/components/ui/button';
+import UnitScreeningPanel from '@/components/UnitScreeningPanel.vue';
+import { formatAddress } from '@/lib/address';
+import { formatCurrency } from '@/lib/currency';
 import { edit, index } from '@/routes/properties';
+import { index as propertyApplicants } from '@/routes/properties/applicants';
 import { create as createUnit } from '@/routes/properties/units';
 import { edit as editUnit } from '@/routes/units';
 import type { Property, Unit } from '@/types/property';
@@ -31,6 +35,11 @@ defineOptions({
 const isMultiUnit = computed(() => props.property.rental_type === 'multi_unit');
 
 const units = computed<Unit[]>(() => props.property.units ?? []);
+
+/** The single unit that backs a whole rental; screening happens against it. */
+const backingUnit = computed<Unit | undefined>(() =>
+    isMultiUnit.value ? undefined : units.value[0],
+);
 
 const occupiedUnits = computed(() =>
     units.value.filter((unit) => unit.status === 'occupied'),
@@ -73,26 +82,10 @@ const rentRoll = computed(() => {
     return Number(props.property.rent_amount ?? 0);
 });
 
-const currency = new Intl.NumberFormat('en-CA', {
-    style: 'currency',
-    currency: 'CAD',
-    maximumFractionDigits: 0,
-});
-
-function formatCurrency(value: number): string {
-    return currency.format(value);
-}
-
 function unitRent(unit: Unit): string {
     return unit.rent_amount
         ? `${formatCurrency(Number(unit.rent_amount))}/mo`
         : '—';
-}
-
-function fullAddress(p: Property): string {
-    return [p.address_line1, p.address_line2, p.city, p.region, p.postal_code]
-        .filter(Boolean)
-        .join(', ');
 }
 
 function destroyProperty(): void {
@@ -104,6 +97,17 @@ function destroyProperty(): void {
 function destroyUnit(unit: Unit): void {
     if (confirm(`Delete unit "${unit.label}"?`)) {
         router.delete(UnitController.destroy.url(unit.id));
+    }
+}
+
+/** Tracks which unit rows have their screening (links) panel expanded. */
+const expandedUnits = reactive<Set<number>>(new Set());
+
+function toggleScreening(unit: Unit): void {
+    if (expandedUnits.has(unit.id)) {
+        expandedUnits.delete(unit.id);
+    } else {
+        expandedUnits.add(unit.id);
     }
 }
 </script>
@@ -119,6 +123,11 @@ function destroyUnit(unit: Unit): void {
         >
             <template #actions>
                 <Button as-child variant="outline">
+                    <Link :href="propertyApplicants(property.id)">
+                        <Users />Applicants
+                    </Link>
+                </Button>
+                <Button as-child variant="outline">
                     <Link :href="edit(property.id)"><Pencil />Edit</Link>
                 </Button>
                 <Button
@@ -132,7 +141,7 @@ function destroyUnit(unit: Unit): void {
         </PageHeader>
 
         <p class="-mt-4 text-sm text-muted-foreground">
-            {{ fullAddress(property) }}
+            {{ formatAddress(property) }}
         </p>
 
         <!-- METRICS -->
@@ -184,12 +193,20 @@ function destroyUnit(unit: Unit): void {
                 </Button>
             </div>
 
-            <p
+            <div
                 v-if="!units.length"
-                class="rounded-lg border border-dashed border-border bg-card/50 p-10 text-center text-sm text-muted-foreground"
+                class="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border bg-card/50 p-10 text-center"
             >
-                No units yet. Add the first one.
-            </p>
+                <p class="text-sm text-muted-foreground">
+                    No units yet. Add the first one to start screening
+                    applicants.
+                </p>
+                <Button as-child>
+                    <Link :href="createUnit(property.id)">
+                        <Plus />Add unit
+                    </Link>
+                </Button>
+            </div>
 
             <DataTable v-else>
                 <template #head>
@@ -198,47 +215,94 @@ function destroyUnit(unit: Unit): void {
                     <th class="px-4 py-3 font-medium">Bathrooms</th>
                     <th class="px-4 py-3 font-medium">Rent</th>
                     <th class="px-4 py-3 font-medium">Status</th>
+                    <th class="px-4 py-3 font-medium">Screening</th>
                     <th class="px-4 py-3 text-right font-medium">Actions</th>
                 </template>
 
-                <TableRow v-for="unit in units" :key="unit.id">
-                    <td class="px-4 py-3 font-medium">{{ unit.label }}</td>
-                    <td class="px-4 py-3 text-muted-foreground">
-                        {{ unit.bedrooms ?? '—' }}
-                    </td>
-                    <td class="px-4 py-3 text-muted-foreground">
-                        {{ unit.bathrooms ?? '—' }}
-                    </td>
-                    <td class="px-4 py-3 font-mono text-muted-foreground">
-                        {{ unitRent(unit) }}
-                    </td>
-                    <td class="px-4 py-3">
-                        <StatusBadge :status="unit.status" />
-                    </td>
-                    <td class="px-4 py-3">
-                        <div class="flex items-center justify-end gap-1">
+                <template v-for="unit in units" :key="unit.id">
+                    <TableRow>
+                        <td class="px-4 py-3 font-medium">{{ unit.label }}</td>
+                        <td class="px-4 py-3 text-muted-foreground">
+                            {{ unit.bedrooms ?? '—' }}
+                        </td>
+                        <td class="px-4 py-3 text-muted-foreground">
+                            {{ unit.bathrooms ?? '—' }}
+                        </td>
+                        <td class="px-4 py-3 font-mono text-muted-foreground">
+                            {{ unitRent(unit) }}
+                        </td>
+                        <td class="px-4 py-3">
+                            <StatusBadge :status="unit.status" />
+                        </td>
+                        <td class="px-4 py-3">
                             <Button
-                                as-child
-                                size="icon"
-                                variant="ghost"
-                                class="text-muted-foreground"
+                                size="sm"
+                                variant="outline"
+                                :aria-expanded="expandedUnits.has(unit.id)"
+                                @click="toggleScreening(unit)"
                             >
-                                <Link :href="editUnit(unit.id)">
-                                    <Pencil />
-                                </Link>
+                                <Link2 />
+                                {{ unit.application_links?.length ?? 0 }}
+                                {{
+                                    (unit.application_links?.length ?? 0) === 1
+                                        ? 'link'
+                                        : 'links'
+                                }}
+                                <ChevronDown
+                                    class="transition-transform"
+                                    :class="
+                                        expandedUnits.has(unit.id) &&
+                                        'rotate-180'
+                                    "
+                                />
                             </Button>
-                            <Button
-                                size="icon"
-                                variant="ghost"
-                                class="text-muted-foreground"
-                                @click="destroyUnit(unit)"
-                            >
-                                <Trash2 />
-                            </Button>
-                        </div>
-                    </td>
-                </TableRow>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center justify-end gap-1">
+                                <Button
+                                    as-child
+                                    size="icon"
+                                    variant="ghost"
+                                    class="text-muted-foreground"
+                                >
+                                    <Link :href="editUnit(unit.id)">
+                                        <Pencil />
+                                    </Link>
+                                </Button>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    class="text-muted-foreground"
+                                    @click="destroyUnit(unit)"
+                                >
+                                    <Trash2 />
+                                </Button>
+                            </div>
+                        </td>
+                    </TableRow>
+                    <tr
+                        v-if="expandedUnits.has(unit.id)"
+                        class="border-b border-border last:border-b-0"
+                    >
+                        <td colspan="7" class="bg-muted/20 px-4 py-4">
+                            <UnitScreeningPanel :unit="unit" />
+                        </td>
+                    </tr>
+                </template>
             </DataTable>
+        </div>
+
+        <!-- WHOLE RENTAL: screening surface for the single backing unit -->
+        <div v-else class="flex flex-col gap-4">
+            <h2 class="text-17 font-semibold tracking-tight">Screening</h2>
+            <UnitScreeningPanel v-if="backingUnit" :unit="backingUnit" />
+            <p
+                v-else
+                class="rounded-lg border border-dashed border-border bg-card/50 p-10 text-center text-sm text-muted-foreground"
+            >
+                Screening isn't set up for this property yet. Reload the page to
+                finish setting it up.
+            </p>
         </div>
     </div>
 </template>

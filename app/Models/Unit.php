@@ -3,11 +3,16 @@
 namespace App\Models;
 
 use App\Enums\OccupancyStatus;
+use App\Observers\UnitObserver;
+use App\Screening\DefaultApplicationForm;
 use Database\Factories\UnitFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -21,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
+#[ObservedBy(UnitObserver::class)]
 #[Fillable([
     'label',
     'bedrooms',
@@ -55,5 +61,47 @@ class Unit extends Model
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);
+    }
+
+    /**
+     * The application form configured for this unit.
+     *
+     * @return HasOne<ApplicationForm, $this>
+     */
+    public function applicationForm(): HasOne
+    {
+        return $this->hasOne(ApplicationForm::class);
+    }
+
+    /**
+     * Get this unit's application form, seeding it from the dwellow default
+     * catalog if it does not exist yet. The seed lives here so every call site
+     * (the unit observer and the form builder) shares one source of truth.
+     */
+    public function applicationFormOrDefault(): ApplicationForm
+    {
+        return $this->applicationForm()->firstOrCreate([], [
+            'sections' => DefaultApplicationForm::sections(),
+        ]);
+    }
+
+    /**
+     * The application links generated for this unit.
+     *
+     * @return HasMany<ApplicationLink, $this>
+     */
+    public function applicationLinks(): HasMany
+    {
+        return $this->hasMany(ApplicationLink::class);
+    }
+
+    /**
+     * The applications submitted for this unit.
+     *
+     * @return HasMany<Application, $this>
+     */
+    public function applications(): HasMany
+    {
+        return $this->hasMany(Application::class);
     }
 }

@@ -29,7 +29,7 @@ class EditUser extends EditRecord
      */
     protected function mutateFormDataBeforeFill(array $data): array
     {
-        $data['roles'] = $this->record->roleEnums()
+        $data['roles'] = $this->userRecord()->roleEnums()
             ->map(fn (Role $role): string => $role->value)
             ->all();
 

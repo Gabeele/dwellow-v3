@@ -1,7 +1,7 @@
 @component('mail::message')
 # Welcome to Dwellow, {{ $name }}
 
-Your email is verified and your account is ready. Dwellow helps small landlords screen tenants with confidence — let's get you set up.
+Your email is verified and your account is ready. Dwellow helps small landlords screen applicants with confidence — let's get you set up.
 
 @component('mail::button', ['url' => route('dashboard'), 'color' => 'success'])
 Go to your dashboard

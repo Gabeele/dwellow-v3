@@ -101,7 +101,7 @@ const featureIcons: Component[] = [ShieldCheck, Send, Scale];
                         <h1
                             class="text-34 leading-tight font-semibold tracking-tight"
                         >
-                            Screen tenants with confidence, not guesswork
+                            Screen applicants with confidence, not guesswork
                         </h1>
                         <p
                             class="mt-5 max-w-md text-17 leading-relaxed text-muted-foreground"

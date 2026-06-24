@@ -7,7 +7,10 @@ use App\Enums\PropertyType;
 use App\Enums\RentalType;
 use App\Http\Requests\StorePropertyRequest;
 use App\Http\Requests\UpdatePropertyRequest;
+use App\Models\ApplicationLink;
 use App\Models\Property;
+use App\Models\Unit;
+use App\Screening\BackingUnitProvisioner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -70,7 +73,27 @@ class PropertyController extends Controller
     {
         $this->authorize('view', $property);
 
-        $property->load('units');
+        // Legacy/edge-case whole rentals can have zero units, which would leave
+        // the screening surface with nothing to attach to. Heal it here so the
+        // screening surface always exists. Idempotent and a no-op otherwise.
+        if (BackingUnitProvisioner::applies($property)) {
+            BackingUnitProvisioner::ensure($property);
+        }
+
+        $property->load([
+            'units' => fn ($query) => $query
+                ->withCount('applications')
+                ->with(['applicationLinks' => fn ($links) => $links
+                    ->withCount('applications')
+                    ->latest()]),
+        ]);
+
+        // Expose each link's public applicant URL so the landlord can copy and share it.
+        $property->units->each(function (Unit $unit): void {
+            $unit->applicationLinks->each(function (ApplicationLink $link): void {
+                $link->setAttribute('public_url', url('/screening/'.$link->token));
+            });
+        });
 
         return Inertia::render('properties/Show', [
             'property' => $property,

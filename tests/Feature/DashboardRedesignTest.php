@@ -1,6 +1,9 @@
 <?php
 
+use App\Enums\ApplicationStatus;
 use App\Enums\OccupancyStatus;
+use App\Models\Application;
+use App\Models\ApplicationLink;
 use App\Models\Property;
 use App\Models\Unit;
 use App\Models\User;
@@ -32,6 +35,68 @@ test('a landlord sees real portfolio stats on the dashboard', function () {
             ->where('stats.units', 4)
             ->where('stats.occupied', 3)
             ->where('stats.available', 1)
+        );
+});
+
+test('the dashboard surfaces new applicant activity scoped to the landlord', function () {
+    $landlord = User::factory()->landlord()->create();
+    $property = Property::factory()->for($landlord, 'landlord')->multiUnit()->create();
+
+    $quietUnit = Unit::factory()->for($property)->create();
+    $busyUnit = Unit::factory()->for($property)->create();
+
+    // Two new applications on the busy unit, one on the quiet unit.
+    $busyLink = ApplicationLink::factory()->for($busyUnit)->create();
+    Application::factory()->for($busyLink, 'applicationLink')->count(2)->create();
+
+    $quietLink = ApplicationLink::factory()->for($quietUnit)->create();
+    Application::factory()->for($quietLink, 'applicationLink')->create();
+
+    // A reviewed application no longer counts as "new".
+    Application::factory()->for($busyLink, 'applicationLink')->create([
+        'status' => ApplicationStatus::Reviewing,
+    ]);
+
+    // Another landlord's application must not leak into the count.
+    $otherLandlord = User::factory()->landlord()->create();
+    $otherProperty = Property::factory()->for($otherLandlord, 'landlord')->multiUnit()->create();
+    $otherLink = ApplicationLink::factory()->for(Unit::factory()->for($otherProperty)->create())->create();
+    Application::factory()->for($otherLink, 'applicationLink')->create();
+
+    $this->actingAs($landlord)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->where('stats.new_applications', 3)
+            ->where('stats.busiest_unit.id', $busyUnit->id)
+            ->where('stats.busiest_unit.applications_count', 3)
+        );
+});
+
+test('the dashboard exposes a total applications count linking to the applications page', function () {
+    $landlord = User::factory()->landlord()->create();
+    $property = Property::factory()->for($landlord, 'landlord')->multiUnit()->create();
+    $unit = Unit::factory()->for($property)->create();
+    $link = ApplicationLink::factory()->for($unit)->create();
+
+    // Two new + one reviewed application all count toward the running total.
+    Application::factory()->for($link, 'applicationLink')->count(2)->create();
+    Application::factory()->for($link, 'applicationLink')->create([
+        'status' => ApplicationStatus::Reviewing,
+    ]);
+
+    // Another landlord's application must not inflate the total.
+    $otherLandlord = User::factory()->landlord()->create();
+    $otherProperty = Property::factory()->for($otherLandlord, 'landlord')->multiUnit()->create();
+    $otherLink = ApplicationLink::factory()->for(Unit::factory()->for($otherProperty)->create())->create();
+    Application::factory()->for($otherLink, 'applicationLink')->create();
+
+    $this->actingAs($landlord)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->where('stats.total_applications', 3)
+            ->where('stats.new_applications', 2)
         );
 });
 

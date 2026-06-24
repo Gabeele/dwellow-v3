@@ -3,7 +3,7 @@
 # ralph.sh — drive the PROMPT.md "Ralph" loop unattended.
 #
 # Each iteration runs ONE fresh Claude Code agent that follows PROMPT.md:
-# it reads fix_plan.md, does the single most important task, verifies it,
+# it reads ralph.md, does the single most important task, verifies it,
 # checks it off, commits (locally — never pushes), and stops. This script
 # just keeps restarting it until the agent prints RALPH-DONE (every task
 # checked off) or a safety limit is hit.
@@ -22,7 +22,7 @@
 
 set -uo pipefail
 
-# Always operate from the repo root (where PROMPT.md / fix_plan.md live).
+# Always operate from the repo root (where PROMPT.md / ralph.md live).
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 
 MAX_ITERS="${1:-25}"
@@ -36,8 +36,8 @@ if ! command -v claude >/dev/null 2>&1; then
     echo "error: 'claude' CLI not found on PATH." >&2
     exit 127
 fi
-if [[ ! -f PROMPT.md || ! -f fix_plan.md ]]; then
-    echo "error: run this from a repo containing PROMPT.md and fix_plan.md." >&2
+if [[ ! -f PROMPT.md || ! -f ralph.md ]]; then
+    echo "error: run this from a repo containing PROMPT.md and ralph.md." >&2
     exit 1
 fi
 
@@ -57,7 +57,7 @@ for (( i = 1; i <= MAX_ITERS; i++ )); do
 
     if grep -q "$DONE_MARKER" "$log"; then
         echo ""
-        echo "✅ ${DONE_MARKER} after ${i} iteration(s) — fix_plan.md is complete."
+        echo "✅ ${DONE_MARKER} after ${i} iteration(s) — ralph.md is complete."
         echo "   Review with: git log --oneline   then push when you're happy."
         exit 0
     fi
@@ -68,7 +68,7 @@ for (( i = 1; i <= MAX_ITERS; i++ )); do
         echo "⚠️  iteration ${i} made no commit (stale=${stale})."
         if (( stale >= 2 )); then
             echo "⛔ Two iterations in a row with no progress and no ${DONE_MARKER}."
-            echo "   Likely blocked — inspect ${log} and fix_plan.md, then re-run."
+            echo "   Likely blocked — inspect ${log} and ralph.md, then re-run."
             exit 1
         fi
     else
