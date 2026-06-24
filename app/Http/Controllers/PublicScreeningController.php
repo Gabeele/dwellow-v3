@@ -6,11 +6,13 @@ use App\Enums\ApplicationStatus;
 use App\Enums\FieldType;
 use App\Http\Requests\StoreApplicationRequest;
 use App\Mail\ApplicationReceivedMail;
+use App\Models\Application;
 use App\Models\ApplicationLink;
 use App\Notifications\NewApplicationNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -86,33 +88,39 @@ class PublicScreeningController extends Controller
             }
         }
 
-        $application = $link->applications()->make([
-            'applicant_first_name' => (string) ($answers['first_name'] ?? ''),
-            'applicant_last_name' => (string) ($answers['last_name'] ?? ''),
-            'applicant_email' => (string) ($answers['email'] ?? ''),
-            'applicant_phone' => (string) ($answers['phone'] ?? ''),
-            'answers' => $answers,
-            'form_snapshot' => $fields,
-            'status' => ApplicationStatus::New,
-            'submitted_at' => Carbon::now(),
-        ]);
-
-        // unit_id is denormalized and intentionally not mass-assignable.
-        $application->unit_id = $link->unit_id;
-        $application->save();
-
-        foreach ($uploads as $key => $file) {
-            $path = $file->store("applications/{$application->id}", 'local');
-
-            $application->documents()->create([
-                'field_key' => $key,
-                'disk' => 'local',
-                'path' => $path,
-                'original_name' => $file->getClientOriginalName(),
-                'mime_type' => $file->getClientMimeType(),
-                'size' => $file->getSize(),
+        // Persist the application and its documents atomically so a failure never
+        // leaves an application with some of its uploads missing.
+        $application = DB::transaction(function () use ($link, $answers, $fields, $uploads): Application {
+            $application = $link->applications()->make([
+                'applicant_first_name' => (string) ($answers['first_name'] ?? ''),
+                'applicant_last_name' => (string) ($answers['last_name'] ?? ''),
+                'applicant_email' => (string) ($answers['email'] ?? ''),
+                'applicant_phone' => (string) ($answers['phone'] ?? ''),
+                'answers' => $answers,
+                'form_snapshot' => $fields,
+                'status' => ApplicationStatus::New,
+                'submitted_at' => Carbon::now(),
             ]);
-        }
+
+            // unit_id is denormalized and intentionally not mass-assignable.
+            $application->unit_id = $link->unit_id;
+            $application->save();
+
+            foreach ($uploads as $key => $file) {
+                $path = $file->store("applications/{$application->id}", 'local');
+
+                $application->documents()->create([
+                    'field_key' => $key,
+                    'disk' => 'local',
+                    'path' => $path,
+                    'original_name' => $file->getClientOriginalName(),
+                    'mime_type' => $file->getClientMimeType(),
+                    'size' => $file->getSize(),
+                ]);
+            }
+
+            return $application;
+        });
 
         $application->loadMissing('unit.property.landlord');
 
