@@ -172,7 +172,10 @@ class ApplicationController extends Controller
             ->withCount('documents')
             ->latest('submitted_at')
             ->paginate(20)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(fn (Application $application): array => ApplicationRowResource::make(
+                $application->setRelation('unit', $unit),
+            )->resolve());
 
         return Inertia::render('screening/applicants/Index', [
             'property' => $unit->property,

@@ -363,6 +363,8 @@ test('the owning landlord sees their units applications newest first', function 
             ->has('unit')
             ->has('applications.data', 2)
             ->where('applications.data.0.id', $newer->id)
+            ->where('applications.data.0.applicant_name', 'Nadia '.$newer->applicant_last_name)
+            ->where('applications.data.0.url', route('applicants.show', $newer))
             ->where('applications.data.1.id', $older->id),
         );
 });
