@@ -8,7 +8,7 @@ enum PropertyType: string
     case Apartment = 'apartment';
     case Condo = 'condo';
     case Townhouse = 'townhouse';
-    case Duplex = 'duplex';
+    case Multiplex = 'multiplex';
     case Other = 'other';
 
     /**
@@ -21,7 +21,7 @@ enum PropertyType: string
             self::Apartment => 'Apartment',
             self::Condo => 'Condo',
             self::Townhouse => 'Townhouse',
-            self::Duplex => 'Duplex',
+            self::Multiplex => 'Multiplex',
             self::Other => 'Other',
         };
     }
