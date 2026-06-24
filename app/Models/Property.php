@@ -33,6 +33,9 @@ use Illuminate\Support\Carbon;
  * @property OccupancyStatus $status
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read int|null $units_count
+ * @property-read int|null $occupied_units_count
+ * @property-read int|null $available_units_count
  */
 #[Fillable([
     'name',

@@ -183,7 +183,7 @@ class DefaultApplicationForm
         $selected = array_flip($enabledKeys);
 
         return array_map(function (array $section) use ($selected): array {
-            $section['enabled'] = ($section['locked'] ?? false) === true || isset($selected[$section['key']]);
+            $section['enabled'] = $section['locked'] === true || isset($selected[$section['key']]);
 
             return $section;
         }, self::sections());
@@ -193,7 +193,7 @@ class DefaultApplicationForm
      * Build a single section shape.
      *
      * @param  list<array{key: string, type: string, label: string, required: bool, help: ?string, options: ?array<int, string>}>  $fields
-     * @return array{key: string, label: string, description: string, locked: bool, enabled: bool, fields: list<array<string, mixed>>}
+     * @return array{key: string, label: string, description: string, locked: bool, enabled: bool, fields: list<array{key: string, type: string, label: string, required: bool, help: ?string, options: ?array<int, string>}>}
      */
     private static function section(
         string $key,

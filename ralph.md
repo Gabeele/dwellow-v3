@@ -621,9 +621,30 @@ Guardrails (unchanged — see `.docs/decisions/`):
     The honeypot fields (`contact_channel`/`rendered_at`) are deliberately retained (Milestone A spam
     deterrent), not orphans. Full suite green (223), ESLint + Pint clean. No files changed.
 
-- [ ] Run Larastan and fix what it flags
+- [x] Run Larastan and fix what it flags
   - context: run `vendor/bin/sail php artisan` is not it — run Larastan (`vendor/bin/sail php vendor/bin/phpstan analyse` per `phpstan.neon`). Fix legitimate issues (missing types, generics on relations/collections, array shapes). Do not silence with baseline unless a finding is a genuine false positive.
   - done: Larastan passes at the configured level (or only documented, justified ignores remain); Pint clean.
+  - NOTE: Larastan (level 7, paths app/bootstrap/config/database/routes) reported 27 errors; all fixed at
+    the source — **no** baseline/ignore/@var added. (1) `ApplicationController`: typed
+    `landlordApplicationsQuery()` as `@return Builder<Application>` so the paginator/`chunk` callbacks
+    resolve to `Application` (cleared the `through()` arg-type + 6 undefined-property errors on the CSV
+    export rows in one go); guarded `fopen('php://output')` against `false` before `fputcsv`/`fclose`;
+    rewrote `$status?->value ?? ''` as `$status instanceof ApplicationStatus ? $status->value : ''`
+    (phpstan's `nullsafe.neverNull` rejects the `?->…??` pattern even though `dumpType` confirmed `$status`
+    is genuinely `ApplicationStatus|null`). (2) `ApplicationRowResource`: swapped the positional
+    `mergeWhen()` (which produced an int-keyed entry → `array<int|string,mixed>`) for a conditional spread,
+    so the shape is honestly `array<string,mixed>`. (3) `DefaultApplicationForm`: tightened `section()`'s
+    `@return` `fields` to the real field shape so `sections()` matches its declared list shape; dropped the
+    redundant `?? false` on the always-present `locked` offset. (4) `Property` model: added `@property-read
+    int|null` for the `units_count`/`occupied_units_count`/`available_units_count` withCount aliases; typed
+    `DashboardController`'s three `sum()` closures `(Property $property): int` (resolves the unresolved
+    `sum` template type + the undefined-property reads). (5) Filament: added the parent's `Model $record`
+    type to `PropertyResource`/`SentEmailResource` `canView`/`canEdit`; added a `userRecord(): User`
+    instanceof-narrowing helper to the `SyncsUserRoles` trait and used it in the trait + `EditUser` so
+    `syncRoles()`/`roleEnums()` resolve on `User` (was `Model|int|string`). (6) `ApplicationFactory`: cast
+    the FK to `(int)` so `findOrFail` returns a single model, not `Model|Collection`. Larastan now passes
+    (0 errors); Pint clean; full suite green (223) — all changes are behaviour-preserving type fixes covered
+    by existing controller/factory tests, no new code path to test. No JS touched.
 
 - [ ] Tighten controller method docblocks & return types
   - context: sweep the screening controllers for consistent PHPDoc + explicit return types + array-shape

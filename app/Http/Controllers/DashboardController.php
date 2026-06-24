@@ -6,6 +6,7 @@ use App\Enums\ApplicationStatus;
 use App\Enums\OccupancyStatus;
 use App\Enums\RentalType;
 use App\Models\Application;
+use App\Models\Property;
 use App\Models\Unit;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -31,9 +32,9 @@ class DashboardController extends Controller
                 'units as available_units_count' => fn ($query) => $query->where('status', OccupancyStatus::Available),
             ])->get();
 
-            $spaces = $properties->sum(fn ($property) => $property->rental_type === RentalType::MultiUnit ? $property->units_count : 1);
-            $occupied = $properties->sum(fn ($property) => $property->rental_type === RentalType::MultiUnit ? $property->occupied_units_count : ($property->status === OccupancyStatus::Occupied ? 1 : 0));
-            $available = $properties->sum(fn ($property) => $property->rental_type === RentalType::MultiUnit ? $property->available_units_count : ($property->status === OccupancyStatus::Available ? 1 : 0));
+            $spaces = $properties->sum(fn (Property $property): int => $property->rental_type === RentalType::MultiUnit ? (int) $property->units_count : 1);
+            $occupied = $properties->sum(fn (Property $property): int => $property->rental_type === RentalType::MultiUnit ? (int) $property->occupied_units_count : ($property->status === OccupancyStatus::Occupied ? 1 : 0));
+            $available = $properties->sum(fn (Property $property): int => $property->rental_type === RentalType::MultiUnit ? (int) $property->available_units_count : ($property->status === OccupancyStatus::Available ? 1 : 0));
 
             $newApplications = Application::query()
                 ->where('status', ApplicationStatus::New)

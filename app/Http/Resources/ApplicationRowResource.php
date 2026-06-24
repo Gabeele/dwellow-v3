@@ -29,9 +29,9 @@ class ApplicationRowResource extends JsonResource
             'status' => $this->status,
             'documents_count' => $this->documents_count,
             'url' => route('applicants.show', $this->resource),
-            $this->mergeWhen($this->unit->relationLoaded('property'), fn (): array => [
+            ...($this->unit->relationLoaded('property') ? [
                 'property_name' => $this->unit->property->name ?? $this->unit->property->address_line1,
-            ]),
+            ] : []),
         ];
     }
 }

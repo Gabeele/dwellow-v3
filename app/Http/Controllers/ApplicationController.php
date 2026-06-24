@@ -54,12 +54,12 @@ class ApplicationController extends Controller
             'applications' => $applications,
             'properties' => $properties,
             'statuses' => array_map(
-                fn (ApplicationStatus $status): array => ['value' => $status->value, 'label' => $status->label()],
+                fn (ApplicationStatus $case): array => ['value' => $case->value, 'label' => $case->label()],
                 ApplicationStatus::cases(),
             ),
             'filters' => [
                 'search' => $search,
-                'status' => $status?->value ?? '',
+                'status' => $status instanceof ApplicationStatus ? $status->value : '',
                 'property' => $propertyId,
             ],
         ]);
@@ -79,6 +79,10 @@ class ApplicationController extends Controller
 
         return response()->streamDownload(function () use ($applications, $headers): void {
             $handle = fopen('php://output', 'w');
+
+            if ($handle === false) {
+                return;
+            }
 
             fputcsv($handle, $headers);
 
@@ -105,6 +109,8 @@ class ApplicationController extends Controller
      * Build the base query for the authenticated landlord's applications, scoped
      * to their units and narrowed by the request's status/property/search filters.
      * Shared by the index page and the CSV export so both honour the same filters.
+     *
+     * @return Builder<Application>
      */
     private function landlordApplicationsQuery(Request $request): Builder
     {

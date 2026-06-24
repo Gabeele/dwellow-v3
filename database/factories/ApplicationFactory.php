@@ -27,7 +27,7 @@ class ApplicationFactory extends Factory
 
         return [
             'application_link_id' => ApplicationLink::factory(),
-            'unit_id' => fn (array $attributes): int => ApplicationLink::findOrFail($attributes['application_link_id'])->unit_id,
+            'unit_id' => fn (array $attributes): int => ApplicationLink::findOrFail((int) $attributes['application_link_id'])->unit_id,
             'applicant_first_name' => $firstName,
             'applicant_last_name' => $lastName,
             'applicant_email' => $email,
