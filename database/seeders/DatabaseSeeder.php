@@ -38,5 +38,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         Unit::factory()->count(3)->for($multiUnit)->create();
+
+        $this->call(ApplicantSeeder::class);
     }
 }
