@@ -708,11 +708,22 @@ Guardrails (unchanged — see `.docs/decisions/`):
     2/10). The `Welcome.vue` copy has no JS test harness (no vitest/jsdom — consistent with prior tasks),
     guarded by vue-tsc + ESLint + build (all clean). Pint clean. No backend logic touched.
 
-- [ ] Add a screening smoke test (Pest browser / page render)
+- [x] Add a screening smoke test (Pest browser / page render)
   - context: a lightweight smoke test that visits the key landlord screening pages (properties show,
     form builder, applicants index, applications index) and the public apply page asserting no JS/render
     errors — per the `pest-testing` skill's smoke-testing guidance.
   - done: the smoke test passes locally against the built assets.
+  - NOTE: Used a **page-render** smoke test (the task's allowed "/ page render" alternative), not Pest
+    browser: no `pestphp/pest-plugin-browser`/Playwright is installed and adding one is an out-of-scope
+    dependency change (consistent with every prior task that noted "no browser harness exists"). New
+    `tests/Feature/ScreeningSmokeTest.php`: a `screeningFixture()` helper builds a verified landlord +
+    property + unit (auto-provisioned form via UnitObserver) + link + submitted application, then a single
+    data-driven (`->with([...])`) test visits each key landlord page — `properties.show`,
+    `units.form.edit` (form builder), `units.applicants.index`, `properties.applicants.index`,
+    `applications.index`, `applicants.show` — asserting 200 + the expected Inertia component renders (a
+    render error would 500 or mismatch the component). A separate case covers the public `screening.show`
+    apply page. `withoutVite()` so it runs without built assets. 7 cases / 56 assertions green; Pint clean.
+    No JS touched. This is the last unchecked task — Milestone E (and the whole plan) is now complete.
 
 ## Design & domain references
 
