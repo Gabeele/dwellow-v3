@@ -1,6 +1,10 @@
 <?php
 
+use App\Listeners\RecordSentEmail;
 use App\Models\SentEmail;
+use App\Models\User;
+use App\Notifications\VerifyEmailNotification;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 
@@ -33,4 +37,30 @@ test('recipients are captured as an array', function () {
 
     expect($email->to)->toEqual(['a@example.com', 'b@example.com'])
         ->and($email->cc)->toEqual(['c@example.com']);
+});
+
+test('password reset email body is redacted but still audited', function () {
+    $user = User::factory()->create();
+
+    $user->notify(new ResetPassword('secret-reset-token'));
+
+    $email = SentEmail::firstOrFail();
+
+    // The audit trail is preserved...
+    expect($email->to)->toContain($user->email)
+        ->and($email->sent_at)->not->toBeNull()
+        // ...but the single-use link is never persisted.
+        ->and($email->body)->toBe(RecordSentEmail::REDACTED_BODY)
+        ->and($email->body)->not->toContain('secret-reset-token');
+});
+
+test('email verification body is redacted, including the branded override', function () {
+    $user = User::factory()->unverified()->create();
+
+    $user->notify(new VerifyEmailNotification);
+
+    $email = SentEmail::firstOrFail();
+
+    expect($email->to)->toContain($user->email)
+        ->and($email->body)->toBe(RecordSentEmail::REDACTED_BODY);
 });
