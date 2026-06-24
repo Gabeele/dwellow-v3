@@ -52,7 +52,6 @@ const props = defineProps<{
     property: Property;
     unit: Unit;
     application: Application;
-    source: string | null;
     documents: Document[];
     statuses: StatusOption[];
     otherActiveCount: number;
@@ -166,8 +165,6 @@ const statusChangedOn = computed(() =>
         ? dateFormatter.format(new Date(props.application.status_changed_at))
         : null,
 );
-
-const source = computed(() => props.source ?? 'Shared link');
 
 const snapshot = computed<FormSnapshotField[]>(
     () => props.application.form_snapshot ?? [],
@@ -909,12 +906,6 @@ function formatSize(bytes: number | null): string {
                             <span class="font-mono text-foreground">
                                 {{ application.public_id }}
                             </span>
-                        </div>
-                        <div class="flex items-center justify-between text-13">
-                            <span class="text-muted-foreground"
-                                >Applied through</span
-                            >
-                            <span class="text-foreground">{{ source }}</span>
                         </div>
                     </CardContent>
                 </Card>

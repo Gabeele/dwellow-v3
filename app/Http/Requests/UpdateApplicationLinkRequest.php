@@ -23,8 +23,7 @@ class UpdateApplicationLinkRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'is_accepting' => ['sometimes', 'boolean'],
-            'expires_at' => ['sometimes', 'nullable', 'date'],
+            'is_accepting' => ['required', 'boolean'],
         ];
     }
 }

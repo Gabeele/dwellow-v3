@@ -126,13 +126,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('units/{unit}/applicants', [ApplicationController::class, 'index'])->name('units.applicants.index');
     Route::get('applicants/{application}', [ApplicationController::class, 'show'])->name('applicants.show');
     Route::put('applicants/{application}', [ApplicationController::class, 'update'])->name('applicants.update');
+    Route::post('applicants/{application}/approve', [ApplicationController::class, 'approve'])->name('applicants.approve');
+    Route::post('applicants/{application}/reject', [ApplicationController::class, 'reject'])->name('applicants.reject');
     Route::delete('applicants/{application}', [ApplicationController::class, 'destroy'])->name('applicants.destroy');
 
     Route::get('documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
 
-    Route::post('units/{unit}/links', [ApplicationLinkController::class, 'store'])->name('units.links.store');
     Route::put('links/{link}', [ApplicationLinkController::class, 'update'])->name('links.update');
-    Route::delete('links/{link}', [ApplicationLinkController::class, 'destroy'])->name('links.destroy');
 });
 
 require __DIR__.'/settings.php';

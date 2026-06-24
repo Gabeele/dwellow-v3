@@ -96,6 +96,33 @@ class Unit extends Model
     }
 
     /**
+     * The single shareable application link for this unit.
+     *
+     * A unit has exactly one link, toggled on or off via its `is_accepting`
+     * flag. The newest row wins so units carried over from the earlier
+     * multi-link era resolve to a single canonical link.
+     *
+     * @return HasOne<ApplicationLink, $this>
+     */
+    public function applicationLink(): HasOne
+    {
+        return $this->hasOne(ApplicationLink::class)->latestOfMany();
+    }
+
+    /**
+     * Get this unit's application link, creating it if it does not exist yet.
+     *
+     * Mirrors applicationFormOrDefault(): the unit observer seeds the link on
+     * creation, and this heals any unit provisioned before that existed so the
+     * screening surface always has a stable URL to share.
+     */
+    public function applicationLinkOrDefault(): ApplicationLink
+    {
+        return $this->applicationLink()->getResults()
+            ?? $this->applicationLinks()->create([]);
+    }
+
+    /**
      * The applications submitted for this unit.
      *
      * @return HasMany<Application, $this>

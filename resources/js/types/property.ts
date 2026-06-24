@@ -111,7 +111,8 @@ export interface Unit {
     rent_amount: string | null;
     status: string;
     applications_count?: number;
-    application_links?: ApplicationLink[];
+    /** Every unit has exactly one shareable application link. */
+    application_link?: ApplicationLink | null;
     created_at: string;
     updated_at: string;
 }

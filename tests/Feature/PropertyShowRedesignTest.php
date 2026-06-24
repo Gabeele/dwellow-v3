@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Application;
-use App\Models\ApplicationLink;
 use App\Models\Property;
 use App\Models\Unit;
 use App\Models\User;
@@ -25,12 +24,12 @@ test('the property show page renders with its units for the owning landlord', fu
         );
 });
 
-test('the property show page exposes each unit application links and applicant counts', function () {
+test('the property show page exposes each unit single application link and applicant counts', function () {
     $landlord = User::factory()->landlord()->create();
     $property = Property::factory()->multiUnit()->for($landlord, 'landlord')->create();
     $unit = Unit::factory()->for($property)->create();
 
-    $link = ApplicationLink::factory()->for($unit)->create(['label' => 'Kijiji post']);
+    $link = $unit->applicationLinkOrDefault();
     Application::factory()->count(2)->for($link, 'applicationLink')->create();
 
     $this->actingAs($landlord)
@@ -39,10 +38,9 @@ test('the property show page exposes each unit application links and applicant c
         ->assertInertia(fn (Assert $page) => $page
             ->component('properties/Show')
             ->where('property.units.0.applications_count', 2)
-            ->has('property.units.0.application_links', 1)
-            ->where('property.units.0.application_links.0.label', 'Kijiji post')
-            ->where('property.units.0.application_links.0.applications_count', 2)
-            ->where('property.units.0.application_links.0.public_url', fn (string $url) => str_contains($url, '/screening/'.$link->token)),
+            ->has('property.units.0.application_link')
+            ->where('property.units.0.application_link.applications_count', 2)
+            ->where('property.units.0.application_link.public_url', fn (string $url) => str_contains($url, '/screening/'.$link->token)),
         );
 });
 
@@ -66,13 +64,13 @@ test('a unit-less whole rental heals its backing unit when its show page is view
     expect($property->fresh()->units()->count())->toBe(1);
 });
 
-test('a whole rental show page exposes its backing unit screening links and applicant counts', function () {
+test('a whole rental show page exposes its backing unit single screening link and applicant counts', function () {
     $landlord = User::factory()->landlord()->create();
     $property = Property::factory()->whole()->for($landlord, 'landlord')->create();
 
     // The PropertyObserver auto-provisions a single backing unit for whole rentals.
     $unit = $property->units()->sole();
-    $link = ApplicationLink::factory()->for($unit)->create(['label' => 'Facebook post']);
+    $link = $unit->applicationLinkOrDefault();
     Application::factory()->count(2)->for($link, 'applicationLink')->create();
 
     $this->actingAs($landlord)
@@ -82,9 +80,8 @@ test('a whole rental show page exposes its backing unit screening links and appl
             ->component('properties/Show')
             ->has('property.units', 1)
             ->where('property.units.0.applications_count', 2)
-            ->has('property.units.0.application_links', 1)
-            ->where('property.units.0.application_links.0.label', 'Facebook post')
-            ->where('property.units.0.application_links.0.applications_count', 2)
-            ->where('property.units.0.application_links.0.public_url', fn (string $url) => str_contains($url, '/screening/'.$link->token)),
+            ->has('property.units.0.application_link')
+            ->where('property.units.0.application_link.applications_count', 2)
+            ->where('property.units.0.application_link.public_url', fn (string $url) => str_contains($url, '/screening/'.$link->token)),
         );
 });

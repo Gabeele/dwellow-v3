@@ -35,17 +35,13 @@ it('lets the owning landlord view and update an application form but denies a st
         ->and($this->stranger->can('update', $form))->toBeFalse();
 });
 
-it('lets the owning landlord manage application links but denies a stranger', function () {
+it('lets the owning landlord toggle an application link but denies a stranger', function () {
     $link = ApplicationLink::factory()->create(['unit_id' => $this->unit->id]);
 
-    expect($this->owner->can('create', [ApplicationLink::class, $this->unit]))->toBeTrue()
-        ->and($this->owner->can('view', $link))->toBeTrue()
+    expect($this->owner->can('view', $link))->toBeTrue()
         ->and($this->owner->can('update', $link))->toBeTrue()
-        ->and($this->owner->can('delete', $link))->toBeTrue()
-        ->and($this->stranger->can('create', [ApplicationLink::class, $this->unit]))->toBeFalse()
         ->and($this->stranger->can('view', $link))->toBeFalse()
-        ->and($this->stranger->can('update', $link))->toBeFalse()
-        ->and($this->stranger->can('delete', $link))->toBeFalse();
+        ->and($this->stranger->can('update', $link))->toBeFalse();
 });
 
 it('lets the owning landlord view, update and delete an application but denies a stranger', function () {

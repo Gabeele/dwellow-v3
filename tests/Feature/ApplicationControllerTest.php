@@ -467,10 +467,10 @@ test('the owning landlord sees an applications snapshot and documents', function
         );
 });
 
-test('the detail page exposes the source link label and submitted timestamp', function () {
+test('the detail page exposes the submitted timestamp', function () {
     $landlord = User::factory()->landlord()->create();
     $unit = applicantUnitOwnedBy($landlord);
-    $link = ApplicationLink::factory()->for($unit)->create(['label' => 'Kijiji listing']);
+    $link = ApplicationLink::factory()->for($unit)->create();
 
     $application = Application::factory()->for($link, 'applicationLink')->create([
         'submitted_at' => now()->subDay(),
@@ -482,7 +482,6 @@ test('the detail page exposes the source link label and submitted timestamp', fu
         ->get(route('applicants.show', $application))
         ->assertInertia(fn (Assert $page) => $page
             ->component('screening/applicants/Show')
-            ->where('source', 'Kijiji listing')
             ->where('application.submitted_at', $application->submitted_at->toJSON())
             ->where('application.status_changed_at', null),
         );

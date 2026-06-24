@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ChevronDown, Link2, Pencil, Plus, Trash2, Users } from '@lucide/vue';
-import { computed, reactive } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import PropertyController from '@/actions/App/Http/Controllers/PropertyController';
 import UnitController from '@/actions/App/Http/Controllers/UnitController';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import DataTable from '@/components/DataTable.vue';
 import MetricCard from '@/components/MetricCard.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -88,16 +89,30 @@ function unitRent(unit: Unit): string {
         : '—';
 }
 
+const showDeleteProperty = ref(false);
+
+/** The unit pending deletion, or null when no delete confirmation is open. */
+const unitToDelete = ref<Unit | null>(null);
+
 function destroyProperty(): void {
-    if (confirm('Delete this property? This also removes all of its units.')) {
-        router.delete(PropertyController.destroy.url(props.property.id));
-    }
+    router.delete(PropertyController.destroy.url(props.property.id), {
+        onSuccess: () => {
+            showDeleteProperty.value = false;
+        },
+    });
 }
 
-function destroyUnit(unit: Unit): void {
-    if (confirm(`Delete unit "${unit.label}"?`)) {
-        router.delete(UnitController.destroy.url(unit.id));
+function destroyUnit(): void {
+    if (!unitToDelete.value) {
+        return;
     }
+
+    router.delete(UnitController.destroy.url(unitToDelete.value.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            unitToDelete.value = null;
+        },
+    });
 }
 
 /** Tracks which unit rows have their screening (links) panel expanded. */
@@ -133,7 +148,7 @@ function toggleScreening(unit: Unit): void {
                 <Button
                     variant="outline"
                     class="text-destructive"
-                    @click="destroyProperty"
+                    @click="showDeleteProperty = true"
                 >
                     <Trash2 />Delete
                 </Button>
@@ -242,11 +257,10 @@ function toggleScreening(unit: Unit): void {
                                 @click="toggleScreening(unit)"
                             >
                                 <Link2 />
-                                {{ unit.application_links?.length ?? 0 }}
                                 {{
-                                    (unit.application_links?.length ?? 0) === 1
-                                        ? 'link'
-                                        : 'links'
+                                    unit.application_link?.is_accepting
+                                        ? 'On'
+                                        : 'Off'
                                 }}
                                 <ChevronDown
                                     class="transition-transform"
@@ -273,7 +287,7 @@ function toggleScreening(unit: Unit): void {
                                     size="icon"
                                     variant="ghost"
                                     class="text-muted-foreground"
-                                    @click="destroyUnit(unit)"
+                                    @click="unitToDelete = unit"
                                 >
                                     <Trash2 />
                                 </Button>
@@ -304,5 +318,28 @@ function toggleScreening(unit: Unit): void {
                 finish setting it up.
             </p>
         </div>
+
+        <ConfirmDialog
+            v-model:open="showDeleteProperty"
+            title="Delete this property?"
+            description="This also removes all of its units. This can't be undone."
+            confirm-label="Delete"
+            destructive
+            @confirm="destroyProperty"
+        />
+
+        <ConfirmDialog
+            :open="unitToDelete !== null"
+            title="Delete this unit?"
+            :description="
+                unitToDelete
+                    ? `Delete unit “${unitToDelete.label}”? This can't be undone.`
+                    : ''
+            "
+            confirm-label="Delete"
+            destructive
+            @update:open="(value) => !value && (unitToDelete = null)"
+            @confirm="destroyUnit"
+        />
     </div>
 </template>

@@ -61,9 +61,6 @@ class ApplicationInfolist
                         TextEntry::make('unit.property.landlord.name')
                             ->label('Landlord')
                             ->placeholder('—'),
-                        TextEntry::make('applicationLink.label')
-                            ->label('Application link')
-                            ->placeholder('—'),
                     ]),
                 Section::make('Submitted answers')
                     ->collapsible()

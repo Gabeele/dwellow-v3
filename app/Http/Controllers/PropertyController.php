@@ -8,7 +8,6 @@ use App\Enums\RentalType;
 use App\Http\Requests\StorePropertyRequest;
 use App\Http\Requests\UpdatePropertyRequest;
 use App\Models\Application;
-use App\Models\ApplicationLink;
 use App\Models\Property;
 use App\Models\Unit;
 use App\Screening\ApplicationFileStore;
@@ -81,16 +80,16 @@ class PropertyController extends Controller
         $property->load([
             'units' => fn ($query) => $query
                 ->withCount('applications')
-                ->with(['applicationLinks' => fn ($links) => $links
-                    ->withCount('applications')
-                    ->latest()]),
+                ->with(['applicationLink' => fn ($link) => $link->withCount('applications')]),
         ]);
 
-        // Expose each link's public applicant URL so the landlord can copy and share it.
+        // Each unit shares a single link. Heal any unit missing one (legacy units
+        // predate auto-provisioning), then expose its public applicant URL so the
+        // landlord can copy and share it.
         $property->units->each(function (Unit $unit): void {
-            $unit->applicationLinks->each(function (ApplicationLink $link): void {
-                $link->setAttribute('public_url', url('/screening/'.$link->token));
-            });
+            $link = $unit->applicationLink ?? $unit->applicationLinkOrDefault()->loadCount('applications');
+            $link->setAttribute('public_url', url('/screening/'.$link->token));
+            $unit->setRelation('applicationLink', $link);
         });
 
         return Inertia::render('properties/Show', [
