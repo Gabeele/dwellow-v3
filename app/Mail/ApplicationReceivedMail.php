@@ -5,6 +5,7 @@ namespace App\Mail;
 use App\Models\Application;
 use App\Models\Property;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -13,7 +14,7 @@ use Illuminate\Queue\SerializesModels;
 /**
  * Friendly confirmation sent to an applicant once their application is received.
  */
-class ApplicationReceivedMail extends Mailable
+class ApplicationReceivedMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

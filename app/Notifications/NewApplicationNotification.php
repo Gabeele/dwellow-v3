@@ -4,13 +4,14 @@ namespace App\Notifications;
 
 use App\Models\Application;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
  * Notifies the owning landlord that a new application has arrived for one of their units.
  */
-class NewApplicationNotification extends Notification
+class NewApplicationNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
