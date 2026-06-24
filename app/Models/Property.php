@@ -9,6 +9,7 @@ use App\Observers\PropertyObserver;
 use Database\Factories\PropertyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -92,5 +93,49 @@ class Property extends Model
     public function units(): HasMany
     {
         return $this->hasMany(Unit::class);
+    }
+
+    /**
+     * Eager-load the total, occupied, and available unit counts as
+     * `units_count`, `occupied_units_count`, and `available_units_count`.
+     *
+     * @param  Builder<Property>  $query
+     */
+    public function scopeWithUnitCounts(Builder $query): void
+    {
+        $query->withCount([
+            'units',
+            'units as occupied_units_count' => fn (Builder $units) => $units->where('status', OccupancyStatus::Occupied),
+            'units as available_units_count' => fn (Builder $units) => $units->where('status', OccupancyStatus::Available),
+        ]);
+    }
+
+    /**
+     * The number of rentable spaces: each unit for a multi-unit property, or the
+     * property itself (one space) for a whole rental. Requires {@see scopeWithUnitCounts}.
+     */
+    public function spaceCount(): int
+    {
+        return $this->rental_type === RentalType::MultiUnit ? (int) $this->units_count : 1;
+    }
+
+    /**
+     * The number of occupied spaces. Requires {@see scopeWithUnitCounts}.
+     */
+    public function occupiedSpaceCount(): int
+    {
+        return $this->rental_type === RentalType::MultiUnit
+            ? (int) $this->occupied_units_count
+            : ($this->status === OccupancyStatus::Occupied ? 1 : 0);
+    }
+
+    /**
+     * The number of available spaces. Requires {@see scopeWithUnitCounts}.
+     */
+    public function availableSpaceCount(): int
+    {
+        return $this->rental_type === RentalType::MultiUnit
+            ? (int) $this->available_units_count
+            : ($this->status === OccupancyStatus::Available ? 1 : 0);
     }
 }
