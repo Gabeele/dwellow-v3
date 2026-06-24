@@ -1,9 +1,13 @@
 <?php
 
+use App\Models\Application;
 use App\Models\ApplicationLink;
 use App\Models\Property;
 use App\Models\Unit;
+use App\Screening\DefaultApplicationForm;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -113,6 +117,57 @@ test('a section with no enabled key is treated as enabled', function () {
     $this->get(route('screening.show', $link->token))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->has('sections', count($sections)));
+});
+
+test('a unit provisioned before the form observer still renders the default sections', function () {
+    // Reproduces the original bug: units seeded before the application-form
+    // observer existed have no form row, so the public page rendered zero
+    // sections (a blank application). The controller now resolves-or-defaults.
+    $link = screeningLink();
+    $link->unit->applicationForm()->delete();
+
+    expect($link->unit->fresh()->applicationForm)->toBeNull();
+
+    $this->get(route('screening.show', $link->token))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('screening/Apply')
+            ->where('isOpen', true)
+            ->where('sections.0.key', 'personal_information')
+            ->has('sections', count(DefaultApplicationForm::sections())),
+        );
+
+    // Resolving the default also heals the missing row for every later request.
+    expect($link->unit->fresh()->applicationForm)->not->toBeNull();
+});
+
+test('a submission to a unit with no form row provisions the default and is accepted', function () {
+    Storage::fake('local');
+
+    $link = screeningLink();
+    $link->unit->applicationForm()->delete();
+
+    $this->post(route('screening.store', $link->token), [
+        'answers' => [
+            'first_name' => 'Jordan',
+            'last_name' => 'Rivera',
+            'email' => 'jordan.rivera@example.com',
+            'phone' => '604-555-0142',
+            'date_of_birth' => '1990-04-15',
+            'current_address' => '12 Maple Street, Vancouver, BC',
+            'employer_name' => 'Acme Co',
+            'gross_monthly_income' => '5000',
+            'desired_move_in_date' => '2026-08-01',
+            'number_of_occupants' => '2',
+            'screening_consent' => '1',
+            'photo_id' => UploadedFile::fake()->create('id.pdf', 120, 'application/pdf'),
+            'pay_stubs' => UploadedFile::fake()->create('stubs.pdf', 200, 'application/pdf'),
+        ],
+    ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('screening.submitted', $link->token));
+
+    expect(Application::query()->count())->toBe(1);
 });
 
 test('a revoked link renders the closed state with its reason', function () {

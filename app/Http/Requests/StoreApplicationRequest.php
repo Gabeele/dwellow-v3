@@ -173,6 +173,6 @@ class StoreApplicationRequest extends FormRequest
             return [];
         }
 
-        return $link->unit->applicationForm?->enabledFields() ?? [];
+        return $link->unit->applicationFormOrDefault()->enabledFields();
     }
 }

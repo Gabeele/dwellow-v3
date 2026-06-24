@@ -26,7 +26,7 @@ class PublicScreeningController extends Controller
      */
     public function show(ApplicationLink $link): Response
     {
-        $link->load(['unit.property', 'unit.applicationForm']);
+        $link->load(['unit.property']);
 
         $isOpen = $link->isOpen();
         $unit = $link->unit;
@@ -35,7 +35,9 @@ class PublicScreeningController extends Controller
             'isOpen' => $isOpen,
             'closedReason' => $isOpen ? null : $link->closedReason(),
             'unit' => $this->unitPayload($link),
-            'sections' => $isOpen ? ($unit->applicationForm?->enabledSections() ?? []) : [],
+            // Resolve-or-default so a unit provisioned before the form observer
+            // existed still shows the standard application instead of a blank page.
+            'sections' => $isOpen ? $unit->applicationFormOrDefault()->enabledSections() : [],
         ]);
     }
 
@@ -59,10 +61,8 @@ class PublicScreeningController extends Controller
             return to_route('screening.submitted', $link->token);
         }
 
-        $link->load('unit.applicationForm');
-
         // Only fields that were active at submit time render, validate, and snapshot.
-        $fields = $link->unit->applicationForm?->enabledFields() ?? [];
+        $fields = $link->unit->applicationFormOrDefault()->enabledFields();
         $answers = $request->validated()['answers'] ?? [];
 
         $fileFields = array_filter(
