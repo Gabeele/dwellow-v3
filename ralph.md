@@ -663,11 +663,26 @@ Guardrails (unchanged — see `.docs/decisions/`):
     targets method (not closure) params; that churn would be risk without benefit. Larastan 0 errors, Pint
     clean, PublicScreeningControllerTest (10) + ApplicationSubmissionTest (15) green. No JS touched.
 
-- [ ] Extract shared validation rules for application fields
+- [x] Extract shared validation rules for application fields
   - context: if field-rule construction or address/contact rules are duplicated across
     `StoreApplicationRequest` / `UpdateApplicationFormRequest` / property & unit requests, pull the
     common pieces into a Concern (see the existing `app/Concerns/` pattern).
   - done: shared rules live in one Concern; request tests green; Pint clean.
+  - NOTE: Verify-only no-op — the hypothesized duplication isn't present (Milestone E's "mark [x] with a
+    note rather than invent work"). Audited every request's `rules()`: **property** rules
+    (`Store`/`UpdatePropertyRequest`) already share `app/Concerns/PropertyValidationRules::propertyRules()`;
+    **unit** rules (`Store`/`UpdateUnitRequest`) already share `UnitValidationRules::unitRules()`; profile
+    rules already share `ProfileValidationRules`/`PasswordValidationRules` — so the property/unit/address
+    rules this task names are *already* extracted into concerns (the exact pattern asked for).
+    `StoreApplicationRequest`'s dynamic field-rule construction (`rulesForField()` field-type→rules + the
+    Reference contact sub-fields name/email/phone/relationship) is **single-use** — a full grep
+    (`rulesForField`, `FieldType::` rule-building, `address_line1`, `'relationship'`, the reference
+    `email`/`name` sub-rules) found no second site building these; `PublicScreeningController`'s only
+    `FieldType::` use is a `File`-type check for storage, not rule construction.
+    `UpdateApplicationFormRequest` only validates `enabled_sections` keys — it builds no field/address/
+    contact rules at all, so there's nothing it shares with the others to extract. Extracting a single-use
+    block into a Concern would add indirection with zero reuse. No code change, so no test/Pint/vue-tsc
+    needed (nothing touched).
 
 - [ ] Naming & glossary consistency pass
   - context: align code/UI vocabulary with `.docs/domain/glossary.md` (Applicant vs Application vs
