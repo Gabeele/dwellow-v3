@@ -21,7 +21,9 @@
 {{-- Footer --}}
 <x-slot:footer>
 <x-mail::footer>
-© {{ date('Y') }} Dwellow. {{ __('All rights reserved.') }}
+Need a hand? Email us at [{{ config('mail.support_address') }}](mailto:{{ config('mail.support_address') }}) or visit [{{ config('app.name') }}]({{ config('app.url') }}).
+
+© {{ date('Y') }} {{ config('app.name') }}. {{ __('All rights reserved.') }}
 </x-mail::footer>
 </x-slot:footer>
 </x-mail::layout>

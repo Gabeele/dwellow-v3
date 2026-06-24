@@ -19,6 +19,9 @@ createInertiaApp({
     layout: (name) => {
         switch (true) {
             case name === 'Welcome':
+            // The error page carries its own chrome; it must not inherit the
+            // authenticated app shell (sidebar) or any other layout.
+            case name === 'ErrorPage':
                 return null;
             // Public applicant pages have no account and no app chrome.
             case name === 'screening/Apply':

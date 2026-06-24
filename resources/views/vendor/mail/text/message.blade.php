@@ -21,6 +21,8 @@
     {{-- Footer --}}
     <x-slot:footer>
         <x-mail::footer>
+            Need a hand? Email us at {{ config('mail.support_address') }} or visit {{ config('app.url') }}
+
             © {{ date('Y') }} {{ config('app.name') }}. @lang('All rights reserved.')
         </x-mail::footer>
     </x-slot:footer>

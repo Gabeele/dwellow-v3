@@ -304,4 +304,131 @@
                 transparent 58%
             );
     }
+
+    /* Brand surface gradients: a faint single-hue glow layered over a card
+       surface, for hero cards, banners and empty states. Pair with `border`
+       and `shadow-card` like the existing cards. Dark mode lifts the opacity
+       and uses the brighter dark-mode hues so the glow survives the near-black
+       canvas, mirroring how .bg-ambient is tuned. */
+    .bg-gradient-success {
+        background-color: var(--card);
+        background-image: radial-gradient(
+            620px 320px at 100% 0%,
+            hsl(142 73% 29% / 0.1),
+            transparent 60%
+        );
+    }
+    .dark .bg-gradient-success {
+        background-image: radial-gradient(
+            620px 320px at 100% 0%,
+            hsl(142 69% 45% / 0.14),
+            transparent 60%
+        );
+    }
+
+    .bg-gradient-ai {
+        background-color: var(--card);
+        background-image: radial-gradient(
+            620px 320px at 100% 0%,
+            hsl(217 91% 60% / 0.1),
+            transparent 60%
+        );
+    }
+    .dark .bg-gradient-ai {
+        background-image: radial-gradient(
+            620px 320px at 100% 0%,
+            hsl(217 91% 66% / 0.14),
+            transparent 60%
+        );
+    }
+
+    .bg-gradient-warning {
+        background-color: var(--card);
+        background-image: radial-gradient(
+            620px 320px at 100% 0%,
+            hsl(31 91% 36% / 0.09),
+            transparent 60%
+        );
+    }
+    .dark .bg-gradient-warning {
+        background-image: radial-gradient(
+            620px 320px at 100% 0%,
+            hsl(38 92% 55% / 0.13),
+            transparent 60%
+        );
+    }
+
+    /* Signature brand sweep: green flows into blue — affirmative into AI, the
+       two accent hues of the system. Reserved for the highest-emphasis hero
+       surface. TODO(design): fill in the recipe — see the note in chat. */
+    .bg-gradient-brand {
+        background-color: var(--card);
+        /* TODO: your gradient here */
+    }
+    .dark .bg-gradient-brand {
+        /* TODO: your dark-mode gradient here */
+    }
+
+    /* Additional full-page ambient backgrounds, same mechanics as .bg-ambient
+       (fixed-attachment radial glows over --background) but different moods. */
+
+    /* Warm: amber top-right, green bottom-left — for onboarding / marketing. */
+    .bg-ambient-warm {
+        background-color: var(--background);
+        background-image:
+            radial-gradient(
+                900px 520px at 92% -8%,
+                hsl(31 91% 36% / 0.07),
+                transparent 60%
+            ),
+            radial-gradient(
+                820px 600px at -4% 110%,
+                hsl(142 73% 29% / 0.06),
+                transparent 58%
+            );
+        background-attachment: fixed;
+    }
+    .dark .bg-ambient-warm {
+        background-image:
+            radial-gradient(
+                900px 520px at 92% -8%,
+                hsl(38 92% 55% / 0.1),
+                transparent 60%
+            ),
+            radial-gradient(
+                820px 600px at -4% 110%,
+                hsl(142 69% 45% / 0.09),
+                transparent 58%
+            );
+    }
+
+    /* Cool: all-blue glow from both corners — for AI-centric surfaces. */
+    .bg-ambient-cool {
+        background-color: var(--background);
+        background-image:
+            radial-gradient(
+                900px 520px at 92% -8%,
+                hsl(217 91% 60% / 0.09),
+                transparent 60%
+            ),
+            radial-gradient(
+                820px 600px at -4% 110%,
+                hsl(217 91% 60% / 0.06),
+                transparent 58%
+            );
+        background-attachment: fixed;
+    }
+    .dark .bg-ambient-cool {
+        background-image:
+            radial-gradient(
+                900px 520px at 92% -8%,
+                hsl(217 91% 66% / 0.13),
+                transparent 60%
+            ),
+            radial-gradient(
+                820px 600px at -4% 110%,
+                hsl(217 91% 66% / 0.09),
+                transparent 58%
+            );
+    }
 }

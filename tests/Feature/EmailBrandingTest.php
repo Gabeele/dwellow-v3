@@ -21,6 +21,17 @@ test('the welcome email is branded with the Dwellow logo and capitalisation', fu
         ->not->toContain('Welcome to dwellow');
 });
 
+test('transactional emails include a support footer with contact links', function () {
+    $user = User::factory()->create(['name' => 'Jane']);
+
+    $rendered = (new WelcomeMail($user))->render();
+
+    expect($rendered)
+        ->toContain('Need a hand?')
+        ->toContain('mailto:'.config('mail.support_address'))
+        ->toContain(config('app.url'));
+});
+
 test('the verification email is branded with the Dwellow logo and capitalisation', function () {
     $user = User::factory()->unverified()->create();
 
