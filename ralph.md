@@ -646,10 +646,22 @@ Guardrails (unchanged — see `.docs/decisions/`):
     (0 errors); Pint clean; full suite green (223) — all changes are behaviour-preserving type fixes covered
     by existing controller/factory tests, no new code path to test. No JS touched.
 
-- [ ] Tighten controller method docblocks & return types
+- [x] Tighten controller method docblocks & return types
   - context: sweep the screening controllers for consistent PHPDoc + explicit return types + array-shape
     annotations per the PHP rules in `CLAUDE.md`. No behaviour change.
   - done: Pint + Larastan clean; suite green.
+  - NOTE: Mostly already done — the earlier "Run Larastan" task had already forced explicit return types and
+    array shapes across these controllers. Swept all six screening-touching controllers (Application,
+    ApplicationForm, ApplicationLink, PublicScreening, Document, Property, Unit, Dashboard): every public
+    method already has a PHPDoc summary + explicit return type, and the option-builders (`formOptions`,
+    `statusOptions`) already carry precise array shapes. The one genuinely loose annotation was
+    `PublicScreeningController::unitPayload`'s `@return array<string, mixed>` — tightened it to the precise
+    public-page contract `array{label: string, address: array{line1: string, line2: string|null, city,
+    region, postal_code, country: string}}` (verified against the `properties` schema: `address_line2`
+    nullable, rest non-null strings; `Unit::$label` is `@property string`). Did NOT add closure param type
+    hints to the `->when()`/`whereHas` callbacks — Larastan passes at level 7 without them and the PHP rule
+    targets method (not closure) params; that churn would be risk without benefit. Larastan 0 errors, Pint
+    clean, PublicScreeningControllerTest (10) + ApplicationSubmissionTest (15) green. No JS touched.
 
 - [ ] Extract shared validation rules for application fields
   - context: if field-rule construction or address/contact rules are duplicated across

@@ -146,7 +146,17 @@ class PublicScreeningController extends Controller
     /**
      * The unit + address payload shared by the public screening pages.
      *
-     * @return array<string, mixed>
+     * @return array{
+     *     label: string,
+     *     address: array{
+     *         line1: string,
+     *         line2: string|null,
+     *         city: string,
+     *         region: string,
+     *         postal_code: string,
+     *         country: string,
+     *     },
+     * }
      */
     private function unitPayload(ApplicationLink $link): array
     {
