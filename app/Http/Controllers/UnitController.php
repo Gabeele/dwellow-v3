@@ -7,6 +7,7 @@ use App\Http\Requests\StoreUnitRequest;
 use App\Http\Requests\UpdateUnitRequest;
 use App\Models\Property;
 use App\Models\Unit;
+use App\Screening\ApplicationFileStore;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -76,7 +77,14 @@ class UnitController extends Controller
         $this->authorize('delete', $unit);
 
         $property = $unit->property;
+
+        // Capture application ids before the cascade removes their rows, so their
+        // stored files can be purged from the private disk.
+        $applicationIds = $unit->applications()->pluck('id')->all();
+
         $unit->delete();
+
+        ApplicationFileStore::purge(...$applicationIds);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Unit deleted.')]);
 

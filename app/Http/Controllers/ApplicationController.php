@@ -11,7 +11,6 @@ use App\Models\Unit;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -27,11 +26,10 @@ class ApplicationController extends Controller
      */
     public function indexAll(Request $request): Response
     {
-        $user = $request->user();
+        $this->authorize('viewAny', Application::class);
 
-        $search = trim((string) $request->string('search'));
-        $status = ApplicationStatus::tryFrom((string) $request->string('status'));
-        $propertyId = $request->integer('property') ?: null;
+        $user = $request->user();
+        $filters = $this->filters($request);
 
         $applications = $this->landlordApplicationsQuery($request)
             ->with('unit.property')
@@ -58,9 +56,9 @@ class ApplicationController extends Controller
                 ApplicationStatus::cases(),
             ),
             'filters' => [
-                'search' => $search,
-                'status' => $status instanceof ApplicationStatus ? $status->value : '',
-                'property' => $propertyId,
+                'search' => $filters['search'],
+                'status' => $filters['status'] instanceof ApplicationStatus ? $filters['status']->value : '',
+                'property' => $filters['property'],
             ],
         ]);
     }
@@ -73,6 +71,8 @@ class ApplicationController extends Controller
      */
     public function exportAll(Request $request): StreamedResponse
     {
+        $this->authorize('viewAny', Application::class);
+
         $applications = $this->landlordApplicationsQuery($request)->with('unit.property');
 
         $headers = ['Applicant name', 'Email', 'Property', 'Unit', 'Status', 'Submitted at'];
@@ -116,9 +116,7 @@ class ApplicationController extends Controller
     {
         $user = $request->user();
 
-        $search = trim((string) $request->string('search'));
-        $status = ApplicationStatus::tryFrom((string) $request->string('status'));
-        $propertyId = $request->integer('property') ?: null;
+        ['search' => $search, 'status' => $status, 'property' => $propertyId] = $this->filters($request);
 
         return Application::query()
             ->whereHas('unit.property', fn ($query) => $query->where('landlord_id', $user->id))
@@ -132,6 +130,21 @@ class ApplicationController extends Controller
                 ->orWhere('applicant_last_name', 'like', "%{$search}%")
                 ->orWhere('applicant_email', 'like', "%{$search}%")))
             ->latest('submitted_at');
+    }
+
+    /**
+     * Parse the shared status/property/search filters from the request once, so
+     * the index page and its query read them the same way.
+     *
+     * @return array{search: string, status: ApplicationStatus|null, property: int|null}
+     */
+    private function filters(Request $request): array
+    {
+        return [
+            'search' => trim((string) $request->string('search')),
+            'status' => ApplicationStatus::tryFrom((string) $request->string('status')),
+            'property' => $request->integer('property') ?: null,
+        ];
     }
 
     /**
@@ -173,7 +186,10 @@ class ApplicationController extends Controller
             ->withCount('documents')
             ->latest('submitted_at')
             ->paginate(20)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(fn (Application $application): array => ApplicationRowResource::make(
+                $application->setRelation('unit', $unit),
+            )->resolve());
 
         return Inertia::render('screening/applicants/Index', [
             'property' => $unit->property,
@@ -221,20 +237,14 @@ class ApplicationController extends Controller
     }
 
     /**
-     * Delete an application along with the documents it stored on the private disk.
-     * The document rows cascade with the application; their files must be removed by hand.
+     * Delete an application. Its document rows cascade with it, and the
+     * Application delete event purges the stored files from the private disk.
      */
     public function destroy(Application $application): RedirectResponse
     {
         $this->authorize('delete', $application);
 
         $unit = $application->unit;
-
-        $application->load('documents');
-
-        foreach ($application->documents as $document) {
-            Storage::disk($document->disk)->delete($document->path);
-        }
 
         $application->delete();
 

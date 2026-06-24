@@ -7,9 +7,11 @@ use App\Enums\PropertyType;
 use App\Enums\RentalType;
 use App\Http\Requests\StorePropertyRequest;
 use App\Http\Requests\UpdatePropertyRequest;
+use App\Models\Application;
 use App\Models\ApplicationLink;
 use App\Models\Property;
 use App\Models\Unit;
+use App\Screening\ApplicationFileStore;
 use App\Screening\BackingUnitProvisioner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,11 +29,7 @@ class PropertyController extends Controller
 
         $properties = $request->user()
             ->properties()
-            ->withCount([
-                'units',
-                'units as occupied_units_count' => fn ($query) => $query->where('status', OccupancyStatus::Occupied),
-                'units as available_units_count' => fn ($query) => $query->where('status', OccupancyStatus::Available),
-            ])
+            ->withUnitCounts()
             ->latest()
             ->get();
 
@@ -134,7 +132,16 @@ class PropertyController extends Controller
     {
         $this->authorize('delete', $property);
 
+        // Capture descendant application ids before the cascade removes their
+        // rows, so their stored files can be purged from the private disk.
+        $applicationIds = Application::query()
+            ->whereHas('unit', fn ($query) => $query->where('property_id', $property->id))
+            ->pluck('id')
+            ->all();
+
         $property->delete();
+
+        ApplicationFileStore::purge(...$applicationIds);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Property deleted.')]);
 

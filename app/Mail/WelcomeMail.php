@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Models\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -12,7 +13,7 @@ use Illuminate\Queue\SerializesModels;
 /**
  * Branded welcome email sent once a user has verified their email address.
  */
-class WelcomeMail extends Mailable
+class WelcomeMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

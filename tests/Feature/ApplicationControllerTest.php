@@ -74,6 +74,13 @@ test('the all-applications index renders the empty state when the landlord has n
         );
 });
 
+test('a non-landlord cannot view or export the applications list', function () {
+    $tenant = User::factory()->tenant()->create();
+
+    $this->actingAs($tenant)->get(route('applications.index'))->assertForbidden();
+    $this->actingAs($tenant)->get(route('applications.export'))->assertForbidden();
+});
+
 test('the all-applications page renders each application with its unit and property', function () {
     $landlord = User::factory()->landlord()->create();
 
@@ -363,6 +370,8 @@ test('the owning landlord sees their units applications newest first', function 
             ->has('unit')
             ->has('applications.data', 2)
             ->where('applications.data.0.id', $newer->id)
+            ->where('applications.data.0.applicant_name', 'Nadia '.$newer->applicant_last_name)
+            ->where('applications.data.0.url', route('applicants.show', $newer))
             ->where('applications.data.1.id', $older->id),
         );
 });

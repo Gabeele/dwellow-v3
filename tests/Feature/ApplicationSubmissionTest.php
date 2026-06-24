@@ -104,7 +104,7 @@ test('a valid submission emails the applicant a confirmation', function () {
         'answers' => validSubmission(),
     ])->assertRedirect(route('screening.submitted', $link->token));
 
-    Mail::assertSent(ApplicationReceivedMail::class, function (ApplicationReceivedMail $mail) {
+    Mail::assertQueued(ApplicationReceivedMail::class, function (ApplicationReceivedMail $mail) {
         return $mail->hasTo('dana@example.com');
     });
 });
@@ -156,7 +156,7 @@ test('a rejected submission does not email the applicant', function () {
     $this->post(route('screening.store', $link->token), ['answers' => $answers])
         ->assertSessionHasErrors('answers.gross_monthly_income');
 
-    Mail::assertNothingSent();
+    Mail::assertNothingOutgoing();
 });
 
 test('the submitted page renders a confirmation', function () {

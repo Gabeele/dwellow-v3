@@ -8,6 +8,14 @@ use App\Models\User;
 class ApplicationPolicy
 {
     /**
+     * Determine whether the user can view their portfolio-wide applications list.
+     */
+    public function viewAny(User $user): bool
+    {
+        return $user->isLandlord();
+    }
+
+    /**
      * Determine whether the user can view the application.
      */
     public function view(User $user, Application $application): bool

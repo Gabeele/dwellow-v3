@@ -1,9 +1,13 @@
 <?php
 
+use App\Models\Application;
+use App\Models\ApplicationLink;
+use App\Models\Document;
 use App\Models\Property;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -89,4 +93,25 @@ test('a landlord can update and delete their own unit', function () {
         ->assertRedirect(route('properties.show', $property));
 
     $this->assertDatabaseMissing('units', ['id' => $unit->id]);
+});
+
+test('deleting a unit purges its applicants stored files', function () {
+    Storage::fake('local');
+
+    $landlord = User::factory()->landlord()->create();
+    $property = Property::factory()->multiUnit()->for($landlord, 'landlord')->create();
+    $unit = Unit::factory()->for($property)->create(['label' => 'Unit A']);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create();
+
+    $path = "applications/{$application->id}/id.png";
+    Storage::disk('local')->put($path, 'fake-bytes');
+    Document::factory()->for($application)->create(['disk' => 'local', 'path' => $path]);
+
+    $this->actingAs($landlord)
+        ->delete(route('units.destroy', $unit))
+        ->assertRedirect(route('properties.show', $property));
+
+    $this->assertDatabaseMissing('applications', ['id' => $application->id]);
+    Storage::disk('local')->assertMissing($path);
 });

@@ -23,7 +23,7 @@ test('the welcome email is not sent during registration', function () {
         'password_confirmation' => 'password',
     ]);
 
-    Mail::assertNothingSent();
+    Mail::assertNothingOutgoing();
 });
 
 test('the welcome email is sent once a user verifies their email', function () {
@@ -41,5 +41,5 @@ test('the welcome email is sent once a user verifies their email', function () {
 
     expect($user->fresh()->hasVerifiedEmail())->toBeTrue();
 
-    Mail::assertSent(WelcomeMail::class, fn (WelcomeMail $mail) => $mail->hasTo($user->email));
+    Mail::assertQueued(WelcomeMail::class, fn (WelcomeMail $mail) => $mail->hasTo($user->email));
 });

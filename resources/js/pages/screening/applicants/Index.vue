@@ -12,12 +12,12 @@ import { applicationStatusBadge } from '@/lib/applicationStatus';
 import { show as showApplicant } from '@/routes/applicants';
 import { index, show } from '@/routes/properties';
 import type { Paginated } from '@/types';
-import type { Application, Property, Unit } from '@/types/property';
+import type { ApplicationRow, Property, Unit } from '@/types/property';
 
 const props = defineProps<{
     property: Property;
     unit: Unit;
-    applications: Paginated<Application>;
+    applications: Paginated<ApplicationRow>;
 }>();
 
 defineOptions({
@@ -35,11 +35,7 @@ const dateFormatter = new Intl.DateTimeFormat('en-CA', {
     day: 'numeric',
 });
 
-function applicantName(application: Application): string {
-    return `${application.applicant_first_name} ${application.applicant_last_name}`.trim();
-}
-
-function submittedOn(application: Application): string {
+function submittedOn(application: ApplicationRow): string {
     return application.submitted_at
         ? dateFormatter.format(new Date(application.submitted_at))
         : '—';
@@ -88,7 +84,7 @@ const unitContext = computed(() =>
                 <td class="px-4 py-3">
                     <div class="flex flex-col">
                         <span class="font-medium text-foreground">
-                            {{ applicantName(application) }}
+                            {{ application.applicant_name }}
                         </span>
                         <span class="text-13 text-muted-foreground">
                             {{ application.applicant_email }}
