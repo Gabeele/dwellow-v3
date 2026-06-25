@@ -37,6 +37,10 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
 
+        // Load the role pivot once per request so the shared `roles` prop and
+        // any in-request `hasRole()` authorization checks reuse it.
+        $user?->loadMissing('roles');
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),

@@ -12,7 +12,12 @@ import StatusBadge from '@/components/StatusBadge.vue';
 import TableRow from '@/components/TableRow.vue';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { propertyOccupancy } from '@/lib/occupancy';
+import {
+    availableSpaces,
+    occupiedSpaces,
+    propertyOccupancy,
+    spaceCount,
+} from '@/lib/occupancy';
 import type { OccupancyStatus } from '@/lib/occupancy';
 import { create, index, show } from '@/routes/properties';
 import type { Property } from '@/types/property';
@@ -26,38 +31,6 @@ defineOptions({
         breadcrumbs: [{ title: 'Properties', href: index() }],
     },
 });
-
-/**
- * The number of rentable spaces a property contributes: a multi-unit
- * property exposes one space per unit, a whole rental is a single space.
- */
-function spaceCount(property: Property): number {
-    return property.rental_type === 'multi_unit'
-        ? (property.units_count ?? 0)
-        : 1;
-}
-
-/**
- * The count of occupied rentable spaces within a property.
- */
-function occupiedSpaces(property: Property): number {
-    if (property.rental_type === 'multi_unit') {
-        return property.occupied_units_count ?? 0;
-    }
-
-    return property.status === 'occupied' ? 1 : 0;
-}
-
-/**
- * The count of available (vacant) rentable spaces within a property.
- */
-function availableSpaces(property: Property): number {
-    if (property.rental_type === 'multi_unit') {
-        return property.available_units_count ?? 0;
-    }
-
-    return property.status === 'available' ? 1 : 0;
-}
 
 const totalUnits = computed(() =>
     props.properties.reduce((sum, property) => sum + spaceCount(property), 0),

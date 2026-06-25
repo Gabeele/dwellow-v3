@@ -28,7 +28,7 @@ trait PropertyValidationRules
             'city' => ['required', 'string', 'max:255'],
             'region' => ['required', 'string', 'max:255'],
             'postal_code' => ['required', 'string', 'max:20'],
-            'country' => ['required', 'string', 'size:2'],
+            'country' => ['required', 'string', 'size:2', 'alpha:ascii'],
             'type' => ['required', Rule::enum(PropertyType::class)],
             'rental_type' => ['required', Rule::enum(RentalType::class)],
             'bedrooms' => ['prohibited_unless:rental_type,whole', 'nullable', 'integer', 'min:0', 'max:255'],
@@ -36,5 +36,18 @@ trait PropertyValidationRules
             'rent_amount' => ['prohibited_unless:rental_type,whole', 'nullable', 'numeric', 'min:0', 'max:9999999.99'],
             'status' => ['prohibited_unless:rental_type,whole', 'nullable', Rule::enum(OccupancyStatus::class)],
         ];
+    }
+
+    /**
+     * Normalize the input before validation.
+     *
+     * The country code is stored as an upper-case ISO 3166-1 alpha-2 value, so
+     * accept any casing from the client (e.g. `ca`) and normalize it here.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->country)) {
+            $this->merge(['country' => strtoupper($this->country)]);
+        }
     }
 }

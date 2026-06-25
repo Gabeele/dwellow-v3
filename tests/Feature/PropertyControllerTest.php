@@ -70,6 +70,28 @@ test('a landlord can create a property', function () {
     ]);
 });
 
+test('the country code is normalized to upper case', function () {
+    $landlord = User::factory()->landlord()->create();
+
+    // Clients may send any casing; it is stored as upper-case ISO 3166-1 alpha-2.
+    $this->actingAs($landlord)
+        ->post(route('properties.store'), wholePropertyPayload(['country' => 'ca']))
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('properties', [
+        'landlord_id' => $landlord->id,
+        'country' => 'CA',
+    ]);
+});
+
+test('a non-alphabetic country code is rejected', function () {
+    $landlord = User::factory()->landlord()->create();
+
+    $this->actingAs($landlord)
+        ->post(route('properties.store'), wholePropertyPayload(['country' => '12']))
+        ->assertSessionHasErrors('country');
+});
+
 test('whole-rental detail fields are rejected for a multi-unit property', function () {
     $landlord = User::factory()->landlord()->create();
 

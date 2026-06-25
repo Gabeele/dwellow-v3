@@ -41,8 +41,8 @@ class DashboardController extends Controller
 
             $busiestUnit = Unit::query()
                 ->whereHas('property', fn ($query) => $query->where('landlord_id', $user->id))
+                ->whereHas('applications')
                 ->withCount('applications')
-                ->having('applications_count', '>', 0)
                 ->orderByDesc('applications_count')
                 ->first();
 

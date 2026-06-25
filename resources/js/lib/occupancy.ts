@@ -61,3 +61,51 @@ export function propertyOccupancy(property: Property): OccupancyStatus {
         ? (property.status as OccupancyStatus)
         : 'unavailable';
 }
+
+/**
+ * The number of rentable spaces a property contributes: a multi-unit
+ * property exposes one space per unit, a whole rental is a single space.
+ */
+export function spaceCount(property: Property): number {
+    return property.rental_type === 'multi_unit'
+        ? (property.units_count ?? 0)
+        : 1;
+}
+
+/**
+ * The count of occupied rentable spaces within a property.
+ */
+export function occupiedSpaces(property: Property): number {
+    if (property.rental_type === 'multi_unit') {
+        return property.occupied_units_count ?? 0;
+    }
+
+    return property.status === 'occupied' ? 1 : 0;
+}
+
+/**
+ * The count of available (vacant) rentable spaces within a property.
+ */
+export function availableSpaces(property: Property): number {
+    if (property.rental_type === 'multi_unit') {
+        return property.available_units_count ?? 0;
+    }
+
+    return property.status === 'available' ? 1 : 0;
+}
+
+/**
+ * The monthly rent roll for a property: the summed rent of its occupied units
+ * for a multi-unit rental, or the property's own rent when rented whole. Only
+ * occupied units contribute, since vacant spaces produce no income. Requires
+ * the `units` relation to be loaded for multi-unit properties.
+ */
+export function rentRoll(property: Property): number {
+    if (property.rental_type === 'multi_unit') {
+        return (property.units ?? [])
+            .filter((unit) => unit.status === 'occupied')
+            .reduce((sum, unit) => sum + Number(unit.rent_amount ?? 0), 0);
+    }
+
+    return Number(property.rent_amount ?? 0);
+}

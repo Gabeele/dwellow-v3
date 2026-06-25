@@ -2,8 +2,8 @@
 import { Link } from '@inertiajs/vue3';
 import { ArrowRight } from '@lucide/vue';
 import { computed } from 'vue';
-import AnnotatedShot from '@/components/marketing/AnnotatedShot.vue';
 import Eyebrow from '@/components/Eyebrow.vue';
+import AnnotatedShot from '@/components/marketing/AnnotatedShot.vue';
 import MarketingFaq from '@/components/marketing/MarketingFaq.vue';
 import PublicLayout from '@/layouts/PublicLayout.vue';
 import { register } from '@/routes';

@@ -36,6 +36,8 @@ class UnitPolicy
      */
     private function owns(User $user, Unit $unit): bool
     {
+        $unit->loadMissing('property');
+
         return $user->isLandlord() && $unit->property->landlord_id === $user->id;
     }
 }

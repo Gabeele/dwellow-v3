@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import UnitScreeningPanel from '@/components/UnitScreeningPanel.vue';
 import { formatAddress } from '@/lib/address';
 import { formatCurrency } from '@/lib/currency';
+import { rentRoll as rentRollFor } from '@/lib/occupancy';
 import { edit, index } from '@/routes/properties';
 import { index as propertyApplicants } from '@/routes/properties/applicants';
 import { create as createUnit } from '@/routes/properties/units';
@@ -72,16 +73,7 @@ const vacantCount = computed(() =>
 );
 
 /** Monthly rent roll from occupied units (multi-unit) or the property rent (whole). */
-const rentRoll = computed(() => {
-    if (isMultiUnit.value) {
-        return occupiedUnits.value.reduce(
-            (sum, unit) => sum + Number(unit.rent_amount ?? 0),
-            0,
-        );
-    }
-
-    return Number(props.property.rent_amount ?? 0);
-});
+const rentRoll = computed(() => rentRollFor(props.property));
 
 function unitRent(unit: Unit): string {
     return unit.rent_amount
