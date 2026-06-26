@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Building2 } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import DataTable from '@/components/DataTable.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
@@ -52,7 +52,42 @@ const totalAvailable = computed(() =>
 
 type TabValue = 'all' | OccupancyStatus;
 
-const activeTab = ref<TabValue>('all');
+const TAB_VALUES: readonly TabValue[] = [
+    'all',
+    'occupied',
+    'available',
+    'unavailable',
+];
+
+/**
+ * Seed the active filter from a `?status=` query param so links from
+ * elsewhere (e.g. the dashboard portfolio cards) can deep-link straight
+ * into a filtered table. Falls back to "all" for missing or unknown values.
+ */
+function initialTab(): TabValue {
+    const query = usePage().url.split('?')[1] ?? '';
+    const status = new URLSearchParams(query).get('status');
+
+    return TAB_VALUES.includes(status as TabValue)
+        ? (status as TabValue)
+        : 'all';
+}
+
+const activeTab = ref<TabValue>(initialTab());
+
+/**
+ * Keep the URL in sync with the active filter so the table view is
+ * shareable and matches deep links from the dashboard. Filtering is
+ * entirely client-side, so we rewrite the URL via the History API
+ * (preserving Inertia's page state) rather than issuing a server visit.
+ */
+watch(activeTab, (value) => {
+    const url = index({
+        query: { status: value === 'all' ? undefined : value },
+    }).url;
+
+    window.history.replaceState(window.history.state, '', url);
+});
 
 function countByStatus(status: OccupancyStatus): number {
     return props.properties.filter(

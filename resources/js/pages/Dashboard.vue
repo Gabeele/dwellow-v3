@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import Eyebrow from '@/components/Eyebrow.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import StatCard from '@/components/StatCard.vue';
 import { Button } from '@/components/ui/button';
@@ -65,46 +66,88 @@ const welcomeTitle = computed(() =>
             </template>
         </PageHeader>
 
-        <div class="flex flex-col gap-6">
-            <div v-if="stats" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <StatCard label="Properties" :value="stats.properties" />
-                <StatCard
-                    label="Units"
-                    :value="stats.units"
-                    context="Rentable spaces"
-                />
-                <StatCard
-                    label="Occupied"
-                    :value="stats.occupied"
-                    tone="success"
-                />
-                <StatCard
-                    label="Available"
-                    :value="stats.available"
-                    tone="warning"
-                />
-                <Link
-                    :href="applicationsIndex({ query: { status: 'new' } })"
-                    class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                >
-                    <StatCard
-                        label="New applications"
-                        :value="stats.new_applications"
-                        :tone="stats.new_applications > 0 ? 'ai' : 'muted'"
-                        context="Awaiting your review"
-                    />
-                </Link>
-                <Link
-                    :href="applicationsIndex()"
-                    class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                >
-                    <StatCard
-                        label="Total applications"
-                        :value="stats.total_applications"
-                        context="View all applications"
-                    />
-                </Link>
-            </div>
+        <div class="flex flex-col gap-8">
+            <template v-if="stats">
+                <section class="flex flex-col gap-3">
+                    <Eyebrow>Portfolio</Eyebrow>
+                    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        <Link
+                            :href="propertiesIndex()"
+                            class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                            <StatCard
+                                label="Properties"
+                                :value="stats.properties"
+                            />
+                        </Link>
+                        <Link
+                            :href="propertiesIndex()"
+                            class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                            <StatCard label="Units" :value="stats.units" />
+                        </Link>
+                        <Link
+                            :href="
+                                propertiesIndex({
+                                    query: { status: 'occupied' },
+                                })
+                            "
+                            class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                            <StatCard
+                                label="Occupied"
+                                :value="stats.occupied"
+                                tone="success"
+                            />
+                        </Link>
+                        <Link
+                            :href="
+                                propertiesIndex({
+                                    query: { status: 'available' },
+                                })
+                            "
+                            class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                            <StatCard
+                                label="Available"
+                                :value="stats.available"
+                                tone="warning"
+                            />
+                        </Link>
+                    </div>
+                </section>
+
+                <section class="flex flex-col gap-3">
+                    <Eyebrow>Applications</Eyebrow>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <Link
+                            :href="
+                                applicationsIndex({ query: { status: 'new' } })
+                            "
+                            class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                            <StatCard
+                                label="New applications"
+                                :value="stats.new_applications"
+                                :tone="
+                                    stats.new_applications > 0 ? 'ai' : 'muted'
+                                "
+                                context="Awaiting your review"
+                            />
+                        </Link>
+                        <Link
+                            :href="applicationsIndex()"
+                            class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                            <StatCard
+                                label="Total applications"
+                                :value="stats.total_applications"
+                                context="View all applications"
+                            />
+                        </Link>
+                    </div>
+                </section>
+            </template>
 
             <div
                 v-else
