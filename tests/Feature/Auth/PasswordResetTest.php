@@ -2,10 +2,11 @@
 
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Fortify\Features;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->skipUnlessFortifyHas(Features::resetPasswords());
@@ -64,6 +65,17 @@ test('password can be reset with valid token', function () {
 
         return true;
     });
+});
+
+test('password reset link requests are rate limited per ip', function () {
+    // Distinct emails so the per-email broker throttle never fires; this proves
+    // the per-IP limiter that guards against cross-account enumeration.
+    foreach (range(1, 10) as $attempt) {
+        $this->post(route('password.email'), ['email' => "user{$attempt}@example.com"]);
+    }
+
+    $this->post(route('password.email'), ['email' => 'user11@example.com'])
+        ->assertTooManyRequests();
 });
 
 test('password cannot be reset with invalid token', function () {

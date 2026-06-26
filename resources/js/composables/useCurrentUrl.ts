@@ -15,11 +15,6 @@ export type UseCurrentUrlReturn = {
         urlToCheck: NonNullable<InertiaLinkProps['href']>,
         currentUrl?: string,
     ) => boolean;
-    whenCurrentUrl: <T, F = null>(
-        urlToCheck: NonNullable<InertiaLinkProps['href']>,
-        ifTrue: T,
-        ifFalse?: F,
-    ) => T | F;
 };
 
 export function useCurrentUrl(): UseCurrentUrlReturn {
@@ -65,18 +60,9 @@ export function useCurrentUrl(): UseCurrentUrlReturn {
         return isCurrentUrl(urlToCheck, currentUrl, true);
     }
 
-    function whenCurrentUrl(
-        urlToCheck: NonNullable<InertiaLinkProps['href']>,
-        ifTrue: any,
-        ifFalse: any = null,
-    ) {
-        return isCurrentUrl(urlToCheck) ? ifTrue : ifFalse;
-    }
-
     return {
         currentUrl: readonly(currentUrlReactive),
         isCurrentUrl,
         isCurrentOrParentUrl,
-        whenCurrentUrl,
     };
 }
