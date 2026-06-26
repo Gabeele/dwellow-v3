@@ -41,7 +41,7 @@
         @vite(['resources/css/app.css', 'resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])
         <x-inertia::head>
             @php($seo = $page['props']['seo'] ?? null)
-            <title>{{ $seo['title'] ?? config('app.name', 'Laravel') }}</title>
+            <title>{{ $seo['title'] ?? config('app.name', 'Dwellow') }}</title>
             @if ($seo)
                 <meta name="description" content="{{ $seo['description'] }}">
                 <link rel="canonical" href="{{ $seo['url'] }}">
