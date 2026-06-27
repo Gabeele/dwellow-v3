@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { Head, useForm, useHttp, usePage } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     ArrowRight,
@@ -27,11 +27,25 @@ type AnswerValue = string | boolean | string[] | File | null | ReferenceAnswer;
 
 type ClosedReason = 'revoked' | 'expired' | 'not_accepting';
 
+type DraftFile = {
+    field_key: string;
+    original_name: string;
+    size: number | null;
+};
+
 const props = defineProps<{
     isOpen: boolean;
     closedReason: ClosedReason | null;
     unit: PublicUnit;
     sections: FormSection[];
+    // A previously-saved draft (cookie-resolved server-side) to resume from, or
+    // null for a fresh start. `answers` covers non-file fields; uploaded files
+    // are listed by name/size and surfaced as already-attached.
+    draft: {
+        answers: Record<string, AnswerValue>;
+        current_step: number;
+        files: DraftFile[];
+    } | null;
 }>();
 
 const page = usePage();
@@ -112,6 +126,31 @@ const form = useForm<{
     contact_channel: '',
     rendered_at: null,
 });
+
+// Rehydrate a saved draft so the applicant resumes where they left off. Done
+// here (before any autosave watcher is registered) so restoring values can't
+// trip an autosave back to the server.
+if (props.draft) {
+    for (const [key, value] of Object.entries(props.draft.answers)) {
+        if (key in form.answers) {
+            form.answers[key] = value;
+        }
+    }
+}
+
+// Files already uploaded to the draft, keyed by field. The browser can't be
+// handed back the bytes, so we track name/size and show them as attached; the
+// real files are pulled from the draft at submit time.
+const draftFiles = reactive<Record<string, { name: string; size: number }>>({});
+
+if (props.draft) {
+    for (const file of props.draft.files) {
+        draftFiles[file.field_key] = {
+            name: file.original_name,
+            size: file.size ?? 0,
+        };
+    }
+}
 
 // Set on mount (not at module load) to avoid an SSR/hydration time mismatch.
 onMounted(() => {
@@ -194,6 +233,10 @@ const onFileChange = (key: string, event: Event): void => {
 
     clientErrors[key] = undefined;
     form.answers[key] = file;
+
+    if (file) {
+        void uploadDraftFile(key, file);
+    }
 };
 
 const clearFile = (key: string): void => {
@@ -204,6 +247,12 @@ const clearFile = (key: string): void => {
 
     if (input) {
         input.value = '';
+    }
+
+    // If the file was already saved to the draft, drop it server-side too.
+    if (draftFiles[key]) {
+        delete draftFiles[key];
+        fileRemover.delete(draftFileUrl(key));
     }
 };
 
@@ -264,7 +313,9 @@ const validateField = (field: FormField): string | undefined => {
                 ? 'Please tick this box to continue.'
                 : undefined;
         case 'file':
-            return field.required && !(value instanceof File)
+            return field.required &&
+                !(value instanceof File) &&
+                !draftFiles[field.key]
                 ? 'Please choose a file to upload.'
                 : undefined;
         case 'reference': {
@@ -339,10 +390,74 @@ const canSubmit = computed<boolean>(() => !form.processing);
 // Applicants apply on a phone, so the form is a guided, one-section-at-a-time
 // wizard ending in a read-only recap. `currentStep` indexes into `sections`;
 // `reviewing` is the final confirmation step before anything is sent.
-const currentStep = ref<number>(0);
+// Resume on the section the applicant last reached, clamped into range in case
+// the form's shape changed since the draft was saved.
+const currentStep = ref<number>(
+    props.draft
+        ? Math.min(
+              Math.max(props.draft.current_step, 0),
+              Math.max(props.sections.length - 1, 0),
+          )
+        : 0,
+);
 const reviewing = ref<boolean>(false);
 
 const totalSteps = computed<number>(() => props.sections.length);
+
+// --- Draft autosave (resume support) ------------------------------------
+// Standalone (non-Inertia) requests so saving never re-renders the page.
+const draftSaver = useHttp<{
+    answers: Record<string, AnswerValue>;
+    current_step: number;
+}>({ answers: {}, current_step: 0 });
+const fileUploader = useHttp<{ file: File | null }>({ file: null });
+const fileRemover = useHttp({});
+
+const draftSaveUrl = `${page.url}/draft`;
+const draftFileUrl = (key: string): string =>
+    `${page.url}/draft/files/${encodeURIComponent(key)}`;
+
+// Upload a freshly-picked file straight to the draft. On success we clear the
+// in-memory File so it isn't re-sent at submit; on failure we keep it so the
+// inline submit path still carries it.
+const uploadDraftFile = (key: string, file: File): void => {
+    fileUploader.file = file;
+    fileUploader.post(draftFileUrl(key), {
+        onSuccess: () => {
+            draftFiles[key] = { name: file.name, size: file.size };
+            form.answers[key] = null;
+        },
+    });
+};
+
+let saveTimeout: ReturnType<typeof setTimeout> | undefined;
+
+const persistDraft = (): void => {
+    // Files travel via their own endpoint; never put a File in the JSON body.
+    const answers: Record<string, AnswerValue> = {};
+    for (const [key, value] of Object.entries(form.answers)) {
+        if (!(value instanceof File)) {
+            answers[key] = value;
+        }
+    }
+
+    draftSaver.answers = answers;
+    draftSaver.current_step = currentStep.value;
+    draftSaver.put(draftSaveUrl);
+};
+
+// Debounced so typing doesn't hit the server on every keystroke. Registered
+// after hydration, so it only fires on genuine applicant input.
+const scheduleDraftSave = (): void => {
+    if (!props.isOpen) {
+        return;
+    }
+
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(persistDraft, 1000);
+};
+
+watch([() => form.answers, currentStep], scheduleDraftSave, { deep: true });
 
 const currentSection = computed<FormSection | undefined>(
     () => props.sections[currentStep.value],
@@ -414,10 +529,16 @@ const referenceLines = (key: string): string[] => {
     );
 };
 
-const attachedFile = (key: string): File | null => {
+// The file shown as attached for a field: a freshly-picked File this session,
+// or one already saved to the draft. Name + size only, so both render the same.
+const fileSummary = (key: string): { name: string; size: number } | null => {
     const value = form.answers[key];
 
-    return value instanceof File ? value : null;
+    if (value instanceof File) {
+        return { name: value.name, size: value.size };
+    }
+
+    return draftFiles[key] ?? null;
 };
 
 const formatFileSize = (bytes: number): string => {
@@ -825,17 +946,17 @@ const submit = (): void => {
                                     {{ FILE_ACCEPT_HINT }}
                                 </p>
                                 <div
-                                    v-if="attachedFile(field.key)"
+                                    v-if="fileSummary(field.key)"
                                     class="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2 text-13"
                                 >
                                     <span
                                         class="min-w-0 truncate text-foreground"
                                     >
-                                        {{ attachedFile(field.key)?.name }}
+                                        {{ fileSummary(field.key)?.name }}
                                         <span class="text-muted-foreground">
                                             ({{
                                                 formatFileSize(
-                                                    attachedFile(field.key)!
+                                                    fileSummary(field.key)!
                                                         .size,
                                                 )
                                             }})
@@ -954,12 +1075,12 @@ const submit = (): void => {
 
                                 <!-- An uploaded file shows its name and size. -->
                                 <span v-else-if="field.type === 'file'">
-                                    <template v-if="attachedFile(field.key)">
-                                        {{ attachedFile(field.key)?.name }}
+                                    <template v-if="fileSummary(field.key)">
+                                        {{ fileSummary(field.key)?.name }}
                                         <span class="text-muted-foreground">
                                             ({{
                                                 formatFileSize(
-                                                    attachedFile(field.key)!
+                                                    fileSummary(field.key)!
                                                         .size,
                                                 )
                                             }})

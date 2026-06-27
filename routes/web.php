@@ -8,6 +8,7 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\PublicScreeningController;
+use App\Http\Controllers\PublicScreeningDraftController;
 use App\Http\Controllers\UnitController;
 use Illuminate\Support\Facades\Route;
 
@@ -27,6 +28,18 @@ Route::middleware('throttle:10,1')
     ->post('screening/{link:token}', [PublicScreeningController::class, 'store'])
     ->name('screening.store');
 Route::get('screening/{link:token}/submitted', [PublicScreeningController::class, 'submitted'])->name('screening.submitted');
+
+// Draft autosave so an applicant can resume after closing their browser. Keyed
+// to a per-link cookie; throttled like the rest of the account-free flow.
+Route::middleware('throttle:30,1')
+    ->put('screening/{link:token}/draft', [PublicScreeningDraftController::class, 'save'])
+    ->name('screening.draft.save');
+Route::middleware('throttle:20,1')
+    ->post('screening/{link:token}/draft/files/{fieldKey}', [PublicScreeningDraftController::class, 'storeFile'])
+    ->name('screening.draft.file.store');
+Route::middleware('throttle:20,1')
+    ->delete('screening/{link:token}/draft/files/{fieldKey}', [PublicScreeningDraftController::class, 'destroyFile'])
+    ->name('screening.draft.file.destroy');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');

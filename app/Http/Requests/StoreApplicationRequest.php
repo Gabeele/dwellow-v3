@@ -3,9 +3,11 @@
 namespace App\Http\Requests;
 
 use App\Enums\FieldType;
+use App\Models\ApplicationDraft;
 use App\Models\ApplicationLink;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 
 class StoreApplicationRequest extends FormRequest
@@ -15,6 +17,13 @@ class StoreApplicationRequest extends FormRequest
      * in seconds. A submission quicker than this is treated as automated.
      */
     private const int MIN_FILL_SECONDS = 2;
+
+    /**
+     * Memoised file-field keys the draft already satisfies.
+     *
+     * @var Collection<int, string>|null
+     */
+    private ?Collection $draftFileKeys = null;
 
     /**
      * Determine if the user is authorized to make this request.
@@ -50,6 +59,13 @@ class StoreApplicationRequest extends FormRequest
 
             if ($type === null) {
                 continue;
+            }
+
+            // A required file the applicant already uploaded to their draft must
+            // not be demanded again — the browser can't re-send it, and the
+            // controller pulls it from the draft. Treat it as satisfied.
+            if ($type === FieldType::File && $required && $this->draftFileKeys()->contains($key)) {
+                $required = false;
             }
 
             $rules["answers.{$key}"] = $this->rulesForField($type, $required, $field['options'] ?? []);
@@ -174,5 +190,27 @@ class StoreApplicationRequest extends FormRequest
         }
 
         return $link->unit->applicationFormOrDefault()->enabledFields();
+    }
+
+    /**
+     * The field keys already satisfied by a file on the applicant's draft.
+     *
+     * Resolved once per request from the per-link draft cookie.
+     *
+     * @return Collection<int, string>
+     */
+    private function draftFileKeys(): Collection
+    {
+        return $this->draftFileKeys ??= (function (): Collection {
+            $link = $this->route('link');
+
+            if (! $link instanceof ApplicationLink) {
+                return collect();
+            }
+
+            $draft = ApplicationDraft::forToken($link, $this->cookie(ApplicationDraft::cookieName($link)));
+
+            return $draft?->documents()->pluck('field_key') ?? collect();
+        })();
     }
 }
