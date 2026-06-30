@@ -132,11 +132,20 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     class implementing `HasStructuredOutput` so it fakes by its own class name; the structured call
     shape is identical.
 
-- [ ] Spike: PDF text extraction with `PrinsFrank/pdfparser`
+- [x] Spike: PDF text extraction with `PrinsFrank/pdfparser`
   - context: `vendor/bin/sail composer require prinsfrank/pdfparser` (approved). Prove text extraction
     on a committed sample PDF behind a temporary test. Judge quality; if poor, note the fallback plan
     (the `DocumentTextExtractor` interface in Milestone 2 makes swapping cheap).
   - done: extraction returns sensible text from the fixture; dependency added; decision noted.
+  - note: Added `prinsfrank/pdfparser ^3.1` (approved). Committed fixture
+    `tests/Fixtures/sample-application.pdf` (hand-built minimal valid PDF, correct xref offsets) +
+    `tests/Feature/PdfTextExtractionSpikeTest.php` (2 passing tests). **Recorded API:**
+    `(new PdfParser)->parseFile($path)->getText()` for a file path, or
+    `->parseString($bytes)->getText()` for raw bytes off the storage disk (what the extractor will
+    have); `getText(?string $pageSeparator = null)` joins pages. **Quality:** extraction is clean —
+    exact text, no garbling, line structure preserved. Good for v1; the `DocumentTextExtractor`
+    interface in Milestone 2 keeps a swap cheap if a real-world PDF disappoints. No OCR (image-only
+    docs handled by the "unreadable" marker in Milestone 2).
 
 - [ ] Spike: choose the local Ollama model
   - context: A/B 2–3 candidates (default `qwen2.5:14b-instruct`, e.g. vs `qwen2.5:7b-instruct`,
