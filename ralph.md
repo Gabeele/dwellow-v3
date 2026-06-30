@@ -147,18 +147,28 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     interface in Milestone 2 keeps a swap cheap if a real-world PDF disappoints. No OCR (image-only
     docs handled by the "unreadable" marker in Milestone 2).
 
-- [ ] Spike: choose the local Ollama model
+- [blocked] Spike: choose the local Ollama model — needs human/hardware judgment, not sandbox-doable.
   - context: A/B 2–3 candidates (default `qwen2.5:14b-instruct`, e.g. vs `qwen2.5:7b-instruct`,
     `llama3.1:8b`) on 2–3 real applications for the cleanest **validated** JSON. Lock the winner in
     `OLLAMA_MODEL`.
   - done: chosen model recorded in `.env.example` default + appendix; brief rationale noted.
+  - note: BLOCKED. Host Ollama is reachable but only has `llama3.2:latest` + a custom community
+    `pdurugyan/qwen3.5-9b-deepseek-v4-flash` — none of the named candidates are pulled (would need ~18GB
+    of downloads). The judgment also requires the Milestone-2 `ScorePrompt` (doesn't exist yet) and real
+    application data, and "locking" a prod default is a subjective quality call that can't be unit-tested
+    (loop DoD needs a green test; guardrail forbids hitting a real model in tests). Best done by the user
+    once the prompt exists. Revisit after Milestone 2's `ScorePrompt`.
 
 ## Milestone 1 — Data model (Agent engine + Score)
 
-- [ ] Add `AgentType` and `AgentStatus` enums
+- [x] Add `AgentType` and `AgentStatus` enums
   - context: `App\Enums\AgentType` (`Score` → `score`, TitleCase keys, `label()`), `App\Enums\AgentStatus`
     (`Pending/Processing/Completed/Failed`, `label()`). Mirror the existing `ApplicationStatus` enum style.
   - done: a unit test asserting values/labels; enums used by the migration/model below.
+  - note: Added `app/Enums/AgentType.php` (`Score => 'score'`) and `app/Enums/AgentStatus.php`
+    (`Pending/Processing/Completed/Failed`), both backed string enums with exhaustive `match`-based
+    `label()`, mirroring `ApplicationStatus`. Covered by `tests/Unit/AgentTypeTest.php` +
+    `tests/Unit/AgentStatusTest.php` (6 tests, asserting labels + string values + case counts). Pint clean.
 
 - [ ] Create the `agents` table + `Agent` model
   - context: migration `morphs('analyzable')`, `type`, `provider?`, `model?`, `status`, `raw_response?`
