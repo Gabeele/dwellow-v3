@@ -2,6 +2,7 @@
 
 use App\Enums\ApplicationStatus;
 use App\Enums\OccupancyStatus;
+use App\Models\Agent;
 use App\Models\Application;
 use App\Models\ApplicationLink;
 use App\Models\Property;
@@ -110,5 +111,63 @@ test('a verified non-landlord user sees no stats', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Dashboard')
             ->where('stats', null)
+            ->where('agents', [])
+        );
+});
+
+test('the dashboard surfaces the landlord\'s recent agent runs newest first', function () {
+    $landlord = User::factory()->landlord()->create();
+    $property = Property::factory()->for($landlord, 'landlord')->multiUnit()->create();
+    $unit = Unit::factory()->for($property)->create();
+    $link = ApplicationLink::factory()->for($unit)->create();
+
+    $older = Application::factory()->for($link, 'applicationLink')->create();
+    $olderAgent = Agent::factory()->forApplication($older)->completed()->create();
+
+    $newer = Application::factory()->for($link, 'applicationLink')->create();
+    $newerAgent = Agent::factory()->forApplication($newer)->processing()->create();
+
+    $this->actingAs($landlord)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->has('agents', 2)
+            // Newest first.
+            ->where('agents.0.id', $newerAgent->id)
+            ->where('agents.0.status', 'processing')
+            ->where('agents.0.type', 'score')
+            ->where('agents.0.subject_label', $newer->agentLabel())
+            ->where('agents.0.url', $newer->agentUrl())
+            ->where('agents.1.id', $olderAgent->id)
+            ->where('agents.1.status', 'completed')
+        );
+});
+
+test('the dashboard agents dataset is scoped to the current landlord', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = Unit::factory()
+        ->for(Property::factory()->for($landlord, 'landlord')->multiUnit()->create())
+        ->create();
+    $mine = Application::factory()
+        ->for(ApplicationLink::factory()->for($unit)->create(), 'applicationLink')
+        ->create();
+    Agent::factory()->forApplication($mine)->completed()->create();
+
+    // Another landlord's agent must not leak into this dashboard.
+    $otherLandlord = User::factory()->landlord()->create();
+    $otherUnit = Unit::factory()
+        ->for(Property::factory()->for($otherLandlord, 'landlord')->multiUnit()->create())
+        ->create();
+    $theirs = Application::factory()
+        ->for(ApplicationLink::factory()->for($otherUnit)->create(), 'applicationLink')
+        ->create();
+    Agent::factory()->forApplication($theirs)->completed()->create();
+
+    $this->actingAs($landlord)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->has('agents', 1)
+            ->where('agents.0.subject_label', $mine->agentLabel())
         );
 });

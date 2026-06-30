@@ -390,12 +390,23 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     tests in `ApplicationControllerTest.php` (no agent → both null; processing agent → status processing +
     score null; completed agent + Score → status completed + payload columns). 40 pass. Pint clean.
 
-- [ ] Provide the dashboard "Agents" activity dataset
+- [x] Provide the dashboard "Agents" activity dataset
   - context: `DashboardController` passes a list of **recent + active** agents (newest first) — each with
     the polymorphic subject label, agent type, status, `started_at`/`completed_at` (for elapsed), and the
     result URL. Scope to the current landlord's subjects.
   - done: an Inertia assertion test that the dashboard receives the agents collection with the right shape,
     scoped to the landlord.
+  - note: `index()` now also passes an `agents` prop (empty `[]` for non-landlords, kept as a stable array
+    rather than null since the table just renders an empty state). New private `recentAgents(User)`:
+    `Agent::query()->with('analyzable')->whereHasMorph('analyzable', [Application::class], … unit.property
+    landlord_id …)->latest()->latest('id')->limit(10)` — the `whereHasMorph` constrains the polymorphic
+    `analyzable` to Applications then scopes to the landlord; eager-loading `analyzable` keeps the
+    `subject_label`/`result_url` accessors from N+1ing. Each row: `id, type(+label), status(+label),
+    subject_label, url, started_at, completed_at` (ISO8601 for the frontend elapsed timer). Needed the
+    `->latest('id')` tiebreaker because same-second inserts tie on `created_at` and fall back to id-ASC
+    (broke "newest first"). 3 new tests in `DashboardRedesignTest.php` (newest-first ordering + shape,
+    landlord scoping, non-landlord gets `[]`); 6 pass. Pint clean. Follow-up: Wayfinder polling route +
+    the Dashboard.vue "Agents" table (next tasks) consume this `agents` prop.
 
 - [ ] Wayfinder route(s) for polling
   - context: add/confirm the route(s) the frontend partial-reloads against (likely just `dashboard` +
