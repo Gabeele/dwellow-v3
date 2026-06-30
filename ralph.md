@@ -499,12 +499,21 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
 
 ## Milestone 5 — Keep `.docs/` honest
 
-- [ ] ADR 0006 — Score via the polymorphic Agent engine
+- [x] ADR 0006 — Score via the polymorphic Agent engine
   - context: `.docs/decisions/0006-score-via-agent-engine.md`. Record: Score is realized via a polymorphic
     `Agent` engine; **v1 is holistic** (one `fit_score` + rationale + flags); per-unit **Scorecard/Criterion**
     engine **deferred**; provider config (Ollama local / Anthropic prod, no auto-fallback); document **text
     extraction**; **1:1** Score per application; relationship to ADR 0004.
   - done: ADR committed; referenced from `scoring-engine.md`.
+  - note: Wrote `.docs/decisions/0006-score-via-agent-engine.md` (Status: Accepted, mirroring the 0004/0005
+    Context/Decision/Consequences/Open format). Frames it as the *how* to 0004's *that*, and resolves 0004's
+    open questions: holistic `fit_score` 0–100 (per-criterion Scorecard deferred, blocked on the landlord
+    default-criteria table), provider via `config('ai.default')` (Ollama local / Anthropic prod, no
+    fallback), capped `DocumentTextExtractor` text extraction (no OCR), belt-and-suspenders validation +
+    one repair retry, 1:1 mutate-in-place Score, polymorphic `Agent` (unique per analyzable+type) for reuse,
+    thin-controller/`AgentHandler` (no registry). Referenced it from `scoring-engine.md` (the done
+    condition) and added row 0006 to `.docs/decisions/README.md`. Verified all cross-reference links
+    resolve. Docs-only — no code touched, so test/Pint/eslint gates N/A.
 
 - [ ] Update glossary + data-model
   - context: add **Agent** to `.docs/domain/glossary.md` (the polymorphic AI engine; one per subject per
