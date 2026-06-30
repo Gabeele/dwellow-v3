@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AgentType;
 use App\Enums\ApplicationStatus;
 use App\Screening\ApplicationFileStore;
 use Database\Factories\ApplicationFactory;
@@ -10,6 +11,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -113,5 +117,54 @@ class Application extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(Document::class);
+    }
+
+    /**
+     * Every agent that has analyzed this application.
+     *
+     * @return MorphMany<Agent, $this>
+     */
+    public function agents(): MorphMany
+    {
+        return $this->morphMany(Agent::class, 'analyzable');
+    }
+
+    /**
+     * The single score agent for this application (one agent per type).
+     *
+     * @return MorphOne<Agent, $this>
+     */
+    public function scoreAgent(): MorphOne
+    {
+        return $this->morphOne(Agent::class, 'analyzable')
+            ->where('type', AgentType::Score);
+    }
+
+    /**
+     * The score produced for this application.
+     *
+     * @return HasOne<Score, $this>
+     */
+    public function score(): HasOne
+    {
+        return $this->hasOne(Score::class);
+    }
+
+    /**
+     * Human-readable label for this application as an agent subject.
+     */
+    public function agentLabel(): string
+    {
+        $name = trim("{$this->applicant_first_name} {$this->applicant_last_name}");
+
+        return "Score — Application: {$name}";
+    }
+
+    /**
+     * URL to view this application (and its score) in the dashboard.
+     */
+    public function agentUrl(): string
+    {
+        return route('applicants.show', $this);
     }
 }

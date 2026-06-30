@@ -1,24 +1,26 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm, usePoll } from '@inertiajs/vue3';
 import {
     Ban,
     CircleCheck,
     CreditCard,
     FileText,
-    Hourglass,
     ScrollText,
     ShieldAlert,
     ShieldCheck,
     Sparkles,
+    ThumbsUp,
     Trash2,
+    TrendingDown,
     TrendingUp,
 } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import ApplicationController from '@/actions/App/Http/Controllers/ApplicationController';
 import DocumentController from '@/actions/App/Http/Controllers/DocumentController';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import ScoreGauge from '@/components/ScoreGauge.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +35,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { applicationStatusBadge } from '@/lib/applicationStatus';
 import { formatCurrency } from '@/lib/currency';
 import { index } from '@/routes/properties';
@@ -44,6 +47,8 @@ import type {
     FormSnapshotField,
     Property,
     ReferenceAnswer,
+    Score,
+    ScoreStatus,
     StatusOption,
     Unit,
 } from '@/types/property';
@@ -55,6 +60,10 @@ const props = defineProps<{
     documents: Document[];
     statuses: StatusOption[];
     otherActiveCount: number;
+    // The score agent's run status (null until an agent has run) and the Score
+    // payload (null until the run completes) drive the three-state Score panel.
+    scoreStatus: ScoreStatus | null;
+    score: Score | null;
 }>();
 
 const reviewForm = useForm({
@@ -153,6 +162,53 @@ const initials = computed(() =>
 );
 
 const status = computed(() => applicationStatusBadge(props.application.status));
+
+/**
+ * The Score panel's state, derived from the agent run status and whether a
+ * Score payload has been written. `scored` only once the run completes and a
+ * Score exists; `failed` when the run failed (a retry will mutate the same
+ * agent); `processing` while pending/processing; `idle` before any run.
+ */
+const scoreState = computed<'idle' | 'processing' | 'scored' | 'failed'>(() => {
+    if (props.score !== null) {
+        return 'scored';
+    }
+
+    if (props.scoreStatus === 'failed') {
+        return 'failed';
+    }
+
+    if (
+        props.scoreStatus === 'pending' ||
+        props.scoreStatus === 'processing'
+    ) {
+        return 'processing';
+    }
+
+    return 'idle';
+});
+
+// While the agent is still running, poll just the Score props in isolation so
+// the panel flips from "Scoring…" to the result without a manual refresh. The
+// reload settles `scoreState` to `scored`/`failed`, which stops the poll.
+const scorePoll = usePoll(
+    5000,
+    { only: ['scoreStatus', 'score'] },
+    { autoStart: false },
+);
+
+watch(
+    () => scoreState.value === 'processing',
+    (scoring) => (scoring ? scorePoll.start() : scorePoll.stop()),
+    { immediate: true },
+);
+
+/** Tone for the fit-score badge, mirroring the gauge thresholds. */
+const fitTone = computed<'success' | 'warning' | 'danger'>(() => {
+    const value = props.score?.fit_score ?? 0;
+
+    return value >= 70 ? 'success' : value >= 55 ? 'warning' : 'danger';
+});
 
 const submittedOn = computed(() =>
     props.application.submitted_at
@@ -416,13 +472,24 @@ function formatSize(bytes: number | null): string {
                     <CardContent
                         class="flex flex-col gap-6 sm:flex-row sm:items-center"
                     >
-                        <!-- Fit score gauge — not scored until AI screening ships. -->
-                        <div
-                            class="flex size-28 shrink-0 flex-col items-center justify-center rounded-full border-2 border-dashed border-border text-muted-foreground"
-                        >
-                            <span class="text-2xl font-semibold">—</span>
+                        <!-- Fit score gauge — the AI Score's headline number. -->
+                        <div class="flex shrink-0 flex-col items-center gap-1">
+                            <ScoreGauge
+                                v-if="scoreState === 'scored' && score?.fit_score !== null"
+                                :score="score!.fit_score!"
+                            />
+                            <Skeleton
+                                v-else-if="scoreState === 'processing'"
+                                class="size-30 rounded-full"
+                            />
+                            <div
+                                v-else
+                                class="flex size-30 flex-col items-center justify-center rounded-full border-2 border-dashed border-border text-muted-foreground"
+                            >
+                                <span class="text-2xl font-semibold">—</span>
+                            </div>
                             <span
-                                class="mt-0.5 text-[10px] font-medium tracking-wide uppercase"
+                                class="text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
                             >
                                 Fit score
                             </span>
@@ -487,35 +554,150 @@ function formatSize(bytes: number | null): string {
                     </CardContent>
                 </Card>
 
-                <!-- Dwellow AI summary — pending until screening runs. -->
-                <Card class="border-dashed">
-                    <CardContent class="flex items-start gap-3">
-                        <span
-                            class="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+                <!-- Dwellow AI Score — the screening aid. Three live states:
+                     processing (agent running), scored (Score present), failed
+                     (run failed, a retry will mutate the same agent). -->
+                <Card>
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2">
+                            <span
+                                class="flex size-7 shrink-0 items-center justify-center rounded-full bg-ai-tint text-ai-tint-foreground"
+                            >
+                                <Sparkles class="size-4" />
+                            </span>
+                            Dwellow Score
+                            <Badge
+                                v-if="scoreState === 'scored'"
+                                :variant="fitTone"
+                                class="ml-auto"
+                            >
+                                {{ score!.fit_score }}/100 fit
+                            </Badge>
+                            <Badge
+                                v-else-if="scoreState === 'processing'"
+                                variant="ai"
+                                class="ml-auto"
+                            >
+                                Scoring…
+                            </Badge>
+                            <Badge
+                                v-else-if="scoreState === 'failed'"
+                                variant="warning"
+                                class="ml-auto"
+                            >
+                                Unavailable
+                            </Badge>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent class="flex flex-col gap-5">
+                        <!-- Processing: the agent is running; show a skeleton. -->
+                        <div
+                            v-if="scoreState === 'processing'"
+                            class="flex flex-col gap-3"
                         >
-                            <Sparkles class="size-4" />
-                        </span>
-                        <div class="flex flex-1 flex-col gap-1">
-                            <div class="flex items-center gap-2">
+                            <p class="text-sm text-muted-foreground">
+                                Dwellow is reviewing this application against
+                                permissible screening factors. This usually
+                                takes a moment.
+                            </p>
+                            <Skeleton class="h-4 w-3/4" />
+                            <Skeleton class="h-4 w-full" />
+                            <Skeleton class="h-4 w-5/6" />
+                        </div>
+
+                        <!-- Failed: the run failed; a retry mutates the same agent. -->
+                        <p
+                            v-else-if="scoreState === 'failed'"
+                            class="text-sm text-muted-foreground"
+                        >
+                            The Score couldn't be generated for this
+                            application. dwellow will retry automatically — check
+                            back shortly.
+                        </p>
+
+                        <!-- Idle: no agent has run yet for this application. -->
+                        <p
+                            v-else-if="scoreState === 'idle'"
+                            class="text-sm text-muted-foreground"
+                        >
+                            No Score has been generated for this application
+                            yet.
+                        </p>
+
+                        <!-- Scored: the real result. -->
+                        <template v-else>
+                            <p
+                                v-if="score!.score_rationale"
+                                class="text-sm font-medium text-foreground"
+                            >
+                                {{ score!.score_rationale }}
+                            </p>
+                            <p
+                                v-if="score!.summary"
+                                class="text-sm whitespace-pre-line text-muted-foreground"
+                            >
+                                {{ score!.summary }}
+                            </p>
+
+                            <!-- Flags — permissible concerns, emphasised. -->
+                            <div
+                                v-if="score!.red_flags.length"
+                                class="flex flex-col gap-2"
+                            >
                                 <span
                                     class="text-13 font-semibold tracking-wide text-foreground uppercase"
                                 >
-                                    Dwellow AI summary
+                                    Flags
                                 </span>
-                                <Badge variant="neutral">Pending</Badge>
+                                <ul class="flex flex-col gap-2">
+                                    <li
+                                        v-for="(flag, idx) in score!.red_flags"
+                                        :key="`flag-${idx}`"
+                                        class="flex items-start gap-2 rounded-md bg-warning-tint/40 px-3 py-2 text-sm text-foreground"
+                                    >
+                                        <TrendingDown
+                                            class="mt-0.5 size-4 shrink-0 text-warning"
+                                        />
+                                        <span>{{ flag }}</span>
+                                    </li>
+                                </ul>
                             </div>
-                            <p class="text-sm text-muted-foreground">
-                                AI screening and the fit score aren't available
-                                for this applicant yet. The figures below are
-                                what
-                                {{
-                                    application.applicant_first_name ||
-                                    'the applicant'
-                                }}
-                                submitted — review them and set a decision on
-                                the right.
-                            </p>
-                        </div>
+
+                            <!-- Strengths. -->
+                            <div
+                                v-if="score!.strengths.length"
+                                class="flex flex-col gap-2"
+                            >
+                                <span
+                                    class="text-13 font-semibold tracking-wide text-foreground uppercase"
+                                >
+                                    Strengths
+                                </span>
+                                <ul class="flex flex-col gap-2">
+                                    <li
+                                        v-for="(
+                                            strength, idx
+                                        ) in score!.strengths"
+                                        :key="`strength-${idx}`"
+                                        class="flex items-start gap-2 text-sm text-foreground"
+                                    >
+                                        <ThumbsUp
+                                            class="mt-0.5 size-4 shrink-0 text-success"
+                                        />
+                                        <span>{{ strength }}</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </template>
+
+                        <!-- Always-on framing: the Score is a screening aid. -->
+                        <p
+                            class="border-t border-border pt-3 text-13 text-muted-foreground"
+                        >
+                            The Dwellow Score is a screening aid based on
+                            self-reported, unverified information — it never
+                            decides for you.
+                        </p>
                     </CardContent>
                 </Card>
 
@@ -652,27 +834,6 @@ function formatSize(bytes: number | null): string {
                         </CardContent>
                     </Card>
                 </div>
-
-                <!-- Verification not built yet: be explicit rather than imply checks ran. -->
-                <Card class="border-dashed">
-                    <CardContent class="flex items-center gap-3">
-                        <span
-                            class="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
-                        >
-                            <Hourglass class="size-4" />
-                        </span>
-                        <div class="flex flex-col gap-0.5">
-                            <span class="text-sm font-medium text-foreground">
-                                Document consistency checks
-                            </span>
-                            <span class="text-13 text-muted-foreground">
-                                Cross-checks across pay stubs, ID and the
-                                application will appear here once AI screening
-                                is available.
-                            </span>
-                        </div>
-                    </CardContent>
-                </Card>
 
                 <!-- Full submitted application (the snapshot taken at submit time). -->
                 <Card>

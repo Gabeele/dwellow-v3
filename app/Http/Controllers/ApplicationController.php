@@ -223,10 +223,41 @@ class ApplicationController extends Controller
                 fn (ApplicationStatus $status): array => ['value' => $status->value, 'label' => $status->label()],
                 ApplicationStatus::cases(),
             ),
+            // The AI Score and the status of the agent run that produces it. The
+            // status drives the processing/failed/ready states on the detail
+            // page; the score payload is only present once the run completes.
+            // Both are lazy closures (loading their own relations) so the
+            // frontend can poll just these props while an agent is processing,
+            // without re-running the rest of the page's queries.
+            'scoreStatus' => fn (): ?string => $application->loadMissing('scoreAgent')->scoreAgent?->status->value,
+            'score' => fn (): ?array => $this->scorePayload($application->loadMissing('score')),
             // How many other applicants for this unit are still awaiting a
             // decision — drives the "decline the others" option when approving.
             'otherActiveCount' => $this->applicationsAwaitingDecision($application)->count(),
         ]);
+    }
+
+    /**
+     * Shape the application's Score for the detail page, or null while no Score
+     * has been produced yet (still processing, or the agent run failed).
+     *
+     * @return array{fit_score: int|null, score_rationale: string|null, summary: string|null, red_flags: array<int, string>, strengths: array<int, string>}|null
+     */
+    private function scorePayload(Application $application): ?array
+    {
+        $score = $application->score;
+
+        if ($score === null) {
+            return null;
+        }
+
+        return [
+            'fit_score' => $score->fit_score,
+            'score_rationale' => $score->score_rationale,
+            'summary' => $score->summary,
+            'red_flags' => $score->red_flags ?? [],
+            'strengths' => $score->strengths ?? [],
+        ];
     }
 
     /**
