@@ -360,13 +360,20 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     the right application. Existing `ApplicationSubmissionTest`/`PublicScreeningControllerTest`/
     `ScreeningDraftTest` (40) stay green. Pint clean.
 
-- [ ] Make `PublicScreeningController::store()` thin
+- [x] Make `PublicScreeningController::store()` thin
   - context: reduce `store()` to: validate (`StoreApplicationRequest`) + spam check + `ApplicationService::
     createApplication(...)` + `ApplicationService::requestScore(...)`. No business logic left in the
     controller.
   - done: **all existing `PublicScreeningController`/`ApplicationSubmission` feature tests stay green**;
     a `Queue::fake()` test asserts `ScoreApplication` is dispatched after commit on a valid submission and
     **not** dispatched on validation failure / spam. Pint clean.
+  - note: `store()` is now open-gate + spam-gate + `createApplication(...)` + `requestScore(...)` + redirect
+    (the `ApplicationService` is method-injected). Deleted the lifted inline logic (field mapping, the
+    `DB::transaction`, draft migration/cleanup, mail/notify) and its now-unused imports (ApplicationStatus,
+    FieldType, Mail/Notification/Storage/DB/Cookie/Carbon/UploadedFile, etc.). Added 3 `Queue::fake()` tests
+    to `ApplicationSubmissionTest`: valid submission pushes `ScoreApplication` for the new app; validation
+    failure and spam push nothing. Full submission/draft/controller/service suites stay green (47 passed).
+    Pint clean.
 
 ## Milestone 3 — Read endpoints for the UI
 
