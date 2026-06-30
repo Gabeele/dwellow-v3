@@ -271,11 +271,20 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     guardrails, unverified framing, body rendering (incl. structured reference + bool + doc text), the
     no-doc fallback, and the schema closure's keys. Pint clean.
 
-- [ ] Response validator
+- [x] Response validator
   - context: a validator for the contract — `fit_score` int 0–100, required keys present, `red_flags`/
     `strengths` arrays of strings, `summary`/`score_rationale` strings. Returns parsed value or a typed
     failure. Independent of the SDK's structured mode.
   - done: unit tests for valid payload, out-of-range score, missing key, wrong types.
+  - note: `App\Screening\ScoreResponseValidator::validate(mixed): ScoreValidationResult`. Chose a **result
+    object** over an exception — an invalid payload is the *expected* branch that triggers the service's
+    one repair retry, so non-exceptional control flow fits. Hand-rolled the checks (pure PHP, no container/
+    SDK) so it stays a true Unit test and matches "independent of structured mode"; needed explicit
+    present-but-allow-`[]` logic because Laravel's `required` rejects empty arrays (a "no flags" Score is
+    valid). On success it returns exactly the 5 contract keys with normalised types, stripping any extra
+    keys the model emitted. `tests/Unit/ScoreResponseValidatorTest.php` (7 tests): valid+normalised value,
+    empty flag/strength arrays, extra-key stripping, out-of-range score, missing key, wrong types (string
+    fit_score / non-array flags / non-string items), non-array payload. Pint clean.
 
 - [ ] `ApplicationScoringService` (the `score` handler)
   - context: `App\Screening\ApplicationScoringService implements AgentHandler`. Flow: create/locate the
