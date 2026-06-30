@@ -102,11 +102,15 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     resolves to ollama and prod sets `AI_PROVIDER=anthropic` (no env() branch, stays cacheable). Other
     providers untouched. `tests/Feature/AiConfigTest.php` + `config:show ai.default` confirm ollama.
 
-- [ ] Add AI env vars + document local setup
+- [x] Add AI env vars + document local setup
   - context: add to `.env.example` (with comments) `OLLAMA_URL=http://host.docker.internal:11434`
     (the Sail container reaches host Ollama this way — **not** `localhost`), `OLLAMA_MODEL`,
     `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`. Fill the "Appendix — local setup" at the bottom of this file.
   - done: `.env.example` carries the four keys with comments; appendix updated. (No secrets committed.)
+  - note: Added an AI block to `.env.example` (`OLLAMA_URL` via `host.docker.internal`, `OLLAMA_MODEL`,
+    blank `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL=claude-sonnet-4-6`) plus a commented `AI_PROVIDER` hint;
+    filled the appendix with the full pull→.env→queue:listen steps. No secrets committed. The
+    `OLLAMA_MODEL`/`ANTHROPIC_MODEL` defaults are placeholders to be confirmed by the model spike below.
 
 - [ ] Spike: confirm the `laravel/ai` v0.8.1 structured-output API
   - context: prove the SDK's schema/structured-output call returns the response contract from both
@@ -317,13 +321,17 @@ milestone (35 tasks). See `git log`.
 ## Appendix — local setup (fill in during Milestone 0)
 
 ```
-# Ollama (host machine)
+# 1. Ollama (host machine) — pull the model the container will call.
 ollama pull qwen2.5:14b-instruct          # or the model chosen in Milestone 0 spike
 
-# .env  (Sail container reaches host Ollama via host.docker.internal)
+# 2. .env  (copy from .env.example). The Sail container reaches host Ollama via
+#    host.docker.internal — NOT localhost.
+AI_PROVIDER=ollama                        # prod overrides this to `anthropic`
 OLLAMA_URL=http://host.docker.internal:11434
 OLLAMA_MODEL=qwen2.5:14b-instruct
+ANTHROPIC_API_KEY=                        # leave blank locally; set in prod env
+ANTHROPIC_MODEL=claude-sonnet-4-6         # used when AI_PROVIDER=anthropic
 
-# process jobs (composer dev already runs a queue:listen worker)
+# 3. Process queued ScoreApplication jobs (composer dev already runs a worker).
 vendor/bin/sail artisan queue:listen
 ```
