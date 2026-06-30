@@ -342,13 +342,23 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     processing Agent → Failed with the exception message, failed() leaves a Completed Agent untouched. Pint
     clean (it re-imported the `@see AgentHandler` reference).
 
-- [ ] `ApplicationService` — create + dispatch
+- [x] `ApplicationService` — create + dispatch
   - context: `App\Screening\ApplicationService`. `createApplication(...)` moves the **inline creation
     logic** out of `PublicScreeningController::store` (the `DB::transaction`, file storage to
     `applications/{id}`, draft-file migration, applicant confirmation + landlord notification) —
     **behaviour-preserving**. `requestScore(Application $application)` dispatches `ScoreApplication`
     **`->afterCommit()`** (the DB queue shares the DB — never dispatch inside the transaction).
   - done: unit/feature tests for the service; existing submission tests still pass against it.
+  - note: `createApplication(ApplicationLink $link, array $answers, ?string $draftCookie): Application` —
+    chose to pass the validated `answers` array (not the `Request`) so the service is HTTP-decoupled and
+    unit-testable; `validated()` keeps `UploadedFile`s in the array, so files ride along. Lifted the
+    field-mapping → `DB::transaction` create+documents → draft-file migration → draft delete/cookie-forget
+    → applicant mail + landlord notify verbatim (behaviour-preserving). `requestScore()` does
+    `ScoreApplication::dispatch($application)->afterCommit()`. Controller is NOT yet thinned — that's the
+    next task. `tests/Feature/ApplicationServiceTest.php` (4): create columns/snapshot/docs, draft-file
+    migration + draft cleared, applicant mail + landlord-notified-once, requestScore dispatches the job for
+    the right application. Existing `ApplicationSubmissionTest`/`PublicScreeningControllerTest`/
+    `ScreeningDraftTest` (40) stay green. Pint clean.
 
 - [ ] Make `PublicScreeningController::store()` thin
   - context: reduce `store()` to: validate (`StoreApplicationRequest`) + spam check + `ApplicationService::
