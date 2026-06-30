@@ -327,12 +327,20 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     added `uses(RefreshDatabase::class)` to that file (one line). Full `vendor/bin/sail artisan test` now
     green (338 passed) with no ordering dependence. Pint clean.
 
-- [ ] `ScoreApplication` queued job
+- [x] `ScoreApplication` queued job
   - context: `app/Jobs/ScoreApplication` (`ShouldQueue`) — first real Job. `$tries=2`, `$backoff=[10,30]`,
     `$timeout=120` (local Ollama is slow). `handle()` resolves `ApplicationScoringService` and calls
     `score($application)`. `failed()` marks the run's Agent `failed` so a dead job never strands a row in
     `processing`. A retry **mutates the same** Agent (1:1).
   - done: a test asserts `handle()` invokes the service; a `failed()` test marks the Agent failed.
+  - note: `app/Jobs/ScoreApplication.php` (first real Job) — public `$tries=2`/`$backoff=[10,30]`/`$timeout=120`,
+    constructor-promoted `readonly Application $application`. `handle()` type-hints `ApplicationScoringService`
+    (container resolves it) and calls `score()`. `failed(?Throwable)` re-reads `scoreAgent()->first()` and marks
+    it Failed (error + completed_at) **only** if it exists and isn't already Completed — so a late failure on an
+    already-finished run is a no-op, and the 1:1 Agent is never stranded in `processing`. `tests/Feature/
+    ScoreApplicationTest.php` (3): handle() invokes service with the right app (mocked), failed() flips a
+    processing Agent → Failed with the exception message, failed() leaves a Completed Agent untouched. Pint
+    clean (it re-imported the `@see AgentHandler` reference).
 
 - [ ] `ApplicationService` — create + dispatch
   - context: `App\Screening\ApplicationService`. `createApplication(...)` moves the **inline creation
