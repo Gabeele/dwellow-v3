@@ -515,11 +515,20 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     condition) and added row 0006 to `.docs/decisions/README.md`. Verified all cross-reference links
     resolve. Docs-only — no code touched, so test/Pint/eslint gates N/A.
 
-- [ ] Update glossary + data-model
+- [x] Update glossary + data-model
   - context: add **Agent** to `.docs/domain/glossary.md` (the polymorphic AI engine; one per subject per
     type) and note **Score is produced by an Agent**; resolve the score-shape open question to **0–100**
     (`fit_score`). In `.docs/domain/data-model.md` add the `Agent` entity and `Score → belongsTo Agent`.
   - done: docs updated; terms used consistently with the code.
+  - note: Glossary — added an **Agent** row (polymorphic engine, `morphTo analyzable`, one per subject per
+    type, run state) and rewrote **Score** to "produced by an Agent of type `score`, 1:1 with Application,
+    holistic `fit_score` 0–100 + rationale/summary/Flags/strengths"; marked Criterion/Scorecard deferred
+    (v1 holistic) and noted Score Flags are permissible concerns only. data-model — added Agent to the ER
+    diagram (`morphTo analyzable`, one per type) + `Score ──belongsTo── Agent (type=score)`, an Agent entity
+    note, rewrote the Score note (belongsTo Agent, 1:1 mutate-in-place, holistic 0–100, CriterionResult
+    deferred), and replaced the stale `Score.status` lifecycle with `Agent.status`
+    (Pending→Processing→Completed|Failed — status lives on the Agent). All cross-refs to ADR 0006 resolve.
+    Docs-only — test/Pint/eslint gates N/A.
 
 - [ ] Reconcile open questions
   - context: in `.docs/open-questions.md`, mark resolved (provider, score shape, holistic v1) vs explicitly
