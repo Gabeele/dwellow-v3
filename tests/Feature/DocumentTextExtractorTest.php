@@ -3,7 +3,10 @@
 use App\Models\Document;
 use App\Screening\DocumentTextExtractor;
 use App\Screening\PdfDocumentTextExtractor;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+
+uses(RefreshDatabase::class);
 
 /*
 |--------------------------------------------------------------------------

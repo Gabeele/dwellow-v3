@@ -310,7 +310,7 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     Agent, non-Application rejected; the `laravel/ai` fake returns array responses verbatim by index, so
     `[bad, good]` drives the retry. Pint clean.
 
-- [ ] Fix pre-existing full-suite test isolation leak (state bleeds across files)
+- [x] Fix pre-existing full-suite test isolation leak (state bleeds across files)
   - context: NOT caused by the scoring work — present before this task (confirmed by re-running the full
     suite with the new test file removed). In `vendor/bin/sail artisan test` (whole suite),
     `PublicScreeningControllerTest` "no-form-row provisions default" plus two `ScreeningDraftTest` cases
@@ -318,6 +318,14 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     found"). All pass in isolation, so an earlier test commits outside the RefreshDatabase transaction
     (likely a real queue/file/separate-connection write). Find the offender and stop it leaking.
   - done: full `vendor/bin/sail artisan test` is green with no per-file ordering dependence.
+  - note: Offender was `tests/Feature/DocumentTextExtractorTest.php` — it had **no** `RefreshDatabase`
+    (the trait is opt-in per-file here; `tests/Pest.php` has the global `->use()` commented out). Its
+    `Document::factory()->make([...])` calls never override `application_id`, so the factory's
+    `'application_id' => Application::factory()` BelongsTo resolves to a **real** id by `create()`-ing the
+    full parent chain (Application → Form → Unit → Property → User) — committed permanently because nothing
+    rolled it back. 7 such `make()` calls leaked ~8–9 Applications/Forms, matching the failing counts. Fix:
+    added `uses(RefreshDatabase::class)` to that file (one line). Full `vendor/bin/sail artisan test` now
+    green (338 passed) with no ordering dependence. Pint clean.
 
 - [ ] `ScoreApplication` queued job
   - context: `app/Jobs/ScoreApplication` (`ShouldQueue`) — first real Job. `$tries=2`, `$backoff=[10,30]`,
