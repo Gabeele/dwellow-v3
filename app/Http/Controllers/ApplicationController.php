@@ -212,7 +212,7 @@ class ApplicationController extends Controller
     {
         $this->authorize('view', $application);
 
-        $application->load(['documents', 'unit.property', 'score', 'scoreAgent']);
+        $application->load(['documents', 'unit.property']);
 
         return Inertia::render('screening/applicants/Show', [
             'property' => $application->unit->property,
@@ -226,8 +226,11 @@ class ApplicationController extends Controller
             // The AI Score and the status of the agent run that produces it. The
             // status drives the processing/failed/ready states on the detail
             // page; the score payload is only present once the run completes.
-            'scoreStatus' => $application->scoreAgent?->status->value,
-            'score' => $this->scorePayload($application),
+            // Both are lazy closures (loading their own relations) so the
+            // frontend can poll just these props while an agent is processing,
+            // without re-running the rest of the page's queries.
+            'scoreStatus' => fn (): ?string => $application->loadMissing('scoreAgent')->scoreAgent?->status->value,
+            'score' => fn (): ?array => $this->scorePayload($application->loadMissing('score')),
             // How many other applicants for this unit are still awaiting a
             // decision — drives the "decline the others" option when approving.
             'otherActiveCount' => $this->applicationsAwaitingDecision($application)->count(),

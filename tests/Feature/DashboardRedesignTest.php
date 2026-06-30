@@ -171,3 +171,26 @@ test('the dashboard agents dataset is scoped to the current landlord', function 
             ->where('agents.0.subject_label', $mine->agentLabel())
         );
 });
+
+test('the dashboard agents prop reloads in isolation for polling', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = Unit::factory()
+        ->for(Property::factory()->for($landlord, 'landlord')->multiUnit()->create())
+        ->create();
+    $application = Application::factory()
+        ->for(ApplicationLink::factory()->for($unit)->create(), 'applicationLink')
+        ->create();
+    Agent::factory()->forApplication($application)->processing()->create();
+
+    $this->withoutVite();
+
+    // A partial reload (the poll the Agents table makes) asks only for `agents`;
+    // the stats closure must not be evaluated or returned. A partial reload
+    // responds with bare Inertia JSON, so assert on the payload directly.
+    $this->actingAs($landlord)
+        ->get(route('dashboard'), partialReloadHeaders('Dashboard', 'agents'))
+        ->assertOk()
+        ->assertJsonPath('component', 'Dashboard')
+        ->assertJsonCount(1, 'props.agents')
+        ->assertJsonMissingPath('props.stats');
+});

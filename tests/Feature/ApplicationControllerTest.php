@@ -536,6 +536,30 @@ test('the detail page exposes the completed score payload', function () {
         );
 });
 
+test('the detail page score props reload in isolation for polling', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create();
+
+    Agent::factory()->processing()->forApplication($application)->create();
+
+    $this->withoutVite();
+
+    // The poll that runs while the score agent is processing asks only for the
+    // score props; the rest of the page (application, documents, …) must not be
+    // re-evaluated or returned. A partial reload responds with bare Inertia
+    // JSON, so assert on the payload directly.
+    $this->actingAs($landlord)
+        ->get(route('applicants.show', $application), partialReloadHeaders('screening/applicants/Show', 'scoreStatus,score'))
+        ->assertOk()
+        ->assertJsonPath('component', 'screening/applicants/Show')
+        ->assertJsonPath('props.scoreStatus', AgentStatus::Processing->value)
+        ->assertJsonPath('props.score', null)
+        ->assertJsonMissingPath('props.application')
+        ->assertJsonMissingPath('props.documents');
+});
+
 test('the detail page exposes the submitted timestamp', function () {
     $landlord = User::factory()->landlord()->create();
     $unit = applicantUnitOwnedBy($landlord);

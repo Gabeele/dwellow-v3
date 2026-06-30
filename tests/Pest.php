@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -44,7 +45,21 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * Headers that simulate an Inertia partial reload (the request a frontend poll
+ * makes with `router.reload({ only: [...] })`). Includes the asset version so
+ * the request isn't rejected with a 409 version conflict.
+ *
+ * @return array<string, string>
+ */
+function partialReloadHeaders(string $component, string $only): array
 {
-    // ..
+    $version = app(HandleInertiaRequests::class)->version(request());
+
+    return [
+        'X-Inertia' => 'true',
+        'X-Inertia-Version' => (string) $version,
+        'X-Inertia-Partial-Component' => $component,
+        'X-Inertia-Partial-Data' => $only,
+    ];
 }

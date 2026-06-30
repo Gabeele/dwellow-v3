@@ -408,11 +408,25 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     landlord scoping, non-landlord gets `[]`); 6 pass. Pint clean. Follow-up: Wayfinder polling route +
     the Dashboard.vue "Agents" table (next tasks) consume this `agents` prop.
 
-- [ ] Wayfinder route(s) for polling
+- [x] Wayfinder route(s) for polling
   - context: add/confirm the route(s) the frontend partial-reloads against (likely just `dashboard` +
     `applicants.show` with `only:[...]` props — no new endpoint if partial reload suffices). Regenerate
     typed routes (`npm run` / wayfinder). Import via `@/routes/*` / `@/actions/*` — never hardcode URLs.
   - done: typed routes generated; a smoke assertion that the props reload in isolation.
+  - note: No new endpoint — partial reloads against the existing `dashboard` + `applicants.show` routes
+    suffice (both already typed in `@/routes`; `wayfinder:generate` produced **no diff**). The real work
+    was making the polled props **lazy closures** so a poll evaluates only the requested prop: Dashboard's
+    `stats`/`agents` are now `fn () => ...` (extracted `portfolioStats()` from the inline block, behaviour
+    preserved), and `applicants.show`'s `scoreStatus`/`score` are closures that `loadMissing()` their own
+    `scoreAgent`/`score` relations (so a poll skips the documents/unit load + `otherActiveCount` query).
+    Smoke tests assert isolation via raw partial-reload requests: `assertInertia()` can't read a partial
+    reload (it returns bare JSON, no Blade `page` view-data), so the new tests assert with
+    `assertJsonPath`/`assertJsonMissingPath` and a shared `partialReloadHeaders()` helper in `tests/Pest.php`
+    that sends a matching `X-Inertia-Version` (else 409). New tests: `DashboardRedesignTest` ("agents prop
+    reloads in isolation" → only `agents`, `stats` missing) + `ApplicationControllerTest` ("score props
+    reload in isolation" → only `scoreStatus`/`score`, `application`/`documents` missing). Full suite green
+    (355). Pint clean. Follow-up: the frontend polling task (Milestone 4) should use `usePoll(...)` with
+    `only: [...]` and stop when nothing is `processing`.
 
 ## Milestone 4 — Frontend
 

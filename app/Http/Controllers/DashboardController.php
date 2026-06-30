@@ -25,53 +25,58 @@ class DashboardController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
-        $stats = null;
-        $agents = [];
 
-        if ($user->isLandlord()) {
-            $properties = $user->properties()->withUnitCounts()->get();
-
-            $spaces = $properties->sum(fn (Property $property): int => $property->spaceCount());
-            $occupied = $properties->sum(fn (Property $property): int => $property->occupiedSpaceCount());
-            $available = $properties->sum(fn (Property $property): int => $property->availableSpaceCount());
-
-            $newApplications = Application::query()
-                ->where('status', ApplicationStatus::New)
-                ->whereHas('unit.property', fn ($query) => $query->where('landlord_id', $user->id))
-                ->count();
-
-            $totalApplications = Application::query()
-                ->whereHas('unit.property', fn ($query) => $query->where('landlord_id', $user->id))
-                ->count();
-
-            $busiestUnit = Unit::query()
-                ->whereHas('property', fn ($query) => $query->where('landlord_id', $user->id))
-                ->whereHas('applications')
-                ->withCount('applications')
-                ->orderByDesc('applications_count')
-                ->first();
-
-            $stats = [
-                'properties' => $properties->count(),
-                'units' => $spaces,
-                'occupied' => $occupied,
-                'available' => $available,
-                'new_applications' => $newApplications,
-                'total_applications' => $totalApplications,
-                'busiest_unit' => $busiestUnit ? [
-                    'id' => $busiestUnit->id,
-                    'label' => $busiestUnit->label,
-                    'applications_count' => $busiestUnit->applications_count,
-                ] : null,
-            ];
-
-            $agents = $this->recentAgents($user);
-        }
-
+        // Both props are lazy closures so the frontend can partial-reload the
+        // `agents` table on a poll without re-running the portfolio-stats
+        // queries (and vice versa). See the Agents activity table polling.
         return Inertia::render('Dashboard', [
-            'stats' => $stats,
-            'agents' => $agents,
+            'stats' => fn (): ?array => $user->isLandlord() ? $this->portfolioStats($user) : null,
+            'agents' => fn (): Collection => $user->isLandlord() ? $this->recentAgents($user) : collect(),
         ]);
+    }
+
+    /**
+     * The landlord's portfolio headline numbers for the dashboard stat cards.
+     *
+     * @return array{properties: int, units: int, occupied: int, available: int, new_applications: int, total_applications: int, busiest_unit: array{id: int, label: string, applications_count: int}|null}
+     */
+    private function portfolioStats(User $user): array
+    {
+        $properties = $user->properties()->withUnitCounts()->get();
+
+        $spaces = $properties->sum(fn (Property $property): int => $property->spaceCount());
+        $occupied = $properties->sum(fn (Property $property): int => $property->occupiedSpaceCount());
+        $available = $properties->sum(fn (Property $property): int => $property->availableSpaceCount());
+
+        $newApplications = Application::query()
+            ->where('status', ApplicationStatus::New)
+            ->whereHas('unit.property', fn ($query) => $query->where('landlord_id', $user->id))
+            ->count();
+
+        $totalApplications = Application::query()
+            ->whereHas('unit.property', fn ($query) => $query->where('landlord_id', $user->id))
+            ->count();
+
+        $busiestUnit = Unit::query()
+            ->whereHas('property', fn ($query) => $query->where('landlord_id', $user->id))
+            ->whereHas('applications')
+            ->withCount('applications')
+            ->orderByDesc('applications_count')
+            ->first();
+
+        return [
+            'properties' => $properties->count(),
+            'units' => $spaces,
+            'occupied' => $occupied,
+            'available' => $available,
+            'new_applications' => $newApplications,
+            'total_applications' => $totalApplications,
+            'busiest_unit' => $busiestUnit ? [
+                'id' => $busiestUnit->id,
+                'label' => $busiestUnit->label,
+                'applications_count' => $busiestUnit->applications_count,
+            ] : null,
+        ];
     }
 
     /**
