@@ -209,11 +209,19 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     (relationship resolution, score-type-only filtering / null when none, label+url) — 6 pass. AgentTest's
     `subject_label`/`result_url` delegation now resolves through these. Pint clean.
 
-- [ ] Factories for `Agent` and `Score`
+- [x] Factories for `Agent` and `Score`
   - context: `AgentFactory` (states: `pending/processing/completed/failed`, `forApplication()`),
     `ScoreFactory` (sane `fit_score`, flags, strengths; `for` an Application + Agent). Follow existing
     factory conventions.
   - done: factories instantiate valid records; used by later tests.
+  - note: Added `AgentFactory` (default `Score`/`pending`/ollama, morph defaults via
+    `(new Application)->getMorphClass()` + `Application::factory()`; states `pending/processing/completed/
+    failed` set the matching `started_at`/`completed_at`/`usage`/`error`; `forApplication()` retargets the
+    morph) and `ScoreFactory` (sane `fit_score` 40–95, faker rationale/summary, array flags/strengths,
+    nullable `agent_id`; `forAgent()` helper — pair with `->for($application)`). Factories run inside
+    `Model::unguarded`, so non-fillable morph/FK columns set directly in the definition. Covered by
+    `tests/Feature/AgentScoreFactoryTest.php` (6 tests); existing Agent/ScoreTest still green (13 total).
+    Pint clean.
 
 ## Milestone 2 — Engine, services & job
 
