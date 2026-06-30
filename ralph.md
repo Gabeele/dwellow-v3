@@ -430,7 +430,7 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
 
 ## Milestone 4 — Frontend
 
-- [ ] Application detail "Score" panel (fill existing placeholders)
+- [x] Application detail "Score" panel (fill existing placeholders)
   - context: in `resources/js/pages/screening/applicants/Show.vue`, replace the placeholder AI cards (the
     dashed "Dwellow AI summary" card + the `ScoreGauge` placeholder + "Document consistency checks") with
     the real Score: `ScoreGauge` for `fit_score`, the rationale, the summary, **Flags** (emphasised), and
@@ -438,6 +438,19 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     ("Score unavailable, will retry"). Keep the existing unverified-data disclaimer. Use **"Score"**, never
     "report". Reuse `Card`, `Badge` (`ai`/`warning` tints), `ScoreGauge`.
   - done: vue-tsc + `npm run build` clean; an Inertia/feature test renders each state. No new deps.
+  - note: Added `Score`/`ScoreStatus` types to `types/property.ts` and the `scoreStatus`/`score` props to
+    `Show.vue` (they were already passed by the controller). A `scoreState` computed derives the four UI
+    states from the two props (`scored` once a Score exists, `failed`/`processing`/`idle` off the agent
+    status — mirrors the Agent/Score record split). Hero gauge: real `ScoreGauge` when scored, `Skeleton`
+    while processing, dashed `—` otherwise. Replaced the "Dwellow AI summary" placeholder with a real
+    **Dwellow Score** card (`ai`-tinted header + fit badge using gauge thresholds; processing skeleton lines,
+    failed/idle copy, scored = rationale + summary + emphasised **Flags** in `warning-tint` rows + strengths)
+    and a persistent screening-aid/unverified-data line; deleted the "Document consistency checks" placeholder
+    (the Score panel absorbs it). Said "Score"/"Flags" throughout, never "report". Added a failed-state Inertia
+    test; the existing idle/processing/completed prop-state tests cover the other three. `ApplicationControllerTest`
+    green (42); `npm run build` + vue-tsc clean (only pre-existing unrelated `occupancy.test.ts` vitest-types
+    error); eslint + Pint clean. Follow-up: the live-ticking elapsed timer + interval polling is the
+    Milestone-4 "Live updates" task — this panel is static (poll-reload-ready via the lazy props).
 
 - [ ] Dashboard "Agents" table
   - context: add an "Agents" section to `resources/js/pages/Dashboard.vue` using `DataTable` + `TableRow`

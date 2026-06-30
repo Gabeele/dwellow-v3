@@ -102,6 +102,22 @@ export interface Application {
     updated_at: string;
 }
 
+/** The status of the agent run that produces an application's Score. */
+export type ScoreStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+/**
+ * The AI-produced Score for an application. Present only once the score agent
+ * completes; the holistic `fit_score` (0–100) is accompanied by a one-sentence
+ * rationale, a neutral summary, permissible-only Flags, and strengths.
+ */
+export interface Score {
+    fit_score: number | null;
+    score_rationale: string | null;
+    summary: string | null;
+    red_flags: string[];
+    strengths: string[];
+}
+
 export interface Unit {
     id: number;
     property_id: number;

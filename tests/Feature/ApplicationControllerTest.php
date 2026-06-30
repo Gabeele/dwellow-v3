@@ -536,6 +536,25 @@ test('the detail page exposes the completed score payload', function () {
         );
 });
 
+test('the detail page reports the failed status with no score when the agent run fails', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create();
+
+    Agent::factory()->failed()->forApplication($application)->create();
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applicants.show', $application))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('screening/applicants/Show')
+            ->where('scoreStatus', AgentStatus::Failed->value)
+            ->where('score', null),
+        );
+});
+
 test('the detail page score props reload in isolation for polling', function () {
     $landlord = User::factory()->landlord()->create();
     $unit = applicantUnitOwnedBy($landlord);
