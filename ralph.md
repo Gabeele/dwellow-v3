@@ -170,13 +170,20 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     `label()`, mirroring `ApplicationStatus`. Covered by `tests/Unit/AgentTypeTest.php` +
     `tests/Unit/AgentStatusTest.php` (6 tests, asserting labels + string values + case counts). Pint clean.
 
-- [ ] Create the `agents` table + `Agent` model
+- [x] Create the `agents` table + `Agent` model
   - context: migration `morphs('analyzable')`, `type`, `provider?`, `model?`, `status`, `raw_response?`
     (json), `usage?` (json), `error?` (text), `started_at?`, `completed_at?`, timestamps; **unique index**
     `(analyzable_type, analyzable_id, type)`. `App\Models\Agent`: `morphTo analyzable`, enum + json casts.
     Add a polymorphic **subject label** + **result URL** accessor that delegates to the analyzable
     (e.g. `$agent->analyzable->agentLabel()/agentUrl()`).
   - done: migration runs; a model test covers the morph relation, casts, and the unique constraint.
+  - note: Migration `2026_06_30_021117_create_agents_table` (morphs + unique
+    `(analyzable_type, analyzable_id, type)`). `App\Models\Agent`: `#[Fillable]` (mirrors Document/
+    Application style), `morphTo analyzable`, casts `type`→AgentType, `status`→AgentStatus, `raw_response`/
+    `usage`→array, `started_at`/`completed_at`→datetime. `subject_label`/`result_url` Attribute accessors
+    delegate to `analyzable?->agentLabel()/agentUrl()` (Application implements those in a later task; no
+    factory yet — that's its own task). `tests/Feature/AgentTest.php` (4 tests): morph relation, casts,
+    unique-per-type enforcement, and a different subject getting its own score agent. Pint clean.
 
 - [ ] Create the `scores` table + `Score` model
   - context: migration `application_id` (unique FK, cascade), `agent_id` (FK, nullOnDelete), `fit_score?`
