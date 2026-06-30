@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm, usePoll } from '@inertiajs/vue3';
 import {
     Ban,
     CircleCheck,
@@ -14,7 +14,7 @@ import {
     TrendingDown,
     TrendingUp,
 } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import ApplicationController from '@/actions/App/Http/Controllers/ApplicationController';
 import DocumentController from '@/actions/App/Http/Controllers/DocumentController';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
@@ -187,6 +187,21 @@ const scoreState = computed<'idle' | 'processing' | 'scored' | 'failed'>(() => {
 
     return 'idle';
 });
+
+// While the agent is still running, poll just the Score props in isolation so
+// the panel flips from "Scoring…" to the result without a manual refresh. The
+// reload settles `scoreState` to `scored`/`failed`, which stops the poll.
+const scorePoll = usePoll(
+    5000,
+    { only: ['scoreStatus', 'score'] },
+    { autoStart: false },
+);
+
+watch(
+    () => scoreState.value === 'processing',
+    (scoring) => (scoring ? scorePoll.start() : scorePoll.stop()),
+    { immediate: true },
+);
 
 /** Tone for the fit-score badge, mirroring the gauge thresholds. */
 const fitTone = computed<'success' | 'warning' | 'danger'>(() => {

@@ -472,13 +472,30 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     vitest/devDeps missing). Follow-up: the Milestone-4 "Live updates" task adds `usePoll`/`router.reload`
     + the live-ticking elapsed timer (the `nowMs` arg is already there for it).
 
-- [ ] Live updates (Inertia polling)
+- [x] Live updates (Inertia polling)
   - context: introduce a partial-reload poll (`router.reload({ only: [...] })` on an interval) for the
     dashboard agents table and the detail panel's processing state, plus a **live-ticking elapsed timer**
     while an agent is `processing`. Poll only while something is `processing`; stop when idle. This pattern
     is new to the app — use the `inertia-vue-development` skill (deferred props / polling).
   - done: manual verify "Processing…" flips to done without refresh; vue-tsc + build clean; a light test
     of the polling-prop wiring where feasible.
+  - note: Used `usePoll(5000, { only: [...] }, { autoStart: false })` + a `watch` on the
+    "is anything in flight" condition to start/stop — so neither page makes a background request once work
+    settles (the DB queue + these reads share one DB). **Dashboard.vue**: `hasActiveAgents` (any row
+    pending/processing) gates an `agents`-only poll; the reload flips it false when the last run finishes,
+    auto-stopping. **Show.vue**: a `scoreState === 'processing'` watch gates a `scoreStatus`/`score`-only
+    poll (the lazy closures from the Wayfinder task make the partial reload skip the documents/unit load).
+    The **live-ticking elapsed timer** is a new reusable composable `composables/useNow.ts` — a reactive
+    epoch-ms clock that ticks every 1s only while `active`, freezes when idle, catches up on reactivation,
+    and clears its interval on scope dispose; the dashboard's Elapsed column now passes `now` into the
+    existing `formatAgentElapsed(…, nowMs)` (the `nowMs` arg was added for exactly this). Detail panel polls
+    but shows no elapsed timer (no `started_at` prop — would need a backend change; out of scope). Tested:
+    `composables/useNow.test.ts` (3 vitest, fake-timers via `effectScope` — ticks while active, freezes +
+    catches up across an inactive gap, clears on dispose); the existing prop-isolation Pest tests
+    (`DashboardRedesignTest`/`ApplicationControllerTest`, 49) cover the partial-reload wiring. vitest 26,
+    vue-tsc + `npm run build` + eslint (touched files) clean. NB: the manual "Processing→done without
+    refresh" check needs a running queue + model (not sandbox-doable); the prop-isolation + composable
+    tests stand in. Pre-existing unrelated eslint error in `Apply.vue` (untouched) remains.
 
 ## Milestone 5 — Keep `.docs/` honest
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage, usePoll } from '@inertiajs/vue3';
 import { Sparkles } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import DataTable from '@/components/DataTable.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import Eyebrow from '@/components/Eyebrow.vue';
@@ -10,6 +10,7 @@ import StatCard from '@/components/StatCard.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import TableRow from '@/components/TableRow.vue';
 import { Button } from '@/components/ui/button';
+import { useNow } from '@/composables/useNow';
 import { agentStatusVariant, formatAgentElapsed } from '@/lib/agentStatus';
 import { dashboard } from '@/routes';
 import { index as applicationsIndex } from '@/routes/applications';
@@ -35,7 +36,7 @@ interface DashboardStats {
     } | null;
 }
 
-defineProps<{
+const props = defineProps<{
     stats: DashboardStats | null;
     // Recent + active agent runs for the landlord, newest first. An empty
     // array for non-landlords (and landlords with no runs yet).
@@ -51,6 +52,33 @@ function openAgent(agent: AgentActivity): void {
         router.visit(agent.url);
     }
 }
+
+/** True while any listed run is still pending or processing. */
+const hasActiveAgents = computed(() =>
+    props.agents.some(
+        (agent) =>
+            agent.status === 'pending' || agent.status === 'processing',
+    ),
+);
+
+// A live clock drives the Elapsed column while a run is in flight, then pauses
+// the instant every run settles.
+const now = useNow(hasActiveAgents);
+
+// Poll just the `agents` prop while a run is active; stop once everything
+// settles so an idle dashboard makes no background requests. The reload flips
+// `hasActiveAgents` to false as soon as the last run completes.
+const agentsPoll = usePoll(
+    5000,
+    { only: ['agents'] },
+    { autoStart: false },
+);
+
+watch(
+    hasActiveAgents,
+    (active) => (active ? agentsPoll.start() : agentsPoll.stop()),
+    { immediate: true },
+);
 
 defineOptions({
     layout: {
@@ -215,6 +243,7 @@ const welcomeTitle = computed(() =>
                                     formatAgentElapsed(
                                         agent.started_at,
                                         agent.completed_at,
+                                        now,
                                     )
                                 }}
                             </td>
