@@ -112,11 +112,25 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     filled the appendix with the full pull→.env→queue:listen steps. No secrets committed. The
     `OLLAMA_MODEL`/`ANTHROPIC_MODEL` defaults are placeholders to be confirmed by the model spike below.
 
-- [ ] Spike: confirm the `laravel/ai` v0.8.1 structured-output API
+- [x] Spike: confirm the `laravel/ai` v0.8.1 structured-output API
   - context: prove the SDK's schema/structured-output call returns the response contract from both
     `ollama` and `anthropic`. Smallest possible proof (a focused test or throwaway). Record the exact
     API used so `ApplicationScoringService` mirrors it.
   - done: a note in this task (or a committed spike test) showing the structured call + parsed shape.
+  - note: Committed `tests/Feature/AiStructuredOutputSpikeTest.php` (2 passing tests, fully faked — no
+    real model). **Recorded API:** build a structured agent with the namespaced helper
+    `Laravel\Ai\agent(instructions: '...', schema: fn ($schema) => [...])` where the `schema` closure
+    receives an `Illuminate\JsonSchema\JsonSchema` factory (`$schema->integer()->min(0)->max(100)`,
+    `->string()`, `->array()->items($schema->string())`, all with `->description()`) and returns
+    `array<string, Type>` (the object's properties). Invoke with
+    `->prompt($text, provider: 'ollama'|'anthropic')` — provider is just an argument, so one code path
+    serves Ollama local + Anthropic prod. The result is a `StructuredAgentResponse`: parsed payload on
+    `->structured`, also ArrayAccess (`$res['fit_score']`), stringifies to JSON, `->meta->provider`
+    carries the provider name. **Faking in tests:**
+    `Ai::fakeAgent(StructuredAnonymousAgent::class, [$arrayPayload, ...])` (facade is `Laravel\Ai\Ai`,
+    NOT `Laravel\Ai\Facades\Ai`). Follow-up for the scoring service: prefer a dedicated named Agent
+    class implementing `HasStructuredOutput` so it fakes by its own class name; the structured call
+    shape is identical.
 
 - [ ] Spike: PDF text extraction with `PrinsFrank/pdfparser`
   - context: `vendor/bin/sail composer require prinsfrank/pdfparser` (approved). Prove text extraction
