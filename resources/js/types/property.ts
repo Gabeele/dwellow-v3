@@ -106,6 +106,24 @@ export interface Application {
 export type ScoreStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
 /**
+ * A single row in the dashboard "Agents" activity table. Each describes one
+ * polymorphic agent run scoped to the landlord's subjects: the type and
+ * subject label identify it, the status drives the badge, the timestamps feed
+ * the elapsed timer, and `url` links through to the subject's detail page.
+ */
+export interface AgentActivity {
+    id: number;
+    type: string;
+    type_label: string;
+    status: ScoreStatus;
+    status_label: string;
+    subject_label: string | null;
+    url: string | null;
+    started_at: string | null;
+    completed_at: string | null;
+}
+
+/**
  * The AI-produced Score for an application. Present only once the score agent
  * completes; the holistic `fit_score` (0–100) is accompanied by a one-sentence
  * rationale, a neutral summary, permissible-only Flags, and strengths.

@@ -452,12 +452,25 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     error); eslint + Pint clean. Follow-up: the live-ticking elapsed timer + interval polling is the
     Milestone-4 "Live updates" task — this panel is static (poll-reload-ready via the lazy props).
 
-- [ ] Dashboard "Agents" table
+- [x] Dashboard "Agents" table
   - context: add an "Agents" section to `resources/js/pages/Dashboard.vue` using `DataTable` + `TableRow`
     (mirror `screening/applicants/All.vue`). Minimal columns that still identify the agent: type + subject
     label, status (`Badge`), and **elapsed time**. `TableRow clickable` → `router.visit(agent.url)`. Show
     recent + active agents, newest first. Empty state via `EmptyState`.
   - done: vue-tsc + build clean; an Inertia assertion the section renders rows; clicking navigates.
+  - note: Added the `agents: AgentActivity[]` prop + an "Agents" section to `Dashboard.vue` (gated inside
+    the landlord `v-if="stats"` block so non-landlords — who get `[]` — don't see an empty table). Mirrors
+    `All.vue`: `DataTable`/`TableRow`/`StatusBadge`/`EmptyState`, three columns (Agent = type_label +
+    subject_label, Status badge, right-aligned Elapsed). Rows are `:clickable="!!agent.url"` → `openAgent()`
+    which `router.visit(agent.url)` (no-op when url is null). New `AgentActivity` type in `types/property.ts`
+    matches the controller's row shape. Extracted the status→tint + elapsed-time logic into a pure,
+    vitest-tested `lib/agentStatus.ts` (`agentStatusVariant` uses the server's authoritative `status_label`
+    for text, only resolves the tint; `formatAgentElapsed(started, completed, nowMs?)` — `nowMs` injectable
+    for the deferred live-ticking timer + deterministic tests). `lib/agentStatus.test.ts` (8 tests, green).
+    The existing `DashboardRedesignTest` agents-prop assertions cover the data feeding the table (7 green);
+    vue-tsc + eslint + `npm run build` clean. Needed `npm install` first (container node_modules was stale —
+    vitest/devDeps missing). Follow-up: the Milestone-4 "Live updates" task adds `usePoll`/`router.reload`
+    + the live-ticking elapsed timer (the `nowMs` arg is already there for it).
 
 - [ ] Live updates (Inertia polling)
   - context: introduce a partial-reload poll (`router.reload({ only: [...] })` on an interval) for the

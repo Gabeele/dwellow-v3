@@ -1,14 +1,21 @@
 <script setup lang="ts">
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Sparkles } from '@lucide/vue';
 import { computed } from 'vue';
+import DataTable from '@/components/DataTable.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import Eyebrow from '@/components/Eyebrow.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import StatCard from '@/components/StatCard.vue';
+import StatusBadge from '@/components/StatusBadge.vue';
+import TableRow from '@/components/TableRow.vue';
 import { Button } from '@/components/ui/button';
+import { agentStatusVariant, formatAgentElapsed } from '@/lib/agentStatus';
 import { dashboard } from '@/routes';
 import { index as applicationsIndex } from '@/routes/applications';
 import { index as propertiesIndex } from '@/routes/properties';
 import { index as applicantsIndex } from '@/routes/units/applicants';
+import type { AgentActivity } from '@/types/property';
 
 /**
  * Portfolio summary for landlords. `null` for users who don't hold the
@@ -30,7 +37,20 @@ interface DashboardStats {
 
 defineProps<{
     stats: DashboardStats | null;
+    // Recent + active agent runs for the landlord, newest first. An empty
+    // array for non-landlords (and landlords with no runs yet).
+    agents: AgentActivity[];
 }>();
+
+/**
+ * Navigate to an agent run's subject when its row is clicked. A run whose
+ * subject has no resolvable URL is a no-op rather than a dead navigation.
+ */
+function openAgent(agent: AgentActivity): void {
+    if (agent.url) {
+        router.visit(agent.url);
+    }
+}
 
 defineOptions({
     layout: {
@@ -146,6 +166,60 @@ const welcomeTitle = computed(() =>
                             />
                         </Link>
                     </div>
+                </section>
+
+                <section class="flex flex-col gap-3">
+                    <Eyebrow>Agents</Eyebrow>
+
+                    <EmptyState v-if="agents.length === 0" :icon="Sparkles">
+                        No agent activity yet. Scores appear here as
+                        applications come in.
+                    </EmptyState>
+
+                    <DataTable v-else>
+                        <template #head>
+                            <th class="px-4 py-3 font-medium">Agent</th>
+                            <th class="px-4 py-3 font-medium">Status</th>
+                            <th class="px-4 py-3 text-right font-medium">
+                                Elapsed
+                            </th>
+                        </template>
+
+                        <TableRow
+                            v-for="agent in agents"
+                            :key="agent.id"
+                            :clickable="!!agent.url"
+                            @click="openAgent(agent)"
+                        >
+                            <td class="px-4 py-3">
+                                <div class="flex flex-col">
+                                    <span class="font-medium text-foreground">
+                                        {{ agent.type_label }}
+                                    </span>
+                                    <span class="text-13 text-muted-foreground">
+                                        {{ agent.subject_label ?? '—' }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <StatusBadge
+                                    :variant="agentStatusVariant(agent.status)"
+                                >
+                                    {{ agent.status_label }}
+                                </StatusBadge>
+                            </td>
+                            <td
+                                class="px-4 py-3 text-right text-muted-foreground"
+                            >
+                                {{
+                                    formatAgentElapsed(
+                                        agent.started_at,
+                                        agent.completed_at,
+                                    )
+                                }}
+                            </td>
+                        </TableRow>
+                    </DataTable>
                 </section>
             </template>
 
