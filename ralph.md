@@ -238,12 +238,20 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     param/return types). Pint clean. NB: later "ApplicationScoringService::score(app)" in the call chain
     should implement `run()` (it may keep a `score()` alias if convenient).
 
-- [ ] `DocumentTextExtractor` interface + implementation
+- [x] `DocumentTextExtractor` interface + implementation
   - context: `App\Screening\DocumentTextExtractor` interface; `PrinsFrank`-backed implementation that
     extracts text from a `Document`, **caps** per-doc and total length, and returns an "unreadable" marker
     for image-only/no-text files. Bind the interface in a service provider.
   - done: tests with a committed fixture PDF (returns text) and an image/no-text file (returns the
     unreadable marker); length caps asserted.
+  - note: `App\Screening\DocumentTextExtractor` (interface, `UNREADABLE_MARKER` const, `extract(Document)`
+    + `extractFromMany(iterable)`) and `PdfDocumentTextExtractor` (PrinsFrank-backed via
+    `parseString($bytes)->getText()` off `Storage::disk($doc->disk)`). Only `application/pdf` is parsed;
+    images / Word docs / missing-empty-corrupt files short-circuit to the marker (no OCR v1, never throws).
+    Caps are constructor params (defaults 10k per-doc / 25k total) so tests drive truncation with a tiny
+    limit; `extractFromMany` labels each section `=== {original_name} ===` then caps the join. Bound in
+    `AppServiceProvider::register()`. `tests/Feature/DocumentTextExtractorTest.php` (6 tests): PDF text,
+    image marker, missing-file marker, per-doc cap, multi-doc concat+labels+marker, total cap. Pint clean.
 
 - [ ] `ScorePrompt` builder
   - context: `App\Screening\ScorePrompt` builds the system prompt: the response **schema**, the
