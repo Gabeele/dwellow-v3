@@ -286,7 +286,7 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     empty flag/strength arrays, extra-key stripping, out-of-range score, missing key, wrong types (string
     fit_score / non-array flags / non-string items), non-array payload. Pint clean.
 
-- [ ] `ApplicationScoringService` (the `score` handler)
+- [x] `ApplicationScoringService` (the `score` handler)
   - context: `App\Screening\ApplicationScoringService implements AgentHandler`. Flow: create/locate the
     Agent (`processing`, set provider/model/`started_at`) → build prompt (answers + doc text) → AI SDK
     **structured output** (provider from config) → **validate** → on failure **one repair retry** → on
@@ -294,6 +294,30 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     on hard failure mark Agent `failed`, store `raw_response`, write **no** Score.
   - done: feature tests with the `laravel/ai` fake — happy path (Agent completed + correct Score columns);
     malformed payload triggers the repair retry; still-bad → Agent `failed` + no Score row. Pint clean.
+  - note: Added a dedicated named agent `App\Screening\Agents\ScoreAgent` (implements `Agent` +
+    `HasStructuredOutput`, uses `Promptable`) delegating `instructions()`/`schema()` to `ScorePrompt` —
+    chosen over the spike's anonymous `agent()` helper so tests fake it by class
+    (`ScoreAgent::fake([...])`, `ScoreAgent::assertPrompted(...)`). `ApplicationScoringService::run()`
+    type-guards to `Application` then calls `score()`: `startAgent` does `scoreAgent()->firstOrNew()`
+    (1:1, mutate-in-place) → Processing + provider (`config('ai.default')`) + `started_at`; builds the
+    prompt from `extractFromMany($application->documents)` + `ScorePrompt`;
+    `(new ScoreAgent)->prompt($prompt, provider:)` → validate → on fail one repair retry with the contract
+    errors appended → `completeAgent` persists the Score via `score()->firstOrNew()` + `associate($agent)`
+    + `fill($value)` (FKs aren't fillable, so the relation/associate set them) and marks the Agent
+    Completed (`model` from `meta`, `usage`→array, `raw_response`); `failAgent` (also the catch-all) marks
+    Failed, stores the last `raw_response`, writes no Score. `tests/Feature/ApplicationScoringServiceTest.php`
+    (5) covers happy-path columns, repair retry, still-bad → failed + no Score, re-run mutates the same
+    Agent, non-Application rejected; the `laravel/ai` fake returns array responses verbatim by index, so
+    `[bad, good]` drives the retry. Pint clean.
+
+- [ ] Fix pre-existing full-suite test isolation leak (state bleeds across files)
+  - context: NOT caused by the scoring work — present before this task (confirmed by re-running the full
+    suite with the new test file removed). In `vendor/bin/sail artisan test` (whole suite),
+    `PublicScreeningControllerTest` "no-form-row provisions default" plus two `ScreeningDraftTest` cases
+    fail on accumulated rows ("9 is identical to 1", "8 is identical to 0", `sole()` "2 records were
+    found"). All pass in isolation, so an earlier test commits outside the RefreshDatabase transaction
+    (likely a real queue/file/separate-connection write). Find the offender and stop it leaking.
+  - done: full `vendor/bin/sail artisan test` is green with no per-file ordering dependence.
 
 - [ ] `ScoreApplication` queued job
   - context: `app/Jobs/ScoreApplication` (`ShouldQueue`) — first real Job. `$tries=2`, `$backoff=[10,30]`,
