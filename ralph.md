@@ -225,11 +225,18 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
 
 ## Milestone 2 — Engine, services & job
 
-- [ ] Define the `AgentHandler` contract
+- [x] Define the `AgentHandler` contract
   - context: `App\Screening\AgentHandler` interface — one method (e.g. `score(Model $analyzable): Agent`,
     or a neutral `run(...)`). Documents the per-type contract. **No registry/manager** (YAGNI until a
     second agent type exists).
   - done: interface committed; `ApplicationScoringService` implements it in a later task.
+  - note: Chose the **neutral `run(Model $analyzable): Agent`** over `score()` — the engine's whole point
+    is reuse across future agent types (maintenance triage), so a score-specific method name would make
+    every future handler misname its method. `app/Screening/AgentHandler.php` documents the per-type
+    contract (1:1 mutate-in-place, returns the Agent record); no registry. Covered by
+    `tests/Unit/AgentHandlerContractTest.php` (2 tests, reflection-asserts the single `run` method +
+    param/return types). Pint clean. NB: later "ApplicationScoringService::score(app)" in the call chain
+    should implement `run()` (it may keep a `score()` alias if convenient).
 
 - [ ] `DocumentTextExtractor` interface + implementation
   - context: `App\Screening\DocumentTextExtractor` interface; `PrinsFrank`-backed implementation that
