@@ -185,12 +185,18 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     factory yet — that's its own task). `tests/Feature/AgentTest.php` (4 tests): morph relation, casts,
     unique-per-type enforcement, and a different subject getting its own score agent. Pint clean.
 
-- [ ] Create the `scores` table + `Score` model
+- [x] Create the `scores` table + `Score` model
   - context: migration `application_id` (unique FK, cascade), `agent_id` (FK, nullOnDelete), `fit_score?`
     (unsignedTinyInteger), `score_rationale?`, `summary?` (text), `red_flags` (json), `strengths` (json),
     timestamps. `App\Models\Score`: `belongsTo Application`, `belongsTo Agent`, casts (`red_flags`/
     `strengths` → array). Use the glossary term — model is `Score`, not "Summary".
   - done: migration runs; model test covers relations + casts + the 1:1 (unique application_id) invariant.
+  - note: Migration `2026_06_30_021335_create_scores_table` — `application_id` unique FK cascadeOnDelete,
+    nullable `agent_id` FK nullOnDelete, nullable `fit_score` (unsignedTinyInteger), `score_rationale`
+    (string), `summary` (text), nullable json `red_flags`/`strengths`. `App\Models\Score`: `#[Fillable]`
+    (Document/Agent style), `belongsTo application`/`agent`, casts `red_flags`/`strengths` → array. No
+    factory yet (its own task) — `tests/Feature/ScoreTest.php` builds records manually like AgentTest
+    (4 tests): relations, array casts, unique-per-application invariant, agent nullOnDelete. Pint clean.
 
 - [ ] Wire `Application` relationships + polymorphic label/url
   - context: on `App\Models\Application`: `morphMany agents`, `scoreAgent()` (`morphOne` constrained to
