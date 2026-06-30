@@ -253,13 +253,23 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     `AppServiceProvider::register()`. `tests/Feature/DocumentTextExtractorTest.php` (6 tests): PDF text,
     image marker, missing-file marker, per-doc cap, multi-doc concat+labels+marker, total cap. Pint clean.
 
-- [ ] `ScorePrompt` builder
+- [x] `ScorePrompt` builder
   - context: `App\Screening\ScorePrompt` builds the system prompt: the response **schema**, the
     **fair-housing** rule (permissible factors only; no protected-class proxies), the **unverified-data**
     framing, and assembles the applicant's `answers` + `form_snapshot` + extracted document text. Template
     lives here (tunable), not inline in the service.
   - done: a unit test asserts the prompt contains the schema + the fair-housing/unverified guardrail text
     and includes the supplied answers/doc text.
+  - note: `app/Screening/ScorePrompt.php` mirrors the SDK's instructions/body split:
+    `instructions()` (system prompt — role, UNVERIFIED-DATA framing, FAIR-HOUSING permissible-only factors
+    + named protected classes/proxies the model must NEVER weigh, "flags are permissible concerns only",
+    and the prose JSON contract) and `forApplication(Application, $docText='')` (renders labelled answers
+    via `form_snapshot` like the Filament infolist, then the capped doc text). Also exposes `schema()` —
+    the same structured-output closure for the SDK (belt-and-suspenders alongside the prose contract); the
+    closure stays untyped (mirrors the spike) and receives the `JsonSchemaTypeFactory` at runtime. Unit
+    tests `tests/Unit/ScorePromptTest.php` (6, no DB — in-memory Application) cover schema text, both
+    guardrails, unverified framing, body rendering (incl. structured reference + bool + doc text), the
+    no-doc fallback, and the schema closure's keys. Pint clean.
 
 - [ ] Response validator
   - context: a validator for the contract — `fit_score` int 0–100, required keys present, `red_flags`/
