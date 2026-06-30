@@ -377,11 +377,18 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
 
 ## Milestone 3 — Read endpoints for the UI
 
-- [ ] Expose the Score on the application detail page
+- [x] Expose the Score on the application detail page
   - context: `ApplicationController@show` passes a `score` payload (fit_score, score_rationale, summary,
     red_flags, strengths) **plus** the score agent **status** (for the processing/failed/ready states) to
     `screening/applicants/Show.vue`. Eager-load to avoid N+1.
   - done: an Inertia assertion test for the three states (no agent / processing / completed).
+  - note: `show()` now eager-loads `score` + `scoreAgent` (alongside documents/unit.property) and passes
+    two new props: `scoreStatus` (= `scoreAgent?->status->value`, null when no agent) and `score` (a shaped
+    payload via a private `scorePayload()` helper, null until a Score exists). Kept them as two independent
+    props so the Vue layer owns the processing/failed/ready state machine (mirrors the Agent/Score record
+    split). `red_flags`/`strengths` coalesce to `[]` so the frontend always gets arrays. 3 new Inertia
+    tests in `ApplicationControllerTest.php` (no agent → both null; processing agent → status processing +
+    score null; completed agent + Score → status completed + payload columns). 40 pass. Pint clean.
 
 - [ ] Provide the dashboard "Agents" activity dataset
   - context: `DashboardController` passes a list of **recent + active** agents (newest first) — each with

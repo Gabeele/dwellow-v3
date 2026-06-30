@@ -1,12 +1,15 @@
 <?php
 
+use App\Enums\AgentStatus;
 use App\Enums\ApplicationStatus;
 use App\Mail\ApplicationApprovedMail;
 use App\Mail\ApplicationRejectedMail;
+use App\Models\Agent;
 use App\Models\Application;
 use App\Models\ApplicationLink;
 use App\Models\Document;
 use App\Models\Property;
+use App\Models\Score;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -464,6 +467,72 @@ test('the owning landlord sees an applications snapshot and documents', function
             ->where('application.answers.first_name', 'Priya')
             ->has('documents', 1)
             ->where('documents.0.id', $document->id),
+        );
+});
+
+test('the detail page reports no score before any agent has run', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create();
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applicants.show', $application))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('screening/applicants/Show')
+            ->where('scoreStatus', null)
+            ->where('score', null),
+        );
+});
+
+test('the detail page reports the processing status while the score agent runs', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create();
+
+    Agent::factory()->processing()->forApplication($application)->create();
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applicants.show', $application))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('screening/applicants/Show')
+            ->where('scoreStatus', AgentStatus::Processing->value)
+            ->where('score', null),
+        );
+});
+
+test('the detail page exposes the completed score payload', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create();
+
+    $agent = Agent::factory()->completed()->forApplication($application)->create();
+    Score::factory()->for($application)->forAgent($agent)->create([
+        'fit_score' => 82,
+        'score_rationale' => 'Strong income relative to rent.',
+        'summary' => 'A well-documented application.',
+        'red_flags' => ['Move-in date is sooner than the unit is available.'],
+        'strengths' => ['Rent-to-income ratio is comfortable.'],
+    ]);
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applicants.show', $application))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('screening/applicants/Show')
+            ->where('scoreStatus', AgentStatus::Completed->value)
+            ->where('score.fit_score', 82)
+            ->where('score.score_rationale', 'Strong income relative to rent.')
+            ->where('score.summary', 'A well-documented application.')
+            ->has('score.red_flags', 1)
+            ->has('score.strengths', 1),
         );
 });
 
