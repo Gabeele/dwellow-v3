@@ -198,11 +198,16 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     factory yet (its own task) — `tests/Feature/ScoreTest.php` builds records manually like AgentTest
     (4 tests): relations, array casts, unique-per-application invariant, agent nullOnDelete. Pint clean.
 
-- [ ] Wire `Application` relationships + polymorphic label/url
+- [x] Wire `Application` relationships + polymorphic label/url
   - context: on `App\Models\Application`: `morphMany agents`, `scoreAgent()` (`morphOne` constrained to
     `type=score`), `hasOne score`. Implement `agentLabel()` (e.g. "Score — Application: {name}") and
     `agentUrl()` (the applicants.show route) for the dashboard table.
   - done: a test asserts `application->score`, `->scoreAgent`, and the label/url resolve correctly.
+  - note: Added `agents()` (`morphMany`), `scoreAgent()` (`morphOne` + `->where('type', AgentType::Score)`),
+    `score()` (`hasOne`), plus `agentLabel()` → "Score — Application: {first} {last}" and `agentUrl()` →
+    `route('applicants.show', $this)` (default `id` binding). Three new tests in `ApplicationTest.php`
+    (relationship resolution, score-type-only filtering / null when none, label+url) — 6 pass. AgentTest's
+    `subject_label`/`result_url` delegation now resolves through these. Pint clean.
 
 - [ ] Factories for `Agent` and `Score`
   - context: `AgentFactory` (states: `pending/processing/completed/failed`, `forApplication()`),
