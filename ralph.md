@@ -530,11 +530,23 @@ belt **and** suspenders; on failure → **one repair retry** → else Agent `fai
     (Pending→Processing→Completed|Failed — status lives on the Agent). All cross-refs to ADR 0006 resolve.
     Docs-only — test/Pint/eslint gates N/A.
 
-- [ ] Reconcile open questions
+- [x] Reconcile open questions
   - context: in `.docs/open-questions.md`, mark resolved (provider, score shape, holistic v1) vs explicitly
     deferred (Scorecard/Criterion engine + per-criterion rationale, deterministic criteria, re-score button,
     list sort/filter by score, OCR, provider fallback, normalized flags table, document retention).
   - done: open-questions reflects the post-decision state.
+  - note: Added a Score-milestone preamble to the "Scoring & criteria" section pointing at ADR 0006, then
+    reconciled each item: **Score shape** → `[x]` Resolved (0–100 holistic `fit_score` + rationale/summary/
+    Flags/strengths, no letter grades/buckets); **LLM model/provider** → `[x]` Resolved (config-driven
+    `config('ai.default')`, Ollama local / Anthropic prod, no auto-fallback, refs ADR 0006 + 0005). Kept the
+    three per-criterion items (**default criteria/thresholds/weights**, **hard-fail vs weighted**, **no-
+    reference handling**) `[ ]` but annotated _Deferred (v1 is holistic)_ — blocked on the landlord
+    default-criteria table. **Fair-housing rubric review** left open (prompt+UI enforce permissible-only per
+    ADR 0004, but legal review still required pre-launch). Added a blockquote listing the remaining deferred
+    scoring items (Scorecard/Criterion/CriterionResult + per-criterion rationale, deterministic criteria,
+    re-score button, list sort/filter by score, OCR, provider fallback, normalized flags table) and annotated
+    **document retention** _Deferred_. Docs-only — all cross-ref links resolve; test/Pint/eslint gates N/A.
+    This was the last unchecked task — the Score plan is complete.
 
 ---
 
