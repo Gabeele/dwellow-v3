@@ -98,7 +98,7 @@ and in the final Delta-log entry name the best round and the gaps that remain.
 
 ## Phase B — tuning round (repeat until converged)
 
-- [ ] **B-round-1 · one hypothesis, one change.** Do exactly this, in order:
+- [x] **B-round-1 · one hypothesis, one change.** Do exactly this, in order:
   1. Read the latest `storage/app/prompt-eval/round-*.md`. Identify the **single biggest, most
      consistent gap** (protected-class leakage first if any; then out-of-band fit, then a criterion
      mis-graded across most samples, then a missing must-flag).
@@ -112,6 +112,22 @@ and in the final Delta-log entry name the best round and the gaps that remain.
      round still counts and still commits its log entry.
   7. Record the result in the **Delta log**. Then check the **exit criteria**: if met for 2 rounds
      running, check off this Phase B bullet (loop ends). Otherwise append `- [ ] B-round-2 · …` below.
+  - Done: gap = out-of-band fit on both non-strong profiles (borderline 80, redflag 42; strong 92 in
+    band). Hypothesis: anchor `fit_score` to the count of `weak` criteria (none→75-95, one/two→45-70,
+    three+→8-40) pulls them into band without regressing strong. ONE change: rewrote the fit_score line
+    in `ScorePrompt::instructions()` (no profile names — general, count-based). Result: borderline 80→70
+    (closer), strong 92→82 (still in band), redflag 42→52 (worse). Pass set unchanged 0/3→0/3 (not a
+    revert-triggering regression). Kept. Root cause of redflag miss: this round the model graded redflag
+    with fewer `weak` criteria (employment weak 3/5, identity unverified 3/5), so the "three+ weak" rung
+    under-fired. **B-round-2 target: firm up redflag `employment=weak` + `identity=unverified` grading**
+    (sharpen those two criterion `guidance` lines in `ScoringFramework.php`) so the fit anchor has the
+    weak-count to act on. Report: `storage/app/prompt-eval/round-01.md`.
+- [ ] **B-round-2 · one hypothesis, one change.** Same procedure as B-round-1 (steps 1–7), reading the
+  latest `round-*.md`. Leading candidate from B-round-1's note: redflag's `employment` grades
+  adequate/unverified instead of `weak` and `identity` isn't consistently `unverified` — sharpen the
+  `employment` and/or `identity` `guidance` in `ScoringFramework.php` (pick the single more-consistent
+  miss; ONE change) so the weak-count anchor pulls redflag's fit into 8–35. Re-run `--round=2`, compare,
+  revert if the pass set regresses, log the row, then check exit criteria / append B-round-3.
 
 ### Round discipline (this is what makes it converge, not thrash)
 
@@ -130,6 +146,7 @@ and in the final Delta-log entry name the best round and the gaps that remain.
 | Round | Gap targeted | Hypothesis / change | strong fit | borderline fit | redflag fit | Fails cleared → left | Verdict |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 00 (baseline) | — | — (unmodified prompt) | 92 (in band) | 80 (high, band 45–68) | 42 (high, band 8–35) | 0/3 pass — strong/borderline/redflag all FAIL | baseline |
+| 01 | out-of-band fit (both non-strong high) | anchor fit_score to count of `weak` criteria (none→75-95, 1-2→45-70, 3+→8-40) | 82 (in band) | 70 (high, band 45–68) | 52 (high, band 8–35) | 0/3→0/3 (no change) — borderline/strong ↓ toward band, redflag ↑ | kept (pass set not regressed; redflag graded fewer `weak` this round so anchor under-fired) |
 
 ## Manual knobs (outside the automated loop)
 

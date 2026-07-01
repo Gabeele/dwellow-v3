@@ -112,8 +112,9 @@ class ScorePrompt
 
             RESPONSE CONTRACT
             Return a JSON object with exactly these keys:
-            - "fit_score": integer 0-100 — overall fit, CONSISTENT with the rubric:
-              more "strong" pushes it up, "weak" pulls it down; "unverified" is
+            - "fit_score": integer 0-100 — overall fit, CONSISTENT with the rubric.
+              Anchor it to how many criteria you graded "weak": none → 75-95;
+              one or two → 45-70; three or more → 8-40. "unverified" is
               cautionary, not a penalty. Use permissible factors only.
             - "score_rationale": string — ONE short sentence on why the score is what it is.
             - "summary": string — 2-4 neutral sentences ANALYSING the application
