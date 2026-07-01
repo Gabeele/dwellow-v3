@@ -86,8 +86,15 @@ and in the final Delta-log entry name the best round and the gaps that remain.
     faked disk); `--round` auto-increments from the highest `round-NN.json` when omitted.
   - Note for A3: run `--round=00` needs Ollama reachable; if all samples fail with a connection error the
     scorecard will show 0% first-pass across the board — that's the "Ollama unreachable" signal to block on.
-- [ ] **A3 · Capture the baseline.** Run `screening:eval-prompt --samples=5 --round=00`, commit the
+- [x] **A3 · Capture the baseline.** Run `screening:eval-prompt --samples=5 --round=00`, commit the
   `round-00` report, and fill the **Round 00** row in the Delta log below. This is the "before" for step 3.
+  - Done: `round-00.{json,md}` written + committed (0/3 pass, as expected unmodified). Ollama reachable,
+    `llama3.1:8b`, 100% validator first-pass on strong/redflag (borderline 80%). Baseline reads **too
+    generous**: borderline median 80 (band 45–68) and redflag median 42 (band 8–35) both above band; strong
+    92 in-band. Biggest consistent gaps for B-round-1: (a) redflag `employment=weak` held 0/5 and its
+    unaffordable-rent must-flag only 60%; (b) both non-strong profiles score high; (c) `identity=strong`
+    over-graded (strong 1/5, and the redflag ID should read `unverified`). Zero forbidden hits — no
+    guardrail leak to prioritise. Start B-round-1 on the redflag over-scoring / employment mis-grade.
 
 ## Phase B — tuning round (repeat until converged)
 
@@ -122,7 +129,7 @@ and in the final Delta-log entry name the best round and the gaps that remain.
 
 | Round | Gap targeted | Hypothesis / change | strong fit | borderline fit | redflag fit | Fails cleared → left | Verdict |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 00 (baseline) | — | — (unmodified prompt) | _fill_ | _fill_ | _fill_ | — | baseline |
+| 00 (baseline) | — | — (unmodified prompt) | 92 (in band) | 80 (high, band 45–68) | 42 (high, band 8–35) | 0/3 pass — strong/borderline/redflag all FAIL | baseline |
 
 ## Manual knobs (outside the automated loop)
 
