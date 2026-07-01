@@ -65,7 +65,7 @@ and in the final Delta-log entry name the best round and the gaps that remain.
   assessments), `must_flags` (list of case-insensitive substrings/regexes), `forbidden` (protected-class
   regexes). This is the machine-readable copy of the table above — the single source of truth the harness reads.
   - Done: `expectations.php` written for all 3 profiles; `must_flags`/`forbidden` are label⇒regex maps (self-describing for the report), protected-class set shared across profiles + `ScreeningExpectationsTest` locks the shape (5 assertions green). Note for A2: "unverified claim stated as fact" isn't a regex — enforce it via the `identity=>['unverified']` rubric + unreadable-ID must-flag.
-- [ ] **A2 · Build `screening:eval-prompt`.** New artisan command, signature
+- [x] **A2 · Build `screening:eval-prompt`.** New artisan command, signature
   `{--samples=3} {--profiles=strong,borderline,redflag} {--round=}`. For each profile it must:
   pin a unit at the expectation `rent`; build the application through the **real** path (reuse
   `SeedScreeningSamples::buildAnswers` + the fixture docs); run `ApplicationScoringService::run()`
@@ -75,6 +75,17 @@ and in the final Delta-log entry name the best round and the gaps that remain.
   scorecard table and write the full result to `storage/app/prompt-eval/round-<NN>.{json,md}`. It must
   leave the dev DB as it found it (transaction+rollback, or delete what it created). It is **not** a Pest
   test and must never run inside `artisan test` (it hits the live model).
+  - Done: `app/Console/Commands/EvalScreeningPrompt.php` (command `screening:eval-prompt`) + pure grader
+    `app/Screening/PromptEvaluation.php` (median/band/⅔ hold-threshold/forbidden/first-pass → PASS/FAIL
+    reasons, guardrail-first) with `tests/Unit/PromptEvaluationTest.php` (8 green). Made
+    `SeedScreeningSamples::buildAnswers`/`profiles` public static so the harness reuses the real answer
+    build. Side-effects isolated per run: `Storage::fake('local')` + `Mail::fake` + `Notification::fake`
+    + `DB::beginTransaction/rollBack`. First-pass rate is observed via an anonymous `ScoreResponseValidator`
+    subclass bound in the container that records each `validate()` outcome (no change to the service).
+    Report writes go through the `File` facade to the **real** `storage/app/prompt-eval/` (bypassing the
+    faked disk); `--round` auto-increments from the highest `round-NN.json` when omitted.
+  - Note for A3: run `--round=00` needs Ollama reachable; if all samples fail with a connection error the
+    scorecard will show 0% first-pass across the board — that's the "Ollama unreachable" signal to block on.
 - [ ] **A3 · Capture the baseline.** Run `screening:eval-prompt --samples=5 --round=00`, commit the
   `round-00` report, and fill the **Round 00** row in the Delta log below. This is the "before" for step 3.
 

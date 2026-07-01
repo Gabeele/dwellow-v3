@@ -65,7 +65,7 @@ class SeedScreeningSamples extends Command
         for ($i = 0; $i < $count; $i++) {
             $profileKey = $keys[$i % count($keys)];
             $unit = $units[$i % $units->count()];
-            $answers = $this->buildAnswers($dir, $profileKey, $profiles[$profileKey], $i);
+            $answers = self::buildAnswers($dir, $profileKey, $profiles[$profileKey], $i);
 
             $link = ApplicationLink::factory()->create([
                 'unit_id' => $unit->id,
@@ -100,10 +100,13 @@ class SeedScreeningSamples extends Command
      * identity (suffixed when a profile repeats so each applicant is distinct),
      * and the profile's document set as uploaded files.
      *
+     * Public and static so the `screening:eval-prompt` harness can build the exact
+     * same answer set (documents included) through the same code path.
+     *
      * @param  array<string, mixed>  $profile
      * @return array<string, mixed>
      */
-    private function buildAnswers(string $dir, string $profileKey, array $profile, int $index): array
+    public static function buildAnswers(string $dir, string $profileKey, array $profile, int $index): array
     {
         $photoMime = $profile['_photo_mime'];
         unset($profile['_photo_mime']);
@@ -134,7 +137,7 @@ class SeedScreeningSamples extends Command
      *
      * @return array<string, array<string, mixed>>
      */
-    private static function profiles(): array
+    public static function profiles(): array
     {
         return [
             'strong' => [
