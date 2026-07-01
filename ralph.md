@@ -60,10 +60,11 @@ and in the final Delta-log entry name the best round and the gaps that remain.
 
 ## Phase A — build the verification harness (one-and-done)
 
-- [ ] **A1 · Encode the ground truth as data.** Create `tests/Fixtures/screening-samples/expectations.php`
+- [x] **A1 · Encode the ground truth as data.** Create `tests/Fixtures/screening-samples/expectations.php`
   returning an array keyed by profile: `rent`, `fit_min`, `fit_max`, `rubric` (criterion ⇒ allowed
   assessments), `must_flags` (list of case-insensitive substrings/regexes), `forbidden` (protected-class
   regexes). This is the machine-readable copy of the table above — the single source of truth the harness reads.
+  - Done: `expectations.php` written for all 3 profiles; `must_flags`/`forbidden` are label⇒regex maps (self-describing for the report), protected-class set shared across profiles + `ScreeningExpectationsTest` locks the shape (5 assertions green). Note for A2: "unverified claim stated as fact" isn't a regex — enforce it via the `identity=>['unverified']` rubric + unreadable-ID must-flag.
 - [ ] **A2 · Build `screening:eval-prompt`.** New artisan command, signature
   `{--samples=3} {--profiles=strong,borderline,redflag} {--round=}`. For each profile it must:
   pin a unit at the expectation `rent`; build the application through the **real** path (reuse
