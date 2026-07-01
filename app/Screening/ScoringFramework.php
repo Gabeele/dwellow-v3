@@ -34,7 +34,7 @@ class ScoringFramework
         ],
         'employment' => [
             'label' => 'Employment',
-            'guidance' => 'Stability and reliability of income: employment type and tenure. Strong for stable full-time work with solid tenure, Weak for irregular, very short, or unverifiable employment.',
+            'guidance' => 'Stability and reliability of income: employment type and tenure. Strong for stable full-time work with solid tenure; Weak for irregular income, recent employment gaps, very short tenure, or no steady employer. Grade income stability only — never the source of income itself.',
         ],
         'credit' => [
             'label' => 'Credit',

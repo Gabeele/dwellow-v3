@@ -122,12 +122,32 @@ and in the final Delta-log entry name the best round and the gaps that remain.
     under-fired. **B-round-2 target: firm up redflag `employment=weak` + `identity=unverified` grading**
     (sharpen those two criterion `guidance` lines in `ScoringFramework.php`) so the fit anchor has the
     weak-count to act on. Report: `storage/app/prompt-eval/round-01.md`.
-- [ ] **B-round-2 · one hypothesis, one change.** Same procedure as B-round-1 (steps 1–7), reading the
+- [x] **B-round-2 · one hypothesis, one change.** Same procedure as B-round-1 (steps 1–7), reading the
   latest `round-*.md`. Leading candidate from B-round-1's note: redflag's `employment` grades
   adequate/unverified instead of `weak` and `identity` isn't consistently `unverified` — sharpen the
   `employment` and/or `identity` `guidance` in `ScoringFramework.php` (pick the single more-consistent
   miss; ONE change) so the weak-count anchor pulls redflag's fit into 8–35. Re-run `--round=2`, compare,
   revert if the pass set regresses, log the row, then check exit criteria / append B-round-3.
+  - Done: gap = redflag `employment=weak` held only 3/5 (adequate×2), starving the weak-count anchor so
+    redflag fit stayed high (52). Chose `employment` over `identity` because `unverified` doesn't add to
+    the weak-count anchor (fixing identity would *raise* fit), so employment is the only fix that moves
+    both the criterion grade and the fit number the right way. Hypothesis: naming *recent employment
+    gaps* + *no steady employer* as `weak` triggers (grade stability, not source of income) firms
+    redflag `employment=weak` without regressing strong. ONE change: sharpened the `employment`
+    `guidance` line in `ScoringFramework.php`. Result: redflag employment weak 3/5→**4/5** ✓ (goal hit),
+    borderline employment hold 3/5→4/5, strong employment 5/5 — all improved, none regressed. Redflag
+    fit 52→**40** (nearer band ceiling 35); strong 82→85 (in band); borderline 70→75. Pass set
+    0/3→0/3 (no regression) → kept. Report: `storage/app/prompt-eval/round-02.md`.
+  - Note for B-round-3: redflag now reliably grades **3+ weak** (affordability/employment/credit all
+    ≥4/5) yet its median fit sits at 40 — the top of the anchor's wide "3+ weak → 8-40" rung, just over
+    band ceiling 35. Leading candidate: **tighten that rung's ceiling** (e.g. `3+ weak → 8-30`) in
+    `ScorePrompt::instructions()`. It isolates redflag cleanly — strong (0 weak) and borderline (1-2
+    weak) use other rungs — so it should pull redflag into band without regressing them.
+- [ ] **B-round-3 · one hypothesis, one change.** Same procedure as B-round-1/2 (steps 1–7), reading the
+  latest `round-*.md`. Leading candidate from B-round-2's note: redflag reliably grades 3+ weak but its
+  fit lands at 40 (band 8–35) — tighten the anchor's "3+ weak" rung ceiling in `ScorePrompt::instructions()`
+  (ONE change), which isolates redflag from strong/borderline. Re-run `--round=3`, compare, revert if the
+  pass set regresses, log the row, then check exit criteria / append B-round-4.
 
 ### Round discipline (this is what makes it converge, not thrash)
 
@@ -147,6 +167,7 @@ and in the final Delta-log entry name the best round and the gaps that remain.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 00 (baseline) | — | — (unmodified prompt) | 92 (in band) | 80 (high, band 45–68) | 42 (high, band 8–35) | 0/3 pass — strong/borderline/redflag all FAIL | baseline |
 | 01 | out-of-band fit (both non-strong high) | anchor fit_score to count of `weak` criteria (none→75-95, 1-2→45-70, 3+→8-40) | 82 (in band) | 70 (high, band 45–68) | 52 (high, band 8–35) | 0/3→0/3 (no change) — borderline/strong ↓ toward band, redflag ↑ | kept (pass set not regressed; redflag graded fewer `weak` this round so anchor under-fired) |
+| 02 | redflag `employment=weak` held only 3/5 (starved the weak-count anchor) | sharpen `employment` guidance: name recent gaps + no steady employer as `weak` triggers, grade stability not source | 85 (in band) | 75 (high, band 45–68) | 40 (near band, ceiling 35) | 0/3→0/3 (no change) — redflag employment weak 3/5→4/5, fit 52→40 toward band | kept (goal criterion firmed, all 3 employment holds improved, pass set not regressed) |
 
 ## Manual knobs (outside the automated loop)
 
