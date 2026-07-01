@@ -39,14 +39,21 @@ it('only asserts real rubric criteria with valid assessments', function () use (
     }
 });
 
-it('has compilable must_flags and forbidden regexes', function () use ($expectations) {
+it('has compilable must_flags, must_facts and forbidden regexes', function () use ($expectations) {
     foreach ($expectations as $profile => $spec) {
-        foreach (['must_flags', 'forbidden'] as $bucket) {
-            foreach ($spec[$bucket] as $label => $pattern) {
+        foreach (['must_flags', 'must_facts', 'forbidden'] as $bucket) {
+            foreach ($spec[$bucket] ?? [] as $label => $pattern) {
                 expect(@preg_match($pattern, ''))
                     ->not->toBeFalse("{$profile}.{$bucket}.{$label} is not a valid regex");
             }
         }
+    }
+});
+
+it('gives every profile at least one document-comprehension fact', function () use ($expectations) {
+    foreach ($expectations as $profile => $spec) {
+        expect($spec['must_facts'] ?? [])
+            ->not->toBeEmpty("{$profile} should reward reading its documents");
     }
 });
 

@@ -13,9 +13,10 @@ namespace App\Screening;
  * side-effecting half (build applications, call the model); this owns the maths.
  *
  * The thresholds mirror the exit criteria in `ralph.md`: a profile passes when its
- * MEDIAN fit_score sits in band, every expected rubric assessment and must-flag
- * holds in at least two-thirds of samples, no forbidden (protected-class) language
- * appears in ANY sample, and every sample passed the validator on the first try.
+ * MEDIAN fit_score sits in band, every expected rubric assessment, must-flag, and
+ * document-grounding fact (must_facts — the comprehension reward) holds in at least
+ * two-thirds of samples, no forbidden (protected-class) language appears in ANY
+ * sample, and every sample passed the validator on the first try.
  */
 class PromptEvaluation
 {
@@ -29,7 +30,7 @@ class PromptEvaluation
     /**
      * Evaluate one profile's samples against its expectation.
      *
-     * @param  array{fit_min: int, fit_max: int, rubric?: array<string, list<string>>, must_flags?: array<string, string>, forbidden?: array<string, string>}  $expectation
+     * @param  array{fit_min: int, fit_max: int, rubric?: array<string, list<string>>, must_flags?: array<string, string>, must_facts?: array<string, string>, forbidden?: array<string, string>}  $expectation
      * @param  list<array{fit_score: int|null, rubric: array<string, string>, text: string, first_pass: bool, completed: bool}>  $samples
      * @return array{
      *     profile: string,
@@ -41,6 +42,7 @@ class PromptEvaluation
      *     fit_in_band: bool,
      *     rubric: array<string, array{allowed: list<string>, distribution: array<string, int>, hits: int, rate: float, pass: bool}>,
      *     must_flags: array<string, array{hits: int, rate: float, pass: bool}>,
+     *     comprehension: array<string, array{hits: int, rate: float, pass: bool}>,
      *     forbidden: list<array{label: string, sample: int}>,
      *     validator_first_pass_rate: float,
      *     validator_pass: bool,
@@ -66,13 +68,16 @@ class PromptEvaluation
 
         $rubric = self::gradeRubric($expectation['rubric'] ?? [], $samples);
         $mustFlags = self::gradeMustFlags($expectation['must_flags'] ?? [], $samples);
+        // Document-grounding reward: facts drawn from the source documents that a
+        // comprehending summary must surface. Graded the same way as must-flags.
+        $comprehension = self::gradeMustFlags($expectation['must_facts'] ?? [], $samples);
         $forbidden = self::scanForbidden($expectation['forbidden'] ?? [], $samples);
 
         $firstPassCount = count(array_filter($samples, fn (array $s): bool => $s['first_pass']));
         $firstPassRate = $total === 0 ? 0.0 : $firstPassCount / $total;
         $validatorPass = $total > 0 && $firstPassCount === $total;
 
-        $reasons = self::reasons($median, $expectation, $fitInBand, $rubric, $mustFlags, $forbidden, $firstPassRate, $validatorPass);
+        $reasons = self::reasons($median, $expectation, $fitInBand, $rubric, $mustFlags, $comprehension, $forbidden, $firstPassRate, $validatorPass);
 
         return [
             'profile' => $profile,
@@ -84,6 +89,7 @@ class PromptEvaluation
             'fit_in_band' => $fitInBand,
             'rubric' => $rubric,
             'must_flags' => $mustFlags,
+            'comprehension' => $comprehension,
             'forbidden' => $forbidden,
             'validator_first_pass_rate' => $firstPassRate,
             'validator_pass' => $validatorPass,
@@ -198,6 +204,7 @@ class PromptEvaluation
      * @param  array{fit_min: int, fit_max: int}  $expectation
      * @param  array<string, array{allowed: list<string>, distribution: array<string, int>, hits: int, rate: float, pass: bool}>  $rubric
      * @param  array<string, array{hits: int, rate: float, pass: bool}>  $mustFlags
+     * @param  array<string, array{hits: int, rate: float, pass: bool}>  $comprehension
      * @param  list<array{label: string, sample: int}>  $forbidden
      * @return list<string>
      */
@@ -207,6 +214,7 @@ class PromptEvaluation
         bool $fitInBand,
         array $rubric,
         array $mustFlags,
+        array $comprehension,
         array $forbidden,
         float $firstPassRate,
         bool $validatorPass,
@@ -233,6 +241,12 @@ class PromptEvaluation
         foreach ($mustFlags as $label => $grade) {
             if (! $grade['pass']) {
                 $reasons[] = "must-flag \"{$label}\" surfaced in only ".self::percent($grade['rate']).' of samples';
+            }
+        }
+
+        foreach ($comprehension as $label => $grade) {
+            if (! $grade['pass']) {
+                $reasons[] = "comprehension: document fact \"{$label}\" surfaced in only ".self::percent($grade['rate']).' of samples';
             }
         }
 

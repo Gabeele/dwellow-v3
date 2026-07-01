@@ -94,6 +94,45 @@ test('a must-flag surfacing in fewer than two-thirds of samples fails', function
     expect($result['pass'])->toBeFalse();
 });
 
+test('a document fact (comprehension) missing from most samples fails', function () {
+    $expectation = [
+        'fit_min' => 0, 'fit_max' => 100, 'rubric' => [], 'must_flags' => [],
+        'must_facts' => ['credit standing' => '/\b(762|very good)\b/i'],
+        'forbidden' => [],
+    ];
+
+    $samples = [
+        sample(85, [], 'Credit is 762, Very Good.'),
+        sample(85, [], 'Score looks fine overall.'),
+        sample(85, [], 'Application is complete.'),
+    ];
+
+    $result = PromptEvaluation::evaluate('strong', $expectation, $samples);
+
+    expect($result['comprehension']['credit standing']['pass'])->toBeFalse()
+        ->and($result['pass'])->toBeFalse()
+        ->and($result['reasons'])->toContain('comprehension: document fact "credit standing" surfaced in only 33% of samples');
+});
+
+test('a document fact surfaced in enough samples passes comprehension', function () {
+    $expectation = [
+        'fit_min' => 0, 'fit_max' => 100, 'rubric' => [], 'must_flags' => [],
+        'must_facts' => ['credit standing' => '/\b(762|very good)\b/i'],
+        'forbidden' => [],
+    ];
+
+    $samples = [
+        sample(85, [], 'Credit 762 (Very Good) on the report.'),
+        sample(85, [], 'The report shows a 762 score.'),
+        sample(85, [], 'No comment on credit.'),
+    ];
+
+    $result = PromptEvaluation::evaluate('strong', $expectation, $samples);
+
+    expect($result['comprehension']['credit standing']['pass'])->toBeTrue()
+        ->and($result['pass'])->toBeTrue();
+});
+
 test('any forbidden hit is an automatic fail listed first', function () {
     $expectation = [
         'fit_min' => 0, 'fit_max' => 100, 'rubric' => [], 'must_flags' => [],

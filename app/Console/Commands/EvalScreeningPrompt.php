@@ -244,6 +244,7 @@ class EvalScreeningPrompt extends Command
                 "{$result['fit_min']}–{$result['fit_max']}",
                 $this->tally($result['rubric']),
                 $this->tally($result['must_flags']),
+                $this->tally($result['comprehension']),
                 $result['forbidden'] === [] ? '0' : (string) count($result['forbidden']),
                 round($result['validator_first_pass_rate'] * 100).'%',
                 $result['pass'] ? 'PASS' : 'FAIL',
@@ -252,7 +253,7 @@ class EvalScreeningPrompt extends Command
 
         $this->newLine();
         $this->table(
-            ['Profile', 'Median', 'Band', 'Rubric', 'Flags', 'Forbidden', '1st-pass', 'Verdict'],
+            ['Profile', 'Median', 'Band', 'Rubric', 'Flags', 'Comp', 'Forbidden', '1st-pass', 'Verdict'],
             $rows,
         );
 
@@ -346,14 +347,15 @@ class EvalScreeningPrompt extends Command
             "- **Samples per profile:** {$data['samples']}",
             "- **Passed:** {$data['passed']}/{$data['total']}",
             '',
-            '| Profile | Median fit | Band | Rubric | Must-flags | Forbidden | 1st-pass | Verdict |',
-            '| --- | --- | --- | --- | --- | --- | --- | --- |',
+            '| Profile | Median fit | Band | Rubric | Must-flags | Comprehension | Forbidden | 1st-pass | Verdict |',
+            '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
         ];
 
         foreach ($data['results'] as $r) {
             $median = $r['median_fit'] === null ? 'n/a' : (string) $r['median_fit'];
             $lines[] = "| {$r['profile']} | {$median} | {$r['fit_min']}–{$r['fit_max']} | "
                 .$this->tally($r['rubric']).' | '.$this->tally($r['must_flags']).' | '
+                .$this->tally($r['comprehension']).' | '
                 .count($r['forbidden']).' | '.round($r['validator_first_pass_rate'] * 100).'% | '
                 .($r['pass'] ? 'PASS' : 'FAIL').' |';
         }
@@ -387,6 +389,15 @@ class EvalScreeningPrompt extends Command
                 $lines[] = '| Must-flag | Hit rate | Hold |';
                 $lines[] = '| --- | --- | --- |';
                 foreach ($r['must_flags'] as $label => $grade) {
+                    $lines[] = "| {$label} | ".round($grade['rate'] * 100).'% | '.($grade['pass'] ? '✓' : '✗').' |';
+                }
+            }
+
+            if ($r['comprehension'] !== []) {
+                $lines[] = '';
+                $lines[] = '| Document fact (comprehension) | Hit rate | Hold |';
+                $lines[] = '| --- | --- | --- |';
+                foreach ($r['comprehension'] as $label => $grade) {
                     $lines[] = "| {$label} | ".round($grade['rate'] * 100).'% | '.($grade['pass'] ? '✓' : '✗').' |';
                 }
             }
