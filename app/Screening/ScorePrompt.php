@@ -2,6 +2,7 @@
 
 namespace App\Screening;
 
+use App\Enums\CriterionAssessment;
 use App\Models\Application;
 use Illuminate\JsonSchema\JsonSchema;
 
@@ -62,6 +63,9 @@ class ScorePrompt
     {
         $permissible = self::bullets(self::PERMISSIBLE_FACTORS);
         $protected = self::bullets(self::PROTECTED_CLASSES);
+        $criteria = ScoringFramework::promptLines();
+        $criterionKeys = implode(', ', ScoringFramework::keys());
+        $assessments = implode(', ', CriterionAssessment::values());
 
         return <<<PROMPT
             You are dwellow's rental-application screening assistant. You produce a
@@ -85,11 +89,43 @@ class ScorePrompt
             If a permissible factor cannot be judged from the information given, say so
             neutrally rather than guessing.
 
+            CROSS-REFERENCE THE EVIDENCE (this is how you grade the rubric)
+            Read the documents and reconcile them against the applicant's stated
+            answers and against the unit before grading. In particular:
+            - Identity: does the name/date of birth on the photo ID match the answers?
+            - Income: does the pay stub / employment letter corroborate the stated
+              gross income? Compute rent-to-income against the unit's rent.
+            - Credit: does any credit report match the self-reported credit range?
+            - Occupancy: compare the number of occupants to the unit's bedroom count.
+            - Note material disclosures (pets, smoking, prior evictions).
+            Do the arithmetic before asserting a mismatch — e.g. a monthly figure
+            times twelve should match an annual one; do not invent contradictions.
+
+            SCORING FRAMEWORK (grade every criterion, the same way every time)
+            Grade EACH of these eight criteria — always all eight, in this order:
+            {$criteria}
+            Give each criterion exactly one assessment from this fixed scale:
+            - "strong"     — clearly supports the tenancy
+            - "adequate"   — acceptable, no real concern
+            - "weak"       — a concern that counts against the application
+            - "unverified" — missing or unreadable information; judged neither way
+
             RESPONSE CONTRACT
             Return a JSON object with exactly these keys:
-            - "fit_score": integer 0-100 — overall fit using permissible factors only.
-            - "score_rationale": string — one sentence explaining the fit_score.
-            - "summary": string — 2-3 neutral sentences summarising the application.
+            - "fit_score": integer 0-100 — overall fit, CONSISTENT with the rubric:
+              more "strong" pushes it up, "weak" pulls it down; "unverified" is
+              cautionary, not a penalty. Use permissible factors only.
+            - "score_rationale": string — ONE short sentence on why the score is what it is.
+            - "summary": string — 2-4 neutral sentences ANALYSING the application
+              (matches, mismatches, rent-to-income, occupancy, notable disclosures) —
+              not a restatement of the answers.
+            - "rubric": array of EXACTLY the eight criteria above, in the same order.
+              Each object has:
+                - "criterion": one of: {$criterionKeys}.
+                - "assessment": one of: {$assessments}.
+                - "note": a very short phrase (≤ 8 words) giving the concrete reason,
+                  e.g. "~24% of gross" or "no references provided". Do NOT restate the
+                  red_flags here — this is the calculation, not the concerns list.
             - "red_flags": array of strings — permissible concerns; empty array if none.
             - "strengths": array of strings — permissible positives; empty array if none.
             PROMPT;
@@ -101,6 +137,7 @@ class ScorePrompt
      */
     public static function forApplication(Application $application, string $documentText = ''): string
     {
+        $unit = self::renderUnit($application);
         $answers = self::renderAnswers($application);
         $documents = trim($documentText) === ''
             ? 'No document text was provided.'
@@ -109,12 +146,50 @@ class ScorePrompt
         return <<<PROMPT
             Score the following rental application.
 
+            === UNIT (what the applicant is applying for) ===
+            {$unit}
+
             === APPLICATION ANSWERS ===
             {$answers}
 
             === DOCUMENT TEXT (extracted, unverified) ===
             {$documents}
             PROMPT;
+    }
+
+    /**
+     * Render the applied-for unit so the model can judge rent-to-income and
+     * occupancy against the actual unit, not in a vacuum.
+     */
+    private static function renderUnit(Application $application): string
+    {
+        // Read an already-loaded relation directly; only touch the database when
+        // the application is persisted (it always is during real scoring) so the
+        // prompt builder stays usable on in-memory models in unit tests.
+        if ($application->relationLoaded('unit')) {
+            $unit = $application->unit;
+        } elseif ($application->exists) {
+            $unit = $application->loadMissing('unit')->unit;
+        } else {
+            $unit = null;
+        }
+
+        if ($unit === null) {
+            return 'No unit details were provided.';
+        }
+
+        $bedrooms = $unit->bedrooms === null ? 'not specified' : (string) $unit->bedrooms;
+        $bathrooms = $unit->bathrooms === null ? 'not specified' : (string) $unit->bathrooms;
+        $rent = $unit->rent_amount === null
+            ? 'not specified'
+            : '$'.number_format((float) $unit->rent_amount, 2).' / month';
+
+        return implode("\n", [
+            'Unit: '.($unit->label ?? '—'),
+            "Bedrooms: {$bedrooms}",
+            "Bathrooms: {$bathrooms}",
+            "Monthly rent: {$rent}",
+        ]);
     }
 
     /**
@@ -126,9 +201,14 @@ class ScorePrompt
     public static function schema(): \Closure
     {
         return fn ($schema): array => [
-            'fit_score' => $schema->integer()->min(0)->max(100)->description('Overall fit 0-100 using permissible factors only.'),
-            'score_rationale' => $schema->string()->description('One sentence explaining the fit_score.'),
-            'summary' => $schema->string()->description('2-3 neutral sentences summarising the application.'),
+            'fit_score' => $schema->integer()->min(0)->max(100)->description('Overall fit 0-100, consistent with the rubric.'),
+            'score_rationale' => $schema->string()->description('One short sentence on why the score is what it is.'),
+            'summary' => $schema->string()->description('2-4 neutral sentences analysing the application (matches, mismatches, rent-to-income, occupancy, disclosures).'),
+            'rubric' => $schema->array()->items($schema->object([
+                'criterion' => $schema->string()->enum(ScoringFramework::keys())->description('The scoring-framework criterion.'),
+                'assessment' => $schema->string()->enum(CriterionAssessment::values())->description('The verdict for this criterion.'),
+                'note' => $schema->string()->description('A very short phrase (≤ 8 words) giving the concrete reason.'),
+            ]))->description('Exactly the eight framework criteria, in order, each graded.'),
             'red_flags' => $schema->array()->items($schema->string())->description('Permissible concerns; empty if none.'),
             'strengths' => $schema->array()->items($schema->string())->description('Permissible positives; empty if none.'),
         ];

@@ -8,9 +8,10 @@ use App\Models\Application;
 use App\Models\Property;
 use App\Models\Unit;
 use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -31,7 +32,7 @@ class DashboardController extends Controller
         // queries (and vice versa). See the Agents activity table polling.
         return Inertia::render('Dashboard', [
             'stats' => fn (): ?array => $user->isLandlord() ? $this->portfolioStats($user) : null,
-            'agents' => fn (): Collection => $user->isLandlord() ? $this->recentAgents($user) : collect(),
+            'agents' => fn (): LengthAwarePaginator => $this->recentAgents($user),
         ]);
     }
 
@@ -84,12 +85,20 @@ class DashboardController extends Controller
      * the dashboard "Agents" activity table. Eager-loads the polymorphic
      * subject so the label/url accessors don't N+1 query per row.
      *
-     * @return Collection<int, array{id: int, type: string, type_label: string, status: string, status_label: string, subject_label: string|null, url: string|null, started_at: string|null, completed_at: string|null}>
+     * Paginated at 10 per page (newest first) under the `agentPage` query key, so
+     * the dashboard shows the latest runs and the table can page back through the
+     * history without flooding the landing render.
+     *
+     * @return LengthAwarePaginator<int, array{id: int, type: string, type_label: string, subject_type_label: string|null, subject_status: string|null, subject_status_label: string|null, subject_submitted_at: string|null, fit_score: int|null, status: string, status_label: string, subject_label: string|null, url: string|null, created_at: string|null, started_at: string|null, completed_at: string|null}>
      */
-    private function recentAgents(User $user): Collection
+    private function recentAgents(User $user): LengthAwarePaginator
     {
         return Agent::query()
-            ->with('analyzable')
+            // Eager-load the subject and (for applications) its Score, so the row's
+            // application status and fit score don't N+1 query per agent.
+            ->with(['analyzable' => fn (MorphTo $morphTo) => $morphTo->morphWith([
+                Application::class => ['score'],
+            ])])
             ->whereHasMorph(
                 'analyzable',
                 [Application::class],
@@ -100,18 +109,30 @@ class DashboardController extends Controller
             )
             ->latest()
             ->latest('id')
-            ->limit(10)
-            ->get()
-            ->map(fn (Agent $agent): array => [
-                'id' => $agent->id,
-                'type' => $agent->type->value,
-                'type_label' => $agent->type->label(),
-                'status' => $agent->status->value,
-                'status_label' => $agent->status->label(),
-                'subject_label' => $agent->subject_label,
-                'url' => $agent->result_url,
-                'started_at' => $agent->started_at?->toIso8601String(),
-                'completed_at' => $agent->completed_at?->toIso8601String(),
-            ]);
+            ->paginate(10, ['*'], 'agentPage')
+            ->through(function (Agent $agent): array {
+                $application = $agent->analyzable instanceof Application ? $agent->analyzable : null;
+
+                return [
+                    'id' => $agent->id,
+                    'type' => $agent->type->value,
+                    'type_label' => $agent->type->label(),
+                    // The kind of subject the agent ran against (e.g. "Application").
+                    'subject_type_label' => $application !== null ? class_basename($application) : null,
+                    // The subject application's own workflow status, and the fit
+                    // score the run produced (null until it completes).
+                    'subject_status' => $application?->status->value,
+                    'subject_status_label' => $application?->status->label(),
+                    'subject_submitted_at' => $application?->submitted_at?->toIso8601String(),
+                    'fit_score' => $application?->score?->fit_score,
+                    'status' => $agent->status->value,
+                    'status_label' => $agent->status->label(),
+                    'subject_label' => $agent->subject_label,
+                    'url' => $agent->result_url,
+                    'created_at' => $agent->created_at?->toIso8601String(),
+                    'started_at' => $agent->started_at?->toIso8601String(),
+                    'completed_at' => $agent->completed_at?->toIso8601String(),
+                ];
+            });
     }
 }

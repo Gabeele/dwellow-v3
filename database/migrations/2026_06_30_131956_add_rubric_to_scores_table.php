@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('scores', function (Blueprint $table) {
+            // The Score's reasoning rubric: the fixed scoring framework rendered
+            // as an ordered list of {criterion, assessment, note} objects — the
+            // same landlord criteria assessed on every application so scores stay
+            // consistent and comparable. See App\Screening\ScoringFramework.
+            $table->json('rubric')->nullable()->after('summary');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('scores', function (Blueprint $table) {
+            $table->dropColumn('rubric');
+        });
+    }
+};

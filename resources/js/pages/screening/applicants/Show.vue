@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { Head, router, useForm, usePoll } from '@inertiajs/vue3';
 import {
+    ArrowRight,
     Ban,
     CircleCheck,
     CreditCard,
+    Eye,
     FileText,
+    Inbox,
+    Info,
+    ScanSearch,
     ScrollText,
     ShieldAlert,
     ShieldCheck,
@@ -13,14 +18,16 @@ import {
     Trash2,
     TrendingDown,
     TrendingUp,
+    TriangleAlert,
 } from '@lucide/vue';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import ApplicationController from '@/actions/App/Http/Controllers/ApplicationController';
 import DocumentController from '@/actions/App/Http/Controllers/DocumentController';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import ScoreGauge from '@/components/ScoreGauge.vue';
+import ScoreRubricHover from '@/components/ScoreRubricHover.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +48,7 @@ import { formatCurrency } from '@/lib/currency';
 import { index } from '@/routes/properties';
 import { index as applicantsIndex } from '@/routes/units/applicants';
 import type {
+    Activity,
     AnswerValue,
     Application,
     Document,
@@ -60,6 +68,8 @@ const props = defineProps<{
     documents: Document[];
     statuses: StatusOption[];
     otherActiveCount: number;
+    // The application's activity timeline, newest first.
+    activities: Activity[];
     // The score agent's run status (null until an agent has run) and the Score
     // payload (null until the run completes) drive the three-state Score panel.
     scoreStatus: ScoreStatus | null;
@@ -75,6 +85,102 @@ function saveReview(): void {
     reviewForm.put(ApplicationController.update.url(props.application.id), {
         preserveScroll: true,
     });
+}
+
+// Mark a New application as read once the landlord has actually sat on the page
+// for a moment. The delay keeps an Inertia link prefetch or an accidental glance
+// from clearing the New badge; opening a Reviewing/decided application is a no-op
+// server-side, so re-visits never rewind the status.
+let markReadTimer: ReturnType<typeof setTimeout> | undefined;
+
+onMounted(() => {
+    if (props.application.status !== 'new') {
+        return;
+    }
+
+    markReadTimer = setTimeout(() => {
+        router.post(
+            ApplicationController.markRead.url(props.application.id),
+            {},
+            { preserveScroll: true, preserveState: true },
+        );
+    }, 1500);
+});
+
+onUnmounted(() => clearTimeout(markReadTimer));
+
+// Icon + tint for each activity type on the timeline.
+const activityIconMeta: Record<
+    string,
+    { icon: typeof CircleCheck; tone: string }
+> = {
+    submitted: { icon: Inbox, tone: 'bg-muted text-muted-foreground' },
+    analysis_started: { icon: ScanSearch, tone: 'bg-ai-tint text-ai' },
+    analysis_completed: {
+        icon: CircleCheck,
+        tone: 'bg-success/10 text-success',
+    },
+    analysis_failed: {
+        icon: TriangleAlert,
+        tone: 'bg-warning/10 text-warning',
+    },
+    marked_reviewing: { icon: Eye, tone: 'bg-ai-tint text-ai' },
+    status_changed: {
+        icon: ArrowRight,
+        tone: 'bg-muted text-muted-foreground',
+    },
+    approved: { icon: CircleCheck, tone: 'bg-success/10 text-success' },
+    rejected: { icon: Ban, tone: 'bg-destructive/10 text-destructive' },
+};
+
+function activityMeta(type: string): {
+    icon: typeof CircleCheck;
+    tone: string;
+} {
+    return (
+        activityIconMeta[type] ?? {
+            icon: Info,
+            tone: 'bg-muted text-muted-foreground',
+        }
+    );
+}
+
+/** Who performed the activity: the named user, or dwellow / the applicant. */
+function activityActor(activity: Activity): string {
+    if (activity.causer) {
+        return activity.causer;
+    }
+
+    return activity.is_system ? 'Dwellow AI' : 'Applicant';
+}
+
+/** A coarse "5m ago" relative time, falling back to a date past 30 days. */
+function relativeTime(iso: string | null): string {
+    if (!iso) {
+        return '';
+    }
+
+    const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+
+    if (seconds < 45) {
+        return 'just now';
+    }
+
+    const minutes = Math.round(seconds / 60);
+
+    if (minutes < 60) {
+        return `${minutes}m ago`;
+    }
+
+    const hours = Math.round(minutes / 60);
+
+    if (hours < 24) {
+        return `${hours}h ago`;
+    }
+
+    const days = Math.round(hours / 24);
+
+    return days < 30 ? `${days}d ago` : dateFormatter.format(new Date(iso));
 }
 
 // Decision dialogs — approve / decline / delete each confirm before acting.
@@ -178,10 +284,7 @@ const scoreState = computed<'idle' | 'processing' | 'scored' | 'failed'>(() => {
         return 'failed';
     }
 
-    if (
-        props.scoreStatus === 'pending' ||
-        props.scoreStatus === 'processing'
-    ) {
+    if (props.scoreStatus === 'pending' || props.scoreStatus === 'processing') {
         return 'processing';
     }
 
@@ -472,12 +575,23 @@ function formatSize(bytes: number | null): string {
                     <CardContent
                         class="flex flex-col gap-6 sm:flex-row sm:items-center"
                     >
-                        <!-- Fit score gauge — the AI Score's headline number. -->
+                        <!-- Fit score gauge — the AI Score's headline number.
+                             Hover reveals the scoring framework: where the number
+                             comes from, criterion by criterion. -->
                         <div class="flex shrink-0 flex-col items-center gap-1">
-                            <ScoreGauge
-                                v-if="scoreState === 'scored' && score?.fit_score !== null"
-                                :score="score!.fit_score!"
-                            />
+                            <ScoreRubricHover
+                                v-if="
+                                    scoreState === 'scored' &&
+                                    score?.fit_score !== null
+                                "
+                                :rationale="score!.score_rationale"
+                                :rubric="score!.rubric"
+                            >
+                                <ScoreGauge
+                                    :score="score!.fit_score!"
+                                    class="cursor-help"
+                                />
+                            </ScoreRubricHover>
                             <Skeleton
                                 v-else-if="scoreState === 'processing'"
                                 class="size-30 rounded-full"
@@ -492,6 +606,14 @@ function formatSize(bytes: number | null): string {
                                 class="text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
                             >
                                 Fit score
+                            </span>
+                            <!-- Discoverability: tell the user the score is hoverable. -->
+                            <span
+                                v-if="scoreState === 'scored'"
+                                class="inline-flex items-center gap-1 text-[10px] text-muted-foreground"
+                            >
+                                <Info class="size-3" />
+                                Hover for details
                             </span>
                         </div>
 
@@ -611,8 +733,8 @@ function formatSize(bytes: number | null): string {
                             class="text-sm text-muted-foreground"
                         >
                             The Score couldn't be generated for this
-                            application. dwellow will retry automatically — check
-                            back shortly.
+                            application. dwellow will retry automatically —
+                            check back shortly.
                         </p>
 
                         <!-- Idle: no agent has run yet for this application. -->
@@ -638,6 +760,10 @@ function formatSize(bytes: number | null): string {
                             >
                                 {{ score!.summary }}
                             </p>
+
+                            <!-- The criteria breakdown (where the number comes
+                                 from) lives on the score gauge's hover tooltip;
+                                 the panel keeps the summary, flags, and strengths. -->
 
                             <!-- Flags — permissible concerns, emphasised. -->
                             <div
@@ -675,9 +801,8 @@ function formatSize(bytes: number | null): string {
                                 </span>
                                 <ul class="flex flex-col gap-2">
                                     <li
-                                        v-for="(
-                                            strength, idx
-                                        ) in score!.strengths"
+                                        v-for="(strength, idx) in score!
+                                            .strengths"
                                         :key="`strength-${idx}`"
                                         class="flex items-start gap-2 text-sm text-foreground"
                                     >
@@ -834,6 +959,49 @@ function formatSize(bytes: number | null): string {
                         </CardContent>
                     </Card>
                 </div>
+
+                <!-- Activity timeline — the application's history, newest first.
+                     Everything that happens (submission, AI analysis, status
+                     changes, decisions) lands here, attributed to who did it. -->
+                <Card v-if="activities.length">
+                    <CardHeader>
+                        <CardTitle>Activity</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <ol class="flex flex-col">
+                            <li
+                                v-for="(activity, idx) in activities"
+                                :key="activity.id"
+                                class="relative flex gap-3 pb-5 last:pb-0"
+                            >
+                                <span
+                                    v-if="idx < activities.length - 1"
+                                    class="absolute top-7 left-3.5 -z-10 h-full w-px -translate-x-1/2 bg-border"
+                                />
+                                <span
+                                    :class="[
+                                        'flex size-7 shrink-0 items-center justify-center rounded-full',
+                                        activityMeta(activity.type).tone,
+                                    ]"
+                                >
+                                    <component
+                                        :is="activityMeta(activity.type).icon"
+                                        class="size-3.5"
+                                    />
+                                </span>
+                                <div class="flex flex-col gap-0.5 pt-0.5">
+                                    <span class="text-sm text-foreground">
+                                        {{ activity.description }}
+                                    </span>
+                                    <span class="text-13 text-muted-foreground">
+                                        {{ activityActor(activity) }} ·
+                                        {{ relativeTime(activity.created_at) }}
+                                    </span>
+                                </div>
+                            </li>
+                        </ol>
+                    </CardContent>
+                </Card>
 
                 <!-- Full submitted application (the snapshot taken at submit time). -->
                 <Card>

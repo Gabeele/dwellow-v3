@@ -2,6 +2,7 @@
 
 namespace App\Screening;
 
+use App\Enums\ActivityType;
 use App\Enums\AgentStatus;
 use App\Enums\AgentType;
 use App\Models\Agent;
@@ -71,12 +72,12 @@ class ApplicationScoringService implements AgentHandler
             }
 
             if (! $result->valid) {
-                return $this->failAgent($agent, $response, $result->errors);
+                return $this->failAgent($application, $agent, $response, $result->errors);
             }
 
             return $this->completeAgent($application, $agent, $response, $result->value);
         } catch (Throwable $exception) {
-            return $this->failAgent($agent, null, [$exception->getMessage()]);
+            return $this->failAgent($application, $agent, null, [$exception->getMessage()]);
         }
     }
 
@@ -95,13 +96,15 @@ class ApplicationScoringService implements AgentHandler
         $agent->error = null;
         $agent->save();
 
+        $application->recordActivity(ActivityType::AnalysisStarted, 'AI analysis started');
+
         return $agent;
     }
 
     /**
      * Persist the validated Score (1:1) and mark the Agent completed.
      *
-     * @param  array{fit_score: int, score_rationale: string, summary: string, red_flags: list<string>, strengths: list<string>}  $value
+     * @param  array{fit_score: int, score_rationale: string, summary: string, rubric: list<array{criterion: string, assessment: string, note: string}>, red_flags: list<string>, strengths: list<string>}  $value
      */
     private function completeAgent(
         Application $application,
@@ -122,6 +125,12 @@ class ApplicationScoringService implements AgentHandler
         $score->fill($value);
         $score->save();
 
+        $application->recordActivity(
+            ActivityType::AnalysisCompleted,
+            "AI analysis completed — fit score {$score->fit_score}",
+            ['fit_score' => $score->fit_score],
+        );
+
         return $agent;
     }
 
@@ -130,7 +139,7 @@ class ApplicationScoringService implements AgentHandler
      *
      * @param  list<string>  $errors
      */
-    private function failAgent(Agent $agent, ?StructuredAgentResponse $response, array $errors): Agent
+    private function failAgent(Application $application, Agent $agent, ?StructuredAgentResponse $response, array $errors): Agent
     {
         $agent->status = AgentStatus::Failed;
         $agent->model = $response?->meta->model ?? $agent->model;
@@ -138,6 +147,8 @@ class ApplicationScoringService implements AgentHandler
         $agent->error = implode(' ', $errors);
         $agent->completed_at = now();
         $agent->save();
+
+        $application->recordActivity(ActivityType::AnalysisFailed, 'AI analysis could not be completed');
 
         return $agent;
     }

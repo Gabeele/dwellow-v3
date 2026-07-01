@@ -58,6 +58,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('properties/{property}/applicants', [ApplicationController::class, 'indexForProperty'])->name('properties.applicants.index');
     Route::get('units/{unit}/applicants', [ApplicationController::class, 'index'])->name('units.applicants.index');
     Route::get('applicants/{application}', [ApplicationController::class, 'show'])->name('applicants.show');
+    Route::post('applicants/{application}/read', [ApplicationController::class, 'markRead'])->name('applicants.read');
     Route::put('applicants/{application}', [ApplicationController::class, 'update'])->name('applicants.update');
     Route::post('applicants/{application}/approve', [ApplicationController::class, 'approve'])->name('applicants.approve');
     Route::post('applicants/{application}/reject', [ApplicationController::class, 'reject'])->name('applicants.reject');

@@ -13,7 +13,7 @@ uses(RefreshDatabase::class);
 /**
  * A valid Score payload matching the locked response contract.
  *
- * @return array{fit_score: int, score_rationale: string, summary: string, red_flags: list<string>, strengths: list<string>}
+ * @return array{fit_score: int, score_rationale: string, summary: string, rubric: list<array{criterion: string, assessment: string, note: string}>, red_flags: list<string>, strengths: list<string>}
  */
 function completedScorePayload(): array
 {
@@ -21,6 +21,16 @@ function completedScorePayload(): array
         'fit_score' => 82,
         'score_rationale' => 'Stable income comfortably covers the rent.',
         'summary' => 'The applicant reports steady employment and references. Income is well above the rent-to-income threshold. The application is complete and consistent.',
+        'rubric' => [
+            ['criterion' => 'affordability', 'assessment' => 'strong', 'note' => 'under 30% of gross'],
+            ['criterion' => 'employment', 'assessment' => 'strong', 'note' => 'stable full-time'],
+            ['criterion' => 'credit', 'assessment' => 'adequate', 'note' => 'good'],
+            ['criterion' => 'references', 'assessment' => 'strong', 'note' => 'two contactable'],
+            ['criterion' => 'rental_history', 'assessment' => 'adequate', 'note' => 'no issues'],
+            ['criterion' => 'occupancy', 'assessment' => 'strong', 'note' => 'fits the unit'],
+            ['criterion' => 'identity', 'assessment' => 'strong', 'note' => 'ID matches'],
+            ['criterion' => 'disclosures', 'assessment' => 'adequate', 'note' => 'no pets'],
+        ],
         'red_flags' => ['Requested move-in date is before the unit is available.'],
         'strengths' => ['Rent-to-income ratio under 30%', 'Two contactable references provided'],
     ];
@@ -47,6 +57,7 @@ it('completes the agent and persists the Score on the happy path', function () {
         ->and($score->fit_score)->toBe(82)
         ->and($score->score_rationale)->toBe(completedScorePayload()['score_rationale'])
         ->and($score->summary)->toBe(completedScorePayload()['summary'])
+        ->and($score->rubric)->toBe(completedScorePayload()['rubric'])
         ->and($score->red_flags)->toBe(completedScorePayload()['red_flags'])
         ->and($score->strengths)->toBe(completedScorePayload()['strengths'])
         ->and($score->agent_id)->toBe($agent->id);

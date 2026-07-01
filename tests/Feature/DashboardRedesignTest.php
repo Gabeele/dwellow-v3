@@ -111,7 +111,8 @@ test('a verified non-landlord user sees no stats', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Dashboard')
             ->where('stats', null)
-            ->where('agents', [])
+            ->where('agents.total', 0)
+            ->has('agents.data', 0)
         );
 });
 
@@ -131,15 +132,17 @@ test('the dashboard surfaces the landlord\'s recent agent runs newest first', fu
         ->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
             ->component('Dashboard')
-            ->has('agents', 2)
+            ->has('agents.data', 2)
             // Newest first.
-            ->where('agents.0.id', $newerAgent->id)
-            ->where('agents.0.status', 'processing')
-            ->where('agents.0.type', 'score')
-            ->where('agents.0.subject_label', $newer->agentLabel())
-            ->where('agents.0.url', $newer->agentUrl())
-            ->where('agents.1.id', $olderAgent->id)
-            ->where('agents.1.status', 'completed')
+            ->where('agents.data.0.id', $newerAgent->id)
+            ->where('agents.data.0.status', 'processing')
+            ->where('agents.data.0.type', 'score')
+            ->where('agents.data.0.subject_type_label', 'Application')
+            ->where('agents.data.0.subject_label', $newer->agentLabel())
+            ->where('agents.data.0.url', $newer->agentUrl())
+            ->whereNotNull('agents.data.0.created_at')
+            ->where('agents.data.1.id', $olderAgent->id)
+            ->where('agents.data.1.status', 'completed')
         );
 });
 
@@ -167,8 +170,8 @@ test('the dashboard agents dataset is scoped to the current landlord', function 
         ->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
             ->component('Dashboard')
-            ->has('agents', 1)
-            ->where('agents.0.subject_label', $mine->agentLabel())
+            ->has('agents.data', 1)
+            ->where('agents.data.0.subject_label', $mine->agentLabel())
         );
 });
 
@@ -191,6 +194,6 @@ test('the dashboard agents prop reloads in isolation for polling', function () {
         ->get(route('dashboard'), partialReloadHeaders('Dashboard', 'agents'))
         ->assertOk()
         ->assertJsonPath('component', 'Dashboard')
-        ->assertJsonCount(1, 'props.agents')
+        ->assertJsonCount(1, 'props.agents.data')
         ->assertJsonMissingPath('props.stats');
 });

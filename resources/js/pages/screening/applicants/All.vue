@@ -6,6 +6,7 @@ import DataTable from '@/components/DataTable.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import Pagination from '@/components/Pagination.vue';
+import ScoreRubricHover from '@/components/ScoreRubricHover.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import TableRow from '@/components/TableRow.vue';
 import { Input } from '@/components/ui/input';
@@ -100,6 +101,21 @@ function submittedOn(application: ApplicationRow): string {
     return application.submitted_at
         ? dateFormatter.format(new Date(application.submitted_at))
         : '—';
+}
+
+/** Tone for the compact fit-score badge, mirroring the gauge thresholds. */
+function fitBadgeClasses(score: number | null): string {
+    if (score === null) {
+        return 'text-muted-foreground ring-border';
+    }
+
+    if (score >= 70) {
+        return 'text-success ring-success/30';
+    }
+
+    return score >= 55
+        ? 'text-warning ring-warning/30'
+        : 'text-destructive ring-destructive/30';
 }
 
 const statusLabel = computed(() =>
@@ -219,6 +235,7 @@ const exportHref = computed(
         <DataTable v-else>
             <template #head>
                 <th class="px-4 py-3 font-medium">Applicant</th>
+                <th class="px-4 py-3 font-medium">Fit</th>
                 <th class="px-4 py-3 font-medium">Property · Unit</th>
                 <th class="px-4 py-3 font-medium">Submitted</th>
                 <th class="px-4 py-3 font-medium">Documents</th>
@@ -240,6 +257,23 @@ const exportHref = computed(
                             {{ application.applicant_email }}
                         </span>
                     </div>
+                </td>
+                <td class="px-4 py-3">
+                    <ScoreRubricHover
+                        v-if="application.score"
+                        :rationale="application.score.score_rationale"
+                        :rubric="application.score.rubric"
+                    >
+                        <span
+                            :class="[
+                                'inline-flex min-w-9 cursor-help items-center justify-center rounded-md px-2 py-0.5 text-13 font-semibold tabular-nums ring-1 ring-inset',
+                                fitBadgeClasses(application.score.fit_score),
+                            ]"
+                        >
+                            {{ application.score.fit_score ?? '—' }}
+                        </span>
+                    </ScoreRubricHover>
+                    <span v-else class="text-muted-foreground">—</span>
                 </td>
                 <td class="px-4 py-3 text-muted-foreground">
                     {{ application.property_name }} ·

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Application;
+use App\Models\Unit;
 use App\Screening\ScorePrompt;
 use Illuminate\JsonSchema\JsonSchemaTypeFactory;
 
@@ -26,9 +27,40 @@ test('instructions carry the response contract schema', function () {
         ->toContain('fit_score')
         ->toContain('score_rationale')
         ->toContain('summary')
+        ->toContain('rubric')
         ->toContain('red_flags')
         ->toContain('strengths')
         ->toContain('0-100');
+});
+
+test('instructions carry the fixed scoring framework: every criterion and the verdict scale', function () {
+    $instructions = ScorePrompt::instructions();
+
+    expect($instructions)
+        ->toContain('SCORING FRAMEWORK')
+        // every framework criterion is named
+        ->toContain('affordability')
+        ->toContain('employment')
+        ->toContain('credit')
+        ->toContain('references')
+        ->toContain('rental_history')
+        ->toContain('occupancy')
+        ->toContain('identity')
+        ->toContain('disclosures')
+        // the fixed verdict scale
+        ->toContain('strong')
+        ->toContain('adequate')
+        ->toContain('weak')
+        ->toContain('unverified');
+});
+
+test('instructions ask the model to cross-reference documents against answers and the unit', function () {
+    $instructions = ScorePrompt::instructions();
+
+    expect($instructions)
+        ->toContain('CROSS-REFERENCE')
+        ->toContain('rent-to-income')
+        ->toContain('Occupancy');
 });
 
 test('instructions carry the fair-housing guardrail with permissible and protected factors', function () {
@@ -102,5 +134,25 @@ test('the schema closure returns the contract properties', function () {
 
     expect($properties)
         ->toBeArray()
-        ->toHaveKeys(['fit_score', 'score_rationale', 'summary', 'red_flags', 'strengths']);
+        ->toHaveKeys(['fit_score', 'score_rationale', 'summary', 'rubric', 'red_flags', 'strengths']);
+});
+
+test('the application body includes the applied-for unit so the model can judge ratios', function () {
+    $application = scorePromptApplication(
+        answers: ['number_of_occupants' => '4'],
+        snapshot: [['key' => 'number_of_occupants', 'label' => 'Number of occupants']],
+    );
+    // Set the relation in-memory so no database is touched.
+    $application->setRelation('unit', new Unit([
+        'label' => 'Unit 2B',
+        'bedrooms' => 1,
+        'bathrooms' => '1.0',
+        'rent_amount' => '1850.00',
+    ]));
+
+    expect(ScorePrompt::forApplication($application))
+        ->toContain('UNIT')
+        ->toContain('Bedrooms: 1')
+        ->toContain('1,850.00')
+        ->toContain('Number of occupants: 4');
 });

@@ -2,6 +2,8 @@
 
 namespace App\Screening;
 
+use App\Enums\CriterionAssessment;
+
 /**
  * Validates a decoded model response against the {@see Score} contract,
  * independent of the SDK's structured-output mode.
@@ -57,6 +59,14 @@ class ScoreResponseValidator
             }
         }
 
+        $rubric = null;
+
+        if (! array_key_exists('rubric', $payload)) {
+            $errors[] = 'The rubric field is required.';
+        } else {
+            $rubric = self::normaliseRubric($payload['rubric'], $errors);
+        }
+
         if ($errors !== []) {
             return ScoreValidationResult::invalid($errors);
         }
@@ -65,9 +75,83 @@ class ScoreResponseValidator
             'fit_score' => $payload['fit_score'],
             'score_rationale' => $payload['score_rationale'],
             'summary' => $payload['summary'],
+            'rubric' => $rubric,
             'red_flags' => array_values($payload['red_flags']),
             'strengths' => array_values($payload['strengths']),
         ]);
+    }
+
+    /**
+     * Validate and normalise the rubric against the fixed scoring framework.
+     *
+     * Enforces consistency: the rubric must grade every framework criterion
+     * exactly once with a valid {@see CriterionAssessment}. On success
+     * it returns the rows in canonical framework order — each reduced to
+     * criterion/assessment/note, assessment lower-cased, note coerced to a string —
+     * so a Score always exposes the same eight axes. On failure it appends the
+     * single descriptive {@see self::rubricError()} and returns null.
+     *
+     * @param  list<string>  $errors
+     * @return list<array{criterion: string, assessment: string, note: string}>|null
+     */
+    private static function normaliseRubric(mixed $value, array &$errors): ?array
+    {
+        $criteria = ScoringFramework::keys();
+        $assessments = CriterionAssessment::values();
+
+        if (! is_array($value) || ! array_is_list($value)) {
+            $errors[] = self::rubricError();
+
+            return null;
+        }
+
+        $byCriterion = [];
+
+        foreach ($value as $item) {
+            if (! is_array($item)
+                || ! isset($item['criterion'], $item['assessment'])
+                || ! is_string($item['criterion'])
+                || ! is_string($item['assessment'])) {
+                $errors[] = self::rubricError();
+
+                return null;
+            }
+
+            $criterion = strtolower(trim($item['criterion']));
+            $assessment = strtolower(trim($item['assessment']));
+
+            if (! in_array($criterion, $criteria, true) || ! in_array($assessment, $assessments, true)) {
+                $errors[] = self::rubricError();
+
+                return null;
+            }
+
+            $note = isset($item['note']) && is_string($item['note']) ? trim($item['note']) : '';
+            $byCriterion[$criterion] = compact('criterion', 'assessment', 'note');
+        }
+
+        // Every framework criterion must be graded exactly once.
+        if (count($byCriterion) !== count($criteria)) {
+            $errors[] = self::rubricError();
+
+            return null;
+        }
+
+        // Re-emit in canonical framework order so the rubric is always consistent.
+        return array_map(fn (string $key): array => $byCriterion[$key], $criteria);
+    }
+
+    /**
+     * The single message used for any malformed rubric payload, naming the exact
+     * shape and the framework so the repair retry can correct it.
+     */
+    private static function rubricError(): string
+    {
+        $criteria = implode(', ', ScoringFramework::keys());
+        $assessments = implode(', ', CriterionAssessment::values());
+
+        return 'The rubric field must be an array grading every criterion exactly once '
+            ."({$criteria}), each an object with a criterion, an assessment of {$assessments}, and a short note.";
     }
 
     /**

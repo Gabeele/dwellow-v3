@@ -2,6 +2,7 @@
 
 namespace App\Screening;
 
+use App\Enums\ActivityType;
 use App\Enums\ApplicationStatus;
 use App\Enums\FieldType;
 use App\Http\Controllers\PublicScreeningController;
@@ -131,6 +132,8 @@ class ApplicationService
             $draft->delete();
             Cookie::queue(Cookie::forget(ApplicationDraft::cookieName($link)));
         }
+
+        $application->recordActivity(ActivityType::Submitted, 'Application submitted');
 
         $application->loadMissing('unit.property.landlord');
 

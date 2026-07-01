@@ -517,6 +517,10 @@ test('the detail page exposes the completed score payload', function () {
         'fit_score' => 82,
         'score_rationale' => 'Strong income relative to rent.',
         'summary' => 'A well-documented application.',
+        'rubric' => [
+            ['criterion' => 'affordability', 'assessment' => 'strong', 'note' => '~24% of gross'],
+            ['criterion' => 'identity', 'assessment' => 'strong', 'note' => 'ID matches'],
+        ],
         'red_flags' => ['Move-in date is sooner than the unit is available.'],
         'strengths' => ['Rent-to-income ratio is comfortable.'],
     ]);
@@ -531,6 +535,9 @@ test('the detail page exposes the completed score payload', function () {
             ->where('score.fit_score', 82)
             ->where('score.score_rationale', 'Strong income relative to rent.')
             ->where('score.summary', 'A well-documented application.')
+            ->has('score.rubric', 2)
+            ->where('score.rubric.0.criterion', 'affordability')
+            ->where('score.rubric.0.assessment', 'strong')
             ->has('score.red_flags', 1)
             ->has('score.strengths', 1),
         );
@@ -932,4 +939,45 @@ test('a non-owner cannot approve or decline another landlords application', func
         ->assertForbidden();
 
     Mail::assertNothingOutgoing();
+});
+
+test('marking a New application as read advances it to Reviewing', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $application = Application::factory()
+        ->for(ApplicationLink::factory()->for($unit)->create(), 'applicationLink')
+        ->create(['status' => ApplicationStatus::New]);
+
+    $this->actingAs($landlord)
+        ->post(route('applicants.read', $application))
+        ->assertRedirect();
+
+    expect($application->refresh()->status)->toBe(ApplicationStatus::Reviewing);
+});
+
+test('marking read never rewinds an application that already moved past New', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $application = Application::factory()
+        ->for(ApplicationLink::factory()->for($unit)->create(), 'applicationLink')
+        ->create(['status' => ApplicationStatus::Approved]);
+
+    $this->actingAs($landlord)
+        ->post(route('applicants.read', $application))
+        ->assertRedirect();
+
+    expect($application->refresh()->status)->toBe(ApplicationStatus::Approved);
+});
+
+test('a landlord cannot mark another landlord\'s application as read', function () {
+    $owner = User::factory()->landlord()->create();
+    $application = Application::factory()
+        ->for(ApplicationLink::factory()->for(applicantUnitOwnedBy($owner))->create(), 'applicationLink')
+        ->create(['status' => ApplicationStatus::New]);
+
+    $this->actingAs(User::factory()->landlord()->create())
+        ->post(route('applicants.read', $application))
+        ->assertForbidden();
+
+    expect($application->refresh()->status)->toBe(ApplicationStatus::New);
 });

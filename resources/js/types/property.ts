@@ -14,6 +14,19 @@ export interface ApplicationLink {
 
 export type ApplicationStatus = 'new' | 'reviewing' | 'approved' | 'rejected';
 
+/**
+ * One entry on an application's activity timeline: what happened, who caused it
+ * (`causer` is null for system/AI events, flagged by `is_system`), and when.
+ */
+export interface Activity {
+    id: number;
+    type: string;
+    description: string;
+    is_system: boolean;
+    causer: string | null;
+    created_at: string | null;
+}
+
 export interface FormField {
     key: string;
     type: string;
@@ -115,23 +128,49 @@ export interface AgentActivity {
     id: number;
     type: string;
     type_label: string;
+    /** The kind of subject the agent ran against, e.g. "Application". */
+    subject_type_label: string | null;
+    /** The subject application's own workflow status (new/reviewing/…). */
+    subject_status: ApplicationStatus | null;
+    subject_status_label: string | null;
+    /** When the subject application was submitted. */
+    subject_submitted_at: string | null;
+    /** The fit score the run produced, or null until it completes. */
+    fit_score: number | null;
     status: ScoreStatus;
     status_label: string;
     subject_label: string | null;
     url: string | null;
+    created_at: string | null;
     started_at: string | null;
     completed_at: string | null;
+}
+
+/** The verdict a single scoring-framework criterion receives. */
+export type CriterionAssessment = 'strong' | 'adequate' | 'weak' | 'unverified';
+
+/**
+ * One row of the scoring rubric: a fixed framework criterion (e.g. `affordability`),
+ * its verdict, and a very short note giving the concrete reason. Every Score grades
+ * the same criteria in the same order, so rubrics are comparable across applications.
+ */
+export interface RubricRow {
+    criterion: string;
+    assessment: CriterionAssessment;
+    note: string;
 }
 
 /**
  * The AI-produced Score for an application. Present only once the score agent
  * completes; the holistic `fit_score` (0–100) is accompanied by a one-sentence
- * rationale, a neutral summary, permissible-only Flags, and strengths.
+ * rationale, an analytical summary, the `rubric` (the fixed framework graded,
+ * showing where the number comes from), permissible-only Flags, and strengths.
  */
 export interface Score {
     fit_score: number | null;
     score_rationale: string | null;
     summary: string | null;
+    rubric: RubricRow[];
     red_flags: string[];
     strengths: string[];
 }
@@ -175,6 +214,13 @@ export interface Property {
     updated_at: string;
 }
 
+/** The compact Score shown on an application row's hoverable fit-score badge. */
+export interface ApplicationRowScore {
+    fit_score: number | null;
+    score_rationale: string | null;
+    rubric: RubricRow[];
+}
+
 export interface ApplicationRow {
     id: number;
     applicant_name: string;
@@ -185,6 +231,8 @@ export interface ApplicationRow {
     submitted_at: string | null;
     status: ApplicationStatus;
     documents_count: number;
+    /** The AI fit Score, or null until the scoring agent has produced one. */
+    score: ApplicationRowScore | null;
     url: string;
 }
 

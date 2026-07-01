@@ -45,13 +45,16 @@ it('reflects each lifecycle state', function () {
         ->error->not->toBeNull();
 });
 
-it('builds a valid score with array flags and strengths', function () {
+it('builds a valid score with array flags, strengths, and a full rubric', function () {
     $score = Score::factory()->create();
 
     expect($score->application)->toBeInstanceOf(Application::class)
         ->and($score->fit_score)->toBeInt()
         ->and($score->red_flags)->toBeArray()
         ->and($score->strengths)->toBeArray()
+        ->and($score->rubric)->toBeArray()
+        ->and($score->rubric)->toHaveCount(8)
+        ->and($score->rubric[0])->toHaveKeys(['criterion', 'assessment', 'note'])
         ->and($score->agent_id)->toBeNull();
 });
 

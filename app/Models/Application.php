@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ActivityType;
 use App\Enums\AgentType;
 use App\Enums\ApplicationStatus;
 use App\Screening\ApplicationFileStore;
@@ -148,6 +149,32 @@ class Application extends Model
     public function score(): HasOne
     {
         return $this->hasOne(Score::class);
+    }
+
+    /**
+     * The application's activity timeline, newest first.
+     *
+     * @return MorphMany<Activity, $this>
+     */
+    public function activities(): MorphMany
+    {
+        return $this->morphMany(Activity::class, 'subject')->latest();
+    }
+
+    /**
+     * Append an entry to this application's activity timeline. `$causer` is the
+     * user who triggered it; pass null for system / AI events (e.g. scoring).
+     *
+     * @param  array<string, mixed>  $meta
+     */
+    public function recordActivity(ActivityType $type, string $description, array $meta = [], ?User $causer = null): Activity
+    {
+        return $this->activities()->create([
+            'type' => $type,
+            'description' => $description,
+            'meta' => $meta === [] ? null : $meta,
+            'causer_id' => $causer?->id,
+        ]);
     }
 
     /**

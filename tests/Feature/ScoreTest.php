@@ -56,19 +56,25 @@ it('belongs to an application and the agent that produced it', function () {
         ->and($score->agent->is($agent))->toBeTrue();
 });
 
-it('casts the flag and strength columns to arrays', function () {
+it('casts the flag, strength, and rubric columns to arrays', function () {
     $application = Application::factory()->create();
 
     $score = makeScore($application, makeScoreAgent($application), [
         'red_flags' => ['Eviction disclosed in 2022.'],
         'strengths' => ['Two years at current employer.', 'References provided.'],
+        'rubric' => [
+            ['criterion' => 'occupancy', 'assessment' => 'weak', 'note' => '4 in a 1-bed'],
+        ],
     ]);
 
     $fresh = $score->fresh();
 
     expect($fresh->fit_score)->toBe(80)
         ->and($fresh->red_flags)->toBe(['Eviction disclosed in 2022.'])
-        ->and($fresh->strengths)->toBe(['Two years at current employer.', 'References provided.']);
+        ->and($fresh->strengths)->toBe(['Two years at current employer.', 'References provided.'])
+        ->and($fresh->rubric)->toBe([
+            ['criterion' => 'occupancy', 'assessment' => 'weak', 'note' => '4 in a 1-bed'],
+        ]);
 });
 
 it('enforces one score per application', function () {

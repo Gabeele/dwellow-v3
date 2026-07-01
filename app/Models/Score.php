@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $summary
  * @property array<int, string>|null $red_flags
  * @property array<int, string>|null $strengths
+ * @property array<int, array{criterion: string, assessment: string, note: string}>|null $rubric
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -27,6 +28,7 @@ use Illuminate\Support\Carbon;
     'summary',
     'red_flags',
     'strengths',
+    'rubric',
 ])]
 class Score extends Model
 {
@@ -43,6 +45,7 @@ class Score extends Model
         return [
             'red_flags' => 'array',
             'strengths' => 'array',
+            'rubric' => 'array',
         ];
     }
 
