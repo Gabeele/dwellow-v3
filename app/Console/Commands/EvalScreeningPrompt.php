@@ -100,6 +100,7 @@ class EvalScreeningPrompt extends Command
 
         $results = [];
         $index = 0;
+        $modelUsed = null;
 
         DB::beginTransaction();
 
@@ -117,7 +118,9 @@ class EvalScreeningPrompt extends Command
 
                 for ($i = 0; $i < $samples; $i++, $index++) {
                     $validator->outcomes = [];
-                    $profileSamples[] = $this->scoreOnce($applications, $scoring, $unit, $dir, $profile, $templates[$profile], $index, $validator);
+                    $sample = $this->scoreOnce($applications, $scoring, $unit, $dir, $profile, $templates[$profile], $index, $validator);
+                    $modelUsed ??= $sample['model'];
+                    $profileSamples[] = $sample;
                 }
 
                 $results[$profile] = PromptEvaluation::evaluate($profile, $expectation, $profileSamples);
@@ -128,7 +131,7 @@ class EvalScreeningPrompt extends Command
 
         $round = $this->resolveRound();
         $this->render($results);
-        $this->write($round, $samples, $profiles, $results);
+        $this->write($round, $samples, $profiles, $results, $modelUsed);
 
         return self::SUCCESS;
     }
@@ -139,7 +142,7 @@ class EvalScreeningPrompt extends Command
      *
      * @param  array<string, mixed>  $template
      * @param  object{outcomes: list<bool>}  $validator
-     * @return array{fit_score: int|null, rubric: array<string, string>, text: string, first_pass: bool, completed: bool}
+     * @return array{fit_score: int|null, rubric: array<string, string>, text: string, first_pass: bool, completed: bool, model: string|null}
      */
     private function scoreOnce(
         ApplicationService $applications,
@@ -161,9 +164,12 @@ class EvalScreeningPrompt extends Command
 
         $application = $applications->createApplication($link, $answers, null);
 
+        $model = null;
+
         try {
             $agent = $scoring->run($application);
             $completed = $agent->status === AgentStatus::Completed;
+            $model = $agent->model;
         } catch (Throwable $exception) {
             $this->warn("  sample {$index}: scoring threw — {$exception->getMessage()}");
             $completed = false;
@@ -178,6 +184,7 @@ class EvalScreeningPrompt extends Command
             'text' => $this->corpus($application, $score),
             'first_pass' => $firstPass,
             'completed' => $completed && $score !== null,
+            'model' => $model,
         ];
     }
 
@@ -299,7 +306,7 @@ class EvalScreeningPrompt extends Command
      * @param  list<string>  $profiles
      * @param  array<string, array<string, mixed>>  $results
      */
-    private function write(int $round, int $samples, array $profiles, array $results): void
+    private function write(int $round, int $samples, array $profiles, array $results, ?string $model): void
     {
         $path = storage_path(self::REPORT_DIR);
         File::ensureDirectoryExists($path);
@@ -311,7 +318,8 @@ class EvalScreeningPrompt extends Command
             'round' => $round,
             'samples' => $samples,
             'profiles' => $profiles,
-            'model' => (string) config('ai.default'),
+            'provider' => (string) config('ai.default'),
+            'model' => $model ?? 'unknown (all samples failed)',
             'passed' => $passed,
             'total' => count($results),
             'results' => $results,
