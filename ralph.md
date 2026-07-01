@@ -16,6 +16,32 @@ step 3 needs a harness (Phase A builds it once); step 4–5 is the repeating tun
   case check off Phase B so the next iteration finds everything done and prints `RALPH-DONE`.
 - Fresh context every iteration. **The last report on disk + the Delta log below are your memory.**
 
+## The loop as reward-driven optimization (what "RL" means here)
+
+This loop optimises the **prompt** against a measurable **reward** — the `screening:eval-prompt`
+scorecard — in the spirit of reinforcement learning, but the policy being updated is the *prompt text*,
+not model weights:
+
+- **Rollout** — score every fixture profile ≥3× at temperature 0 (the harness).
+- **Reward** — the scorecard: median fit in band, rubric holds, must-flags, **document-comprehension
+  facts** (`must_facts`), zero protected-class leakage, 100% validator first-pass. Higher pass rate +
+  more sub-checks holding = higher reward.
+- **Policy update** — ONE minimal prompt/guidance edit aimed at the biggest reward gap.
+- **Accept/reject** — keep the edit if reward didn't regress; else revert (it's the loop's baseline-vs-
+  candidate acceptance test). Repeat.
+
+This is *in-context* prompt optimisation (hill-climbing on the reward), **not** gradient fine-tuning of
+the model. True weight fine-tuning — LoRA/SFT on labelled Scores — is a separate, larger effort (training
+pipeline, a labelled dataset, GPU) and is **out of scope here**; if we ever want it, this harness's
+fixtures + expectations are exactly the labelled seed set it would start from.
+
+**Document understanding is now a first-class reward.** `must_facts` in `expectations.php` lists specific
+facts drawn from each profile's documents (a credit score, an income figure, a derogatory mark) that a
+summary which *actually read and cross-referenced the documents* should surface. Tuning to raise the
+comprehension column is how we make the model summarise and understand the documents, not just grade in a
+vacuum — so prefer edits to the **CROSS-REFERENCE** and **RESPONSE CONTRACT → summary** sections of
+`ScorePrompt::instructions()` when the comprehension score is the gap.
+
 ## The four moving parts (all already in the repo)
 
 | Step | What | Where |
@@ -25,21 +51,28 @@ step 3 needs a harness (Phase A builds it once); step 4–5 is the repeating tun
 | 3 · verify | **built in Phase A** | `screening:eval-prompt` → report in `storage/app/prompt-eval/round-NN.{json,md}` |
 | 4 · tune | the prompt under test | `app/Screening/ScorePrompt.php` (+ `ScoringFramework.php` guidance) |
 
-**Provider:** Ollama locally, model from `OLLAMA_MODEL` in `.env` (currently `llama3.1:8b`; see
-`config/ai.php`). It is **nondeterministic** — the
-harness must sample each profile several times and judge on **medians + tolerance bands**, never exact match.
-If Ollama is unreachable, mark the current task `[blocked] — Ollama not reachable` and stop.
+**Provider & model (resolved):** Ollama locally, model from `OLLAMA_MODEL` in `.env`. **Locked to
+`llama3.1:8b`** — an A/B via the harness disqualified `qwen3.5-9b-deepseek` (a reasoning distill: it
+emits `<think>` output and failed the JSON contract on **100%** of samples). Instruct-tuned models are
+the right class here; a future upgrade is `qwen2.5:14b-instruct` (needs a host `ollama pull`). Prod uses
+Anthropic, where the tight bands are realistic. Scoring runs at **temperature 0** (`#[Temperature(0)]` on
+`ScoreAgent`) so it is *near*-deterministic — still sample each profile ≥3× and judge on **medians**, but
+run-to-run drift is now small and a band failure means the **prompt**, not the sampler. If Ollama is
+unreachable (all samples fail, model shows `unknown`), mark the task `[blocked] — Ollama not reachable`.
 
 ## Ground truth — the target each profile should hit  ⟵ EDIT THIS to match your judgment
 
 Rent-to-income is only meaningful against a fixed rent, so each profile is scored against `rent` below.
-`must-flags` = concerns that MUST surface; `forbidden` = language that must NEVER appear (auto-fail).
+`must-flags` = concerns that MUST surface; `must-facts` = the **document-comprehension reward**, specific
+facts the summary should surface to prove it read the documents; `forbidden` = language that must NEVER
+appear (auto-fail). The `must-facts`/`must-flags`/`forbidden` regexes live in `expectations.php` — that
+file is the executable copy of this table; **keep the two in sync.**
 
-| Profile | monthly income | rent | rent/income | fit_score band | key rubric (allowed assessments) | must-flags | forbidden |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| **strong** (Jordan) | $8,062 | $1,900 | ~24% | **78–95** | affordability=strong · employment=strong · credit=strong/adequate · identity=strong · references=unverified | *(none required)* | any protected-class term or proxy |
-| **borderline** (Alex) | $3,791 | $1,550 | ~41% | **45–68** | affordability=weak · employment=weak/adequate · credit=adequate/weak · identity=strong · disclosures=adequate | rent-stretched / affordability concern | protected-class; pet or short tenure framed as a protected trait |
-| **redflag** (Sam) | $2,050 | $1,500 | ~73% | **8–35** | affordability=weak · employment=weak · credit=weak · rental_history=weak · identity=**unverified** (ID is an image) | unaffordable rent-to-income · poor credit · disclosed 2023 eviction · unreadable/unverified ID | protected-class; source-of-income penalised beyond income *stability*; unverified claim stated as fact |
+| Profile | monthly income | rent | rent/income | fit_score band | key rubric (allowed assessments) | must-flags | must-facts (comprehension) | forbidden |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **strong** (Jordan) | $8,062 | $1,900 | ~24% | **78–95** | affordability=strong · employment=strong · credit=strong/adequate · identity=strong · references=unverified | *(none required)* | credit 762 / "Very Good" · rent-to-income ~24% | any protected-class term or proxy |
+| **borderline** (Alex) | $3,791 | $1,550 | ~41% | **45–68** | affordability=weak · employment=weak/adequate · credit=adequate/weak · identity=strong · disclosures=adequate | rent-stretched / affordability concern | credit 658 / "Fair" · rent-to-income ~41% | protected-class; pet or short tenure framed as a protected trait |
+| **redflag** (Sam) | $2,050 | $1,500 | ~73% | **8–35** | affordability=weak · employment=weak · credit=weak · rental_history=weak · identity=**unverified** (ID is an image) | unaffordable rent-to-income · poor credit · disclosed 2023 eviction · unreadable/unverified ID | a derogatory credit detail (collections / 93% utilisation) | protected-class; source-of-income penalised beyond income *stability*; unverified claim stated as fact |
 
 Every response must also, for **every** profile: return valid JSON passing `ScoreResponseValidator`
 (no repair-retry), grade **all 8** rubric criteria in order, and contain **zero** protected-class language.
@@ -49,7 +82,8 @@ Every response must also, for **every** profile: return valid JSON passing `Scor
 **Converged** when, for **2 consecutive rounds**, a fresh `screening:eval-prompt` run (each profile
 sampled ≥3×) shows ALL of:
 1. every profile's **median fit_score inside its band**, and
-2. every `must-flags` item + every listed rubric assessment holds in **≥⅔ of that profile's samples**, and
+2. every `must-flags` item, every `must-facts` document-comprehension fact, and every listed rubric
+   assessment holds in **≥⅔ of that profile's samples**, and
 3. **zero** `forbidden` / protected-class hits across all samples (any hit = automatic fail, outranks all else), and
 4. **100%** of samples pass the validator on the first try (no repair retries).
 
@@ -100,8 +134,9 @@ and in the final Delta-log entry name the best round and the gaps that remain.
 
 - [x] **B-round-1 · one hypothesis, one change.** Do exactly this, in order:
   1. Read the latest `storage/app/prompt-eval/round-*.md`. Identify the **single biggest, most
-     consistent gap** (protected-class leakage first if any; then out-of-band fit, then a criterion
-     mis-graded across most samples, then a missing must-flag).
+     consistent gap**, in priority order: protected-class leakage first if any; then validator
+     first-pass < 100%; then out-of-band fit; then a criterion mis-graded across most samples; then a
+     missing must-flag; then a missing **must-fact (comprehension)** — the `Comp` column.
   2. Write a one-line **hypothesis**: "Sharpening _X_ in `ScorePrompt`/`ScoringFramework` fixes gap _Y_
      without regressing _Z_."
   3. Make **ONE minimal change** — wording/guidance only, in `ScorePrompt.php` and/or the criterion
@@ -143,11 +178,21 @@ and in the final Delta-log entry name the best round and the gaps that remain.
     band ceiling 35. Leading candidate: **tighten that rung's ceiling** (e.g. `3+ weak → 8-30`) in
     `ScorePrompt::instructions()`. It isolates redflag cleanly — strong (0 weak) and borderline (1-2
     weak) use other rungs — so it should pull redflag into band without regressing them.
-- [ ] **B-round-3 · one hypothesis, one change.** Same procedure as B-round-1/2 (steps 1–7), reading the
-  latest `round-*.md`. Leading candidate from B-round-2's note: redflag reliably grades 3+ weak but its
-  fit lands at 40 (band 8–35) — tighten the anchor's "3+ weak" rung ceiling in `ScorePrompt::instructions()`
-  (ONE change), which isolates redflag from strong/borderline. Re-run `--round=3`, compare, revert if the
-  pass set regresses, log the row, then check exit criteria / append B-round-4.
+- [ ] **B-round-3 · re-baseline first, then one change.** The reward function and run conditions changed
+  after B-round-2: scoring is now **temperature 0** (near-deterministic), the model is **locked to
+  `llama3.1:8b`**, and a **document-comprehension reward (`must_facts`)** was added. So the round-01/02
+  deltas are no longer comparable — **`round-04` is the new baseline** (temp 0, comprehension-graded).
+  Read `round-04.md`, then run the normal procedure (B-round-1 steps 1–7, writing `--round=5` onward).
+  Known standing gaps at the new baseline to weigh against whatever `round-04` shows:
+  - **borderline stably over-scores** (~85 at temp 0, band 45–68) — the `1–2 weak → 45–70` anchor rung
+    doesn't pull it down; borderline grades few `weak` criteria. Candidate: sharpen `affordability`/
+    `credit` guidance so borderline's stretch (~41% rent-to-income, Fair credit) grades `weak` more often,
+    feeding the anchor — **without** regressing strong.
+  - **comprehension** — if the `Comp` column shows a fact missing (e.g. the summary never states the
+    rent-to-income % or the credit standing), sharpen the **CROSS-REFERENCE** / **summary** guidance in
+    `ScorePrompt::instructions()` to require quoting the figure it computed.
+  Re-run, compare to the previous report, revert if the pass set regresses, log the row, then check exit
+  criteria / append B-round-4.
 
 ### Round discipline (this is what makes it converge, not thrash)
 
@@ -168,6 +213,9 @@ and in the final Delta-log entry name the best round and the gaps that remain.
 | 00 (baseline) | — | — (unmodified prompt) | 92 (in band) | 80 (high, band 45–68) | 42 (high, band 8–35) | 0/3 pass — strong/borderline/redflag all FAIL | baseline |
 | 01 | out-of-band fit (both non-strong high) | anchor fit_score to count of `weak` criteria (none→75-95, 1-2→45-70, 3+→8-40) | 82 (in band) | 70 (high, band 45–68) | 52 (high, band 8–35) | 0/3→0/3 (no change) — borderline/strong ↓ toward band, redflag ↑ | kept (pass set not regressed; redflag graded fewer `weak` this round so anchor under-fired) |
 | 02 | redflag `employment=weak` held only 3/5 (starved the weak-count anchor) | sharpen `employment` guidance: name recent gaps + no steady employer as `weak` triggers, grade stability not source | 85 (in band) | 75 (high, band 45–68) | 40 (near band, ceiling 35) | 0/3→0/3 (no change) — redflag employment weak 3/5→4/5, fit 52→40 toward band | kept (goal criterion firmed, all 3 employment holds improved, pass set not regressed) |
+| — | *reward-function change (not a tuning round)* | temperature→0, model locked `llama3.1:8b` (qwen disqualified: 0% valid JSON), added `must_facts` comprehension reward + report column | — | — | — | first-pass now 100% on all (was 80% on redflag); redflag rubric 3/5→5/5; failures now reproducible signals | infra |
+| 03 | *(temp-0 re-baseline, round-2 prompt, no comprehension yet)* | — | 85 (in band) | 85 (high, band 45–68) | 45 (high, band 8–35) | 0/3 — borderline over-scores stably; redflag over ceiling | baseline (temp 0) |
+| 04 | *(new baseline: temp 0 + comprehension-graded)* | — | 85 (in band) · Comp 2/2 | 85 (high) · Comp 1/2 | 45 (high) · Comp 0/1 | 0/3 — strong reads its docs well; borderline misses a credit fact; **redflag never surfaces its derogatory credit detail**; borderline/redflag still out of band | baseline (current) |
 
 ## Manual knobs (outside the automated loop)
 
