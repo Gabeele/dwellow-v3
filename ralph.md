@@ -1,4 +1,67 @@
-# Screening Prompt — Ralph tuning loop
+# Ralph Loop — Backlog
+
+> The autonomous loop's task list. **One task per iteration** (see `PROMPT.md` and the
+> `harness-orchestration` skill). Ground yourself in `CONTEXT.md` first. Tasks are grouped into
+> **tracks**; pick the single most important unchecked, non-blocked task across all tracks, do only
+> that, verify against the track's definition of done, tag the commit with the track, check it off,
+> commit (never push), stop.
+
+## Tracks
+- **C · Coding / feature** — build or change app behaviour. DoD: tests (Pest) + pint + `code-reviewer`
+  PASS (+ `fair-housing-auditor` if it touches screening/people). Delegate to `laravel-implementer` /
+  `inertia-vue-implementer` / `test-author` / `agent-engine-builder`.
+- **X · Context / harness** — keep `CONTEXT.md`, `.docs/`, ADRs, skills, and this backlog true.
+  Delegate to `docs-scribe`.
+- **S · Screening prompt-tuning** — the reward-driven loop in the second half of this file.
+  Delegate to `prompt-tuner`.
+
+Legend: `[ ]` actionable · `[x]` done · `[blocked] — reason` · `[deferred — needs spec]`.
+
+> **Branding / design / direction / marketing tracks are owned by Gavin** (they need his input and a
+> Q&A pass) — not auto-run by the loop. Leave placeholders here only once he's defined them.
+
+---
+
+## Track C — Coding & feature backlog
+
+Ordered by the roadmap rule *don't broaden until screening is loved*: deepen screening first;
+lifecycle expansion stays `[deferred — needs spec]` until an ADR/issue defines it.
+
+### Now — deepen screening
+- [ ] **C1 · Sort/filter applications by `fit_score` & status** on the landlord dashboard.
+- [ ] **C2 · Portfolio-wide applicant overview** — compare applicants across a property's units.
+- [ ] **C3 · Manual re-score action** — landlord re-runs analysis; reuses the 1:1 Agent (idempotent)
+  and records an Activity.
+- [ ] **C4 · Surface the score rationale + rubric** for landlord review / auditability (data already
+  lives on `Score`/`Agent`).
+- [ ] **C5 · Decision-email wording** — finalize approve/reject copy + trigger; `fair-housing-auditor`
+  reviews the copy for neutral, non-protected-class language.
+
+### New product AI agent types (via the `agent-engine-builder` subagent + `agent-engine` skill)
+- [ ] **C6 · Application-summary agent** — a second `AgentType` producing a neutral cross-application
+  comparison to power C2. The smallest real second agent; proves the polymorphic engine generalises.
+  Guardrails + `fair-housing-auditor` PASS required.
+- [ ] **C7 · Reference-check agent** — an `AgentType` that drafts reference questions and summarises
+  `ReferenceResponse`s into a structured, neutral assessment. Depends on the references flow; if that
+  model/flow isn't ready, mark `[blocked — needs references model]` and add building it as a C task.
+
+### Lifecycle expansion — gated (do NOT auto-build)
+- [ ] **C8 · Lease & e-sign** — `[deferred — needs spec]`
+- [ ] **C9 · Rent collection** — `[deferred — needs spec]`
+- [ ] **C10 · Maintenance requests + triage agent** — `[deferred — needs spec]`
+- [ ] **C11 · Accounting (per-property income/expense, tax-ready)** — `[deferred — needs spec]`
+- [ ] **C12 · Subscription billing (Stripe/Cashier)** — `[deferred — needs spec]`
+
+## Track X — Context & harness upkeep
+- [ ] **X1 · Keep `CONTEXT.md` true** — when code diverges (new agent type, new model, changed flow),
+  update it in the same iteration that caused the drift.
+- [ ] **X2 · Record decisions as ADRs** in `.docs/decisions/`; move resolved items out of
+  `.docs/open-questions.md`.
+- [ ] **X3 · Refresh feature docs** in `.docs/features/` when behaviour changes.
+
+---
+
+# Track S — Screening Prompt tuning loop
 
 > **Goal:** converge `ScorePrompt` so the model's `Score` matches what a landlord would
 > conclude from the fixture documents — clear, consistent, fair-housing-safe, and stable
