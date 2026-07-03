@@ -15,7 +15,14 @@ import { initializeFlashToast } from '@/lib/flashToast';
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
-    title: (title) => (title ? `${title} - ${appName}` : appName),
+    // Marketing titles already brand themselves ("Pricing — Dwellow"); only
+    // append the app name when it isn't part of the title yet.
+    title: (title) =>
+        title
+            ? title.includes(appName)
+                ? title
+                : `${title} - ${appName}`
+            : appName,
     layout: (name) => {
         switch (true) {
             case name === 'Welcome':

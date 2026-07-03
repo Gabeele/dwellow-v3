@@ -45,8 +45,11 @@ test('the landing page renders SEO metadata in the response', function () {
 
     $html = $response->getContent();
 
+    // Title matched without the opening tag: under SSR Inertia renders
+    // `<title data-inertia="">`, without SSR the Blade fallback renders a
+    // plain `<title>`.
     expect($html)
-        ->toContain('<title>Dwellow — Tenant screening for small landlords</title>')
+        ->toContain('>Dwellow — Tenant screening for small landlords</title>')
         ->toContain('<meta name="description"')
         ->toContain('<link rel="canonical" href="'.route('home').'">')
         ->toContain('property="og:title"')

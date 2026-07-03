@@ -19,8 +19,11 @@ test('the pricing page renders with plans and SEO', function () {
         ->where('seo.url', route('pricing'))
     );
 
+    // Title matched without the opening tag: under SSR Inertia renders
+    // `<title data-inertia="">`, without SSR the Blade fallback renders a
+    // plain `<title>`.
     expect($response->getContent())
-        ->toContain('<title>Pricing — Dwellow</title>')
+        ->toContain('>Pricing — Dwellow</title>')
         ->toContain('"@type": "FAQPage"');
 });
 

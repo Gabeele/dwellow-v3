@@ -14,6 +14,9 @@
   Delegate to `docs-scribe`.
 - **S · Screening prompt-tuning** — the reward-driven loop in the second half of this file.
   Delegate to `prompt-tuner`.
+- **E · Epic: screening → tenancy expansion** — four features specced by Gavin (2026-07-03), each on
+  its **own feature branch**. Same DoD as Track C. **This epic is the current priority** — pick E
+  tasks before C tasks while any remain actionable.
 
 Legend: `[ ]` actionable · `[x]` done · `[blocked] — reason` · `[deferred — needs spec]`.
 
