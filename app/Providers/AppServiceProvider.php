@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Screening\DocumentTextExtractor;
+use App\Screening\PdfDocumentTextExtractor;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(DocumentTextExtractor::class, PdfDocumentTextExtractor::class);
     }
 
     /**

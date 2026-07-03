@@ -27,7 +27,7 @@ withDefaults(
                 <div>
                     <Eyebrow>{{ eyebrow }}</Eyebrow>
                     <h2
-                        class="mt-3 text-28 leading-tight font-semibold tracking-tight"
+                        class="mt-3 font-display text-28 leading-tight font-semibold tracking-tight"
                     >
                         {{ heading }}
                     </h2>

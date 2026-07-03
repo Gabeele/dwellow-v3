@@ -1,740 +1,294 @@
-# Fix Plan — Ralph task list
+# Ralph Loop — Backlog
 
-> Format: `- [ ] <task>` for todo, `- [x] <task>` when done, `- [blocked] <task> — reason` if stuck.
-> One task = one commit. Most important / most foundational first.
-> Context bullets give the agent what it needs; follow `PROMPT.md` for the loop rules and definition of done.
+> The autonomous loop's task list. **One task per iteration** (see `PROMPT.md` and the
+> `harness-orchestration` skill). Ground yourself in `CONTEXT.md` first. Tasks are grouped into
+> **tracks**; pick the single most important unchecked, non-blocked task across all tracks, do only
+> that, verify against the track's definition of done, tag the commit with the track, check it off,
+> commit (never push), stop.
 
-## Where things stand
+## Tracks
+- **C · Coding / feature** — build or change app behaviour. DoD: tests (Pest) + pint + `code-reviewer`
+  PASS (+ `fair-housing-auditor` if it touches screening/people). Delegate to `laravel-implementer` /
+  `inertia-vue-implementer` / `test-author` / `agent-engine-builder`.
+- **X · Context / harness** — keep `CONTEXT.md`, `.docs/`, ADRs, skills, and this backlog true.
+  Delegate to `docs-scribe`.
+- **S · Screening prompt-tuning** — the reward-driven loop in the second half of this file.
+  Delegate to `prompt-tuner`.
+- **E · Epic: screening → tenancy expansion** — four features specced by Gavin (2026-07-03), each on
+  its **own feature branch**. Same DoD as Track C. **This epic is the current priority** — pick E
+  tasks before C tasks while any remain actionable.
 
-The full screening flow is **built and in git history** (see "Done" at the bottom): per-unit
-section-based application forms seeded from a dwellow default and toggled section-by-section,
-shareable per-unit links, the public applicant flow, the landlord's per-unit applicants list /
-detail / status / notes / document download, whole-rental parity (backing unit), and a dashboard
-applicant signal. **Do NOT rebuild any of that** — every task below edits or extends existing code.
+Legend: `[ ]` actionable · `[x]` done · `[blocked] — reason` · `[deferred — needs spec]`.
 
-This plan does four things, in priority order:
-
-1. **Drop applicant email verification**, and instead email the applicant a friendly confirmation
-   when they submit (and notify the landlord). The verification code was a barrier we don't want.
-2. **Give the landlord a single "Applications" page** — one running table of every application
-   across all their units.
-3. **Flesh out the applicant flow** properly — it should feel like a real, polished product.
-4. A long list of **refine / refactor / clean-up / organize** tasks, plus other gaps worth filling.
-
-Guardrails (unchanged — see `.docs/decisions/`):
-- **CRUD only.** No AI scoring, no automated reference outreach (deferred — ADR 0001,
-  `.docs/features/scoring-engine.md`). Do NOT build them.
-- **Documents-only, Canadian, applicant-provided / unverified.** dwellow never pulls a
-  credit/background bureau (ADR 0002). A "credit report" is a file the applicant uploads.
-- **Link-only applicants, no accounts** (ADR 0003) — applicants are never asked to register.
-- Use the glossary terms (`.docs/domain/glossary.md`); reuse existing components and design language
-  from `properties/Show.vue`, `UnitScreeningPanel.vue`, and `resources/js/components/ui/*`.
-- Activate the `inertia-vue-development`, `tailwindcss-development`, `frontend-design`,
-  `laravel-best-practices`, and `pest-testing` skills as relevant.
+> **Branding / design / direction / marketing tracks are owned by Gavin** (they need his input and a
+> Q&A pass) — not auto-run by the loop. Leave placeholders here only once he's defined them.
 
 ---
 
-## Milestone A — Remove email verification, add submission confirmation
+## Track C — Coding & feature backlog
 
-- [x] Remove the applicant email-verification gate from submission (backend)
-  - context: applicants must no longer prove their email with a code. Delete the verification path:
-    the `screening.verify` route, `PublicScreeningController@verify`, `VerifyApplicationEmailRequest`,
-    `App\Screening\EmailVerification`, `App\Notifications\ApplicationVerificationCodeNotification`,
-    and `resources/views/emails/application-code.blade.php`. In `StoreApplicationRequest` drop the
-    `verification_code` rule; in `PublicScreeningController@store` remove the `verification_code`
-    lookup and the `EmailVerification` dependency. Submission now succeeds on a valid form alone.
-  - context: delete `tests/Feature/ApplicationEmailVerificationTest.php` (its feature is gone) and
-    fix any other test that sends a `verification_code` (e.g. `ApplicationSubmissionTest`) so the
-    suite is green without it.
-  - done: a feature test asserting a valid submission to an open link creates the Application with
-    **no** verification step; `grep -ri "verification_code\|EmailVerification" app resources` returns
-    nothing. Full suite green; Pint clean.
-  - NOTE: Done backend-only per the one-task-per-iteration rule. Removed the `screening.verify`
-    route, `verify()`, `EmailVerification` service, `VerifyApplicationEmailRequest`,
-    `ApplicationVerificationCodeNotification`, the `application-code` view, the `verification_code`
-    rule, and deleted `ApplicationEmailVerificationTest`; fixed `ApplicationSubmissionTest`.
-    `grep` over `app`/`routes` is clean (only Fortify's *landlord* email-verification remains).
-    `resources/js/pages/screening/Apply.vue` still references `verification_code` — that is the very
-    next task ("Remove the 'Verify your email' UI from the public apply page"). Full suite green (191),
-    Pint clean.
+Ordered by the roadmap rule *don't broaden until screening is loved*: deepen screening first;
+lifecycle expansion stays `[deferred — needs spec]` until an ADR/issue defines it.
 
-- [x] Remove the "Verify your email" UI from the public apply page
-  - context: in `resources/js/pages/screening/Apply.vue` remove the email-verification block (the
-    `useHttp` send/resend-code request, the code input, `codeSent`, and the submit-disabled-until-code
-    logic). The Apply form now submits directly. Keep the rest of the form intact.
-  - done: `vue-tsc` + `vendor/bin/sail npm run build` clean; the apply-page feature/inertia assertion
-    still passes and no longer references a code field.
-  - NOTE: Removed the `useHttp` verifier, `verification_code` form field, `codeSent`/`verifyError`/
-    `verifyNotice` refs, `sendCode`, the email-change `watch`, the verification UI block, and the
-    submit-disabled-until-code message; `canSubmit` is now just `!form.processing`. Dropped the now-unused
-    `useHttp`/`ref`/`watch` imports. `grep` over `resources/js` for the removed symbols is empty.
-    vue-tsc + build clean; PublicScreeningController + ApplicationSubmission tests green (12).
+### Now — deepen screening
+- [ ] **C1 · Sort/filter applications by `fit_score` & status** on the landlord dashboard.
+- [ ] **C2 · Portfolio-wide applicant overview** — compare applicants across a property's units.
+- [ ] **C3 · Manual re-score action** — landlord re-runs analysis; reuses the 1:1 Agent (idempotent)
+  and records an Activity.
+- [ ] **C4 · Surface the score rationale + rubric** for landlord review / auditability (data already
+  lives on `Score`/`Agent`).
+- [ ] **C5 · Decision-email wording** — finalize approve/reject copy + trigger; `fair-housing-auditor`
+  reviews the copy for neutral, non-protected-class language.
 
-- [x] Email the applicant a confirmation when they submit
-  - context: after `PublicScreeningController@store` persists the Application, send a branded
-    "Thanks — we've received your application, the landlord will be in touch" email to the address the
-    applicant entered (`applicant_email`). Mirror the `app/Mail/WelcomeMail.php` Mailable + markdown
-    pattern (new `app/Mail/ApplicationReceivedMail.php` + `resources/views/emails/application-received.blade.php`);
-    `Mail::to($application->applicant_email)->send(...)`. Include the unit label / property address and,
-    if the reference-id task below is done, the application's reference id. Make the mailable
-    `ShouldQueue`-friendly but fine to send inline in dev (Mailpit).
-  - done: a feature test (`Mail::fake()`) asserting the confirmation is sent to the applicant's email on
-    a successful submission, and not sent when validation fails. Pint clean.
-  - NOTE: Added `App\Mail\ApplicationReceivedMail` (Queueable trait, sends inline — mirrors WelcomeMail)
-    + `resources/views/emails/application-received.blade.php`, passing first name, unit label, and a
-    formatted property address. `PublicScreeningController@store` now `Mail::to($applicant_email)->send(...)`
-    after persisting (guarded on a non-empty email; loads `unit.property`). Reference id not yet added
-    (that task is still open) so it's omitted from the email for now — fold it in when that task lands.
-    Two new tests in `ApplicationSubmissionTest` (`Mail::fake()`): confirmation sent to applicant on
-    success, nothing sent on validation failure. Suite green (7), Pint clean.
+### New product AI agent types (via the `agent-engine-builder` subagent + `agent-engine` skill)
+- [ ] **C6 · Application-summary agent** — a second `AgentType` producing a neutral cross-application
+  comparison to power C2. The smallest real second agent; proves the polymorphic engine generalises.
+  Guardrails + `fair-housing-auditor` PASS required.
+- [ ] **C7 · Reference-check agent** — an `AgentType` that drafts reference questions and summarises
+  `ReferenceResponse`s into a structured, neutral assessment. Depends on the references flow; if that
+  model/flow isn't ready, mark `[blocked — needs references model]` and add building it as a C task.
 
-- [x] Notify the landlord by email when a new application arrives
-  - context: when an Application is created, notify the owning landlord (`unit.property.landlord`) that
-    a new application came in, with a deep link to the application detail page (`applicants.show`). Use a
-    `Notification` (e.g. `NewApplicationNotification`, mail channel) so it's attributable to the User.
-    Trigger it from the same place as the applicant confirmation, or via an `Application` `created`
-    observer — keep a single trigger point, don't double-send.
-  - done: a feature test (`Notification::fake()`) asserting the owning landlord is notified once per
-    submission and a different landlord is not. Pint clean.
-  - NOTE: Added `App\Notifications\NewApplicationNotification` (mail channel, `MailMessage` with a
-    `route('applicants.show', $application)` deep-link action). Triggered from
-    `PublicScreeningController@store` right after the applicant confirmation (single trigger point) via
-    `$application->unit->property->landlord?->notify(...)` — null-safe so submission still succeeds if a
-    property somehow has no landlord. Two new tests in `ApplicationSubmissionTest` (`Notification::fake()`):
-    owning landlord notified exactly once + a different landlord not notified; nothing sent on validation
-    failure. Suite green (submission 9, PublicScreening 7), Pint clean.
+### Lifecycle expansion — gated (do NOT auto-build)
+- [ ] **C8 · Lease & e-sign** — `[deferred — needs spec]`
+- [ ] **C9 · Rent collection** — `[deferred — needs spec]`
+- [ ] **C10 · Maintenance requests + triage agent** — `[deferred — needs spec]`
+- [ ] **C11 · Accounting (per-property income/expense, tax-ready)** — `[deferred — needs spec]`
+- [ ] **C12 · Subscription billing (Stripe/Cashier)** — `[deferred — needs spec]`
 
-- [x] Replace the lost spam deterrent: rate-limit + honeypot the public submission
-  - context: removing email verification removes our only abuse barrier on the account-free public
-    endpoints. Add a `throttle` middleware to `screening.store` (and `screening.show` if sensible) — a
-    sane per-IP limit — and a hidden honeypot field on `Apply.vue` that silently rejects bots (e.g.
-    spatie-style honeypot via a timestamp + decoy input handled in `StoreApplicationRequest`; do NOT add
-    a new dependency without it being its own approved task — implement a minimal honeypot inline).
-  - done: feature tests — exceeding the rate limit returns 429; a submission with the honeypot filled is
-    rejected without creating an Application. Pint clean.
-  - NOTE: Routes now carry inline throttles — `throttle:10,1` on `screening.store`, `throttle:30,1` on
-    `screening.show` (no named limiter needed; segments per-IP automatically). Added `isSpam()` to
-    `StoreApplicationRequest`: a decoy `contact_channel` field (hidden, `filled()` → spam) plus a
-    `rendered_at` epoch-seconds timestamp (elapsed < `MIN_FILL_SECONDS` = 2 → spam). Both are optional, so
-    existing legit submissions are unaffected. `PublicScreeningController@store` silently redirects spam to
-    the submitted page without persisting. `Apply.vue` carries the hidden honeypot input (`aria-hidden`,
-    `tabindex=-1`, `class="hidden"`) and sets `rendered_at` in `onMounted` (not module load, to avoid an
-    SSR hydration mismatch). Three new tests in `ApplicationSubmissionTest`: decoy-filled discarded,
-    too-fast discarded, 11th post in a minute → 429. Suite green (12), Pint + vue-tsc + ESLint + build clean.
+## Track X — Context & harness upkeep
+- [ ] **X1 · Keep `CONTEXT.md` true** — when code diverges (new agent type, new model, changed flow),
+  update it in the same iteration that caused the drift.
+- [ ] **X2 · Record decisions as ADRs** in `.docs/decisions/`; move resolved items out of
+  `.docs/open-questions.md`.
+- [ ] **X3 · Refresh feature docs** in `.docs/features/` when behaviour changes.
 
 ---
 
-## Milestone B — Landlord "Applications" page (all units, one table)
+# Track S — Screening Prompt tuning loop
 
-- [x] Add an all-applications index (controller action + route)
-  - context: new `ApplicationController@indexAll` (or a dedicated `ApplicationsController`) returning
-    **every** application across the authenticated landlord's units — scoped via
-    `whereHas('unit.property', fn ($q) => $q->where('landlord_id', $user->id))`. Eager-load
-    `unit.property` and a documents count. Route `GET /applications` name `applications.index` in the
-    `auth`+`verified` group. Render `screening/applicants/All` (or `applications/Index`).
-  - context: paginate (newest `submitted_at` first) and pass each row: applicant name + email, property
-    name / unit label, submitted date, status, document count, and the detail-page URL.
-  - done: a feature test asserting the page lists the landlord's applications across multiple
-    units/properties and excludes another landlord's; pagination present.
-  - NOTE: Added `ApplicationController@indexAll` — `whereHas('unit.property', landlord_id)` scope,
-    `with('unit.property')` + `withCount('documents')`, `latest('submitted_at')`, `paginate(20)` with
-    `->through()` mapping each row to {id, applicant_name, applicant_email, property_name (name ?? line1),
-    unit_label, submitted_at, status, documents_count, url=route('applicants.show')}. Route
-    `GET /applications` name `applications.index` in the auth+verified group (between Properties and the
-    unit applicants routes). Created a **minimal** `screening/applicants/All.vue` stub (Inertia tests
-    require the component file to exist) — the full DataTable build is the very next task ("Build the
-    Applications table page"). Note Laravel's paginator serializes pagination keys at the **top level**
-    (`applications.total`/`per_page`/`links`), not under `meta`. Two new tests in ApplicationControllerTest:
-    lists across multiple properties + excludes another landlord (newest first), and pagination (25 → 20
-    per page, total 25). Suite green (13), Pint + vue-tsc + ESLint + build clean.
+> **Goal:** converge `ScorePrompt` so the model's `Score` matches what a landlord would
+> conclude from the fixture documents — clear, consistent, fair-housing-safe, and stable
+> across runs. This is a **refinement loop, not a build checklist.**
 
-- [x] Build the Applications table page
-  - context: new Vue page rendering the running list as a table (reuse `DataTable`, `TableRow`,
-    `StatusBadge`, the `applicationStatus.ts` badge helper, and the row-click pattern from
-    `screening/applicants/Index.vue`). Columns: Applicant, Property · Unit, Submitted, Documents,
-    Status. Each row links to `applicants.show`. Include a clear empty state.
-  - done: an inertia/page assertion that the page renders the applications with their unit/property;
-    `vue-tsc` + build clean.
-  - NOTE: Replaced the `screening/applicants/All.vue` stub with the full table — `DataTable` + clickable
-    `TableRow` rows (Applicant name/email, Property · Unit, Submitted [en-CA date], Documents w/ `FileText`
-    count, right-aligned `StatusBadge` via `applicationStatusBadge`), mirroring `applicants/Index.vue`.
-    Rows navigate via the controller-supplied `application.url` (`router.visit`), so route logic stays in
-    the controller. Empty state reuses the dashed-border card pattern with an `Inbox` icon. The TS row
-    interface models the paginator's top-level `data` key. Added a focused inertia test asserting the page
-    renders a row's applicant_name/email/property/unit/status/url. ApplicationControllerTest green (14),
-    vue-tsc + ESLint + build + Pint clean. Sidebar nav entry is the next task.
+## How this loop works (read once)
 
-- [x] Add the "Applications" entry to the sidebar nav
-  - context: add an item to `mainNavItems` in `resources/js/components/AppSidebar.vue` (between
-    Properties and Settings) pointing at the Wayfinder `applications.index` route, with a fitting
-    `@lucide/vue` icon (e.g. `Inbox` / `FileText`). Match the existing `NavItem` shape.
-  - done: build + `vue-tsc` clean; a smoke assertion that an authenticated landlord's shell includes the
-    Applications link.
-  - NOTE: Added an `Applications` item to `mainNavItems` inside the `isLandlord` branch (Applications is
-    landlord-only — the controller scopes by `landlord_id`), placed right after Properties, pointing at the
-    Wayfinder `applications.index` route (`import { index as applications } from '@/routes/applications'`).
-    Did **not** add a lucide icon: the sidebar template renders every item with a shared `Diamond` bullet
-    and never reads `NavItem.icon`, so an icon here would be dead code — kept the `{title, href}` shape that
-    matches the existing items. No JS test runner exists in this project (no vitest/jsdom), so the rendered
-    shell can't be asserted client-side; the link's destination (`applications.index` reachable by an
-    authed landlord) is already covered by ApplicationControllerTest (14 green). vue-tsc + ESLint + build
-    clean. Follow-up: when the dashboard task lands, the same route is the link target there too.
+The cycle is: **(1) documents → (2) send to the scoring service → (3) verify output against a
+known-good target → (4) make ONE prompt change → (5) repeat.** Steps 1–2 already have machinery;
+step 3 needs a harness (Phase A builds it once); step 4–5 is the repeating tuning round (Phase B).
 
-- [x] Filter & search the Applications table
-  - context: add server-driven filtering to `applications.index`: by status, by property/unit, and a
-    text search over applicant name/email. Use Inertia query params + `WhenAvailable`/`only` partial
-    reloads; debounce the search input. Keep it shareable (filters in the URL).
-  - done: feature tests covering the status filter, the unit/property filter, and the text search each
-    narrowing the result set; build + `vue-tsc` clean.
-  - NOTE: `ApplicationController@indexAll` now reads `search`/`status`/`property` query params and applies
-    them via `->when()` (status = `ApplicationStatus::tryFrom`, property = `whereHas('unit', property_id)`,
-    search = LIKE over first/last name + email), `->withQueryString()` so pagination keeps the filters.
-    It also returns `properties` (the landlord's, id+name), `statuses` (enum cases), and the current
-    `filters` so the view is shareable + the inputs reflect the URL. `All.vue` adds a debounced (300ms)
-    search `Input` + status and property `Select`s, all driving a `router.get` partial reload
-    (`only: ['applications','filters']`, `preserveState`+`preserveScroll`+`replace`) and a Clear button.
-    Empty state now distinguishes "no matches" from "none yet". Scoped filtering to **property** (not a
-    separate unit param) — covers the property/unit dimension without dead UI. Aliased the Wayfinder
-    `index` import to `applicationsIndex` to avoid colliding with the `applications` prop (vue-tsc caught
-    it). Four new tests in ApplicationControllerTest (status / property / search narrowing + filter
-    options exposed). Suite green (18), Pint + vue-tsc + ESLint + build clean.
+- **Phase A tasks are one-and-done** — check them off like a normal Ralph list.
+- **Phase B is self-perpetuating.** Each iteration runs the harness, makes ONE prompt change,
+  records the delta, and **appends the next round** — *unless* the exit criteria are met, in which
+  case check off Phase B so the next iteration finds everything done and prints `RALPH-DONE`.
+- Fresh context every iteration. **The last report on disk + the Delta log below are your memory.**
 
-- [x] Surface an applications count + link on the dashboard
-  - context: the dashboard already computes a `new_applications` signal — make it (and/or a total
-    applications stat) link straight to the new `applications.index`, optionally pre-filtered to New.
-    Reuse the existing `StatCard` / panel patterns; keep it read-only.
-  - done: a feature assertion that the dashboard exposes a link to the applications page; build clean.
-  - NOTE: `DashboardController` now also computes `total_applications` (landlord-scoped via
-    `whereHas('unit.property', landlord_id)`, all statuses) alongside the existing `new_applications`.
-    On `Dashboard.vue` the "New applications" StatCard is now wrapped in an Inertia `<Link>` to
-    `applicationsIndex({ query: { status: 'new' } })` (shareable, pre-filtered to New — the same param
-    the Applications page reads server-side), and a new "Total applications" StatCard links to the
-    unfiltered `applicationsIndex()`. Both links carry hover/focus-ring affordances. Kept read-only —
-    no new panels, just the existing StatCard pattern. Inertia feature tests assert props (no SSR), so
-    the testable surface is the new `total_applications` stat; link wiring is guarded by vue-tsc/build.
-    New test in DashboardRedesignTest: `total_applications` = 3 (2 new + 1 reviewed), scoped to the
-    landlord (another landlord's app excluded). Suite green (4), Pint + vue-tsc + ESLint + build clean.
-    Milestone B is now complete.
+## The loop as reward-driven optimization (what "RL" means here)
 
----
+This loop optimises the **prompt** against a measurable **reward** — the `screening:eval-prompt`
+scorecard — in the spirit of reinforcement learning, but the policy being updated is the *prompt text*,
+not model weights:
 
-## Milestone C — Flesh out the applicant flow
+- **Rollout** — score every fixture profile ≥3× at temperature 0 (the harness).
+- **Reward** — the scorecard: median fit in band, rubric holds, must-flags, **document-comprehension
+  facts** (`must_facts`), zero protected-class leakage, 100% validator first-pass. Higher pass rate +
+  more sub-checks holding = higher reward.
+- **Policy update** — ONE minimal prompt/guidance edit aimed at the biggest reward gap.
+- **Accept/reject** — keep the edit if reward didn't regress; else revert (it's the loop's baseline-vs-
+  candidate acceptance test). Repeat.
 
-- [x] Render the public apply form grouped by its sections
-  - context: the form schema is now section-based (`ApplicationForm->sections`, each with a label +
-    description). Update `PublicScreeningController@show` to pass the enabled **sections** (not just a
-    flat field list) and `Apply.vue` to render section headers + descriptions with the fields beneath —
-    so the applicant sees "Identity", "Employment & income", etc. Keep `enabledFields()` as the
-    validation/snapshot source of truth.
-  - done: an inertia assertion that the apply page renders section headings and their fields; a
-    submission still validates against the enabled fields; build + `vue-tsc` clean.
-  - NOTE: The feature was already built — `PublicScreeningController@show` passes `sections` via
-    `ApplicationForm::enabledSections()` (whole section arrays: key/label/description/fields), and
-    `Apply.vue` renders a `<section v-for>` with the heading (label + description, bordered) and the
-    section's fields grouped beneath; `enabledFields()` (flattened) stays the validation/snapshot source
-    of truth in `@store`. The only gap vs the definition of done was the **assertion**: existing tests
-    asserted section *counts* and *keys* but not that each section carries its heading + nested fields.
-    Added `each rendered section carries its heading and grouped fields` to PublicScreeningControllerTest —
-    asserts `sections.0` has key/label/description/fields and `sections.0.fields.0` has key/type/label/
-    required. Submission-validates-against-enabled-fields stays covered by ApplicationSubmissionTest (12).
-    PublicScreeningControllerTest green (8), ApplicationSubmissionTest green (12), Pint clean. No
-    `resources/js` change, so no vue-tsc/ESLint run needed.
+This is *in-context* prompt optimisation (hill-climbing on the reward), **not** gradient fine-tuning of
+the model. True weight fine-tuning — LoRA/SFT on labelled Scores — is a separate, larger effort (training
+pipeline, a labelled dataset, GPU) and is **out of scope here**; if we ever want it, this harness's
+fixtures + expectations are exactly the labelled seed set it would start from.
 
-- [x] Add a review-before-submit step to the apply flow
-  - context: before final submit, show the applicant a read-only summary of what they entered (and the
-    files they attached) so they can confirm or go back and edit. Multi-step or a single review panel —
-    keep it mobile-first (applicants apply on a phone, see `.docs/features/applicant-flow.md`).
-  - done: an inertia/component assertion of the review step; the existing submission test still passes;
-    build clean.
-  - NOTE: `Apply.vue` now gates submission behind a recap. The form's button is "Review application"
-    (`@submit.prevent="openReview"`); a `reviewing` ref swaps the form (kept mounted via `v-show` so the
-    native file input doesn't lose its picked file) for a read-only `<dl>` recap grouped by section.
-    Each answer is rendered by a typed `displayValue` (Yes/No, Acknowledged, joined multi-choice,
-    `$`-prefixed currency, `—` for empties); references render as contact lines, files as name + size
-    (`formatFileSize`). The recap has "Edit answers" (back) and "Submit application" (the real
-    `form.post`) buttons; `submit`'s `onError` drops back to the form so highlighted fields are visible,
-    and the error banner is shown on the recap too. Mobile-first (stacked `<dl>` rows → 1/3·2/3 on `sm`,
-    `flex-col-reverse` action buttons). Reused the existing `reference()` helper rather than duplicating.
-    No client-side assertion possible: there's no browser-test harness (no Pest-browser/Playwright) and
-    adding one is a dep change out of scope — the change is guarded by vue-tsc + build + ESLint + Prettier
-    (all clean) and the server contract is unchanged, so PublicScreeningControllerTest (component still
-    renders) + ApplicationSubmissionTest (submission still works) stay green (20). Pint clean. Follow-up:
-    when the review step is later folded into the reference-id / "Submitted" page work, the recap copy can
-    restate the reference id once that column exists.
+**Document understanding is now a first-class reward.** `must_facts` in `expectations.php` lists specific
+facts drawn from each profile's documents (a credit score, an income figure, a derogatory mark) that a
+summary which *actually read and cross-referenced the documents* should surface. Tuning to raise the
+comprehension column is how we make the model summarise and understand the documents, not just grade in a
+vacuum — so prefer edits to the **CROSS-REFERENCE** and **RESPONSE CONTRACT → summary** sections of
+`ScorePrompt::instructions()` when the comprehension score is the gap.
 
-- [x] Give each application a public reference id and show it on the thank-you page
-  - context: add a short, unguessable public reference (e.g. a ULID column `public_id` on `applications`,
-    or a hashid) set on creation. Show it on `screening/Submitted.vue` ("Your reference: …") and include
-    it in the applicant confirmation email. Landlords see it on the detail page too.
-  - done: a feature test asserting a created application has a unique `public_id` and the submitted page
-    payload includes it; migration is reversible; Pint clean.
-  - NOTE: Added a reversible migration (`public_id` ULID column, nullable → backfill existing rows with
-    `Str::ulid()` → unique index; `down()` drops the index then column). `Application::booted()` sets
-    `public_id` on `creating` if empty, so every create path gets one (mirrors `ApplicationLink`'s token
-    hook); added the `@property string $public_id` docblock. `PublicScreeningController@store` flashes
-    `->with('reference', $application->public_id)` on the PRG redirect and `@submitted` passes
-    `'reference' => session('reference')` (the submitted route is keyed by token, not application, so the
-    value rides the redirect rather than a re-query). `Submitted.vue` renders a "Your reference" chip when
-    present; the confirmation email (`ApplicationReceivedMail` + blade) shows the reference; the landlord
-    detail page (`applicants/Show.vue`) shows it as a "Reference" field. Added `public_id` to the
-    `Application` TS type. Four new tests in ApplicationSubmissionTest: unique public_id on create, the
-    submitted payload exposes the reference (followingRedirects), and the email renders it. Full suite
-    green (210), Pint + vue-tsc + ESLint + build clean; migration rollback/re-apply verified.
+## The four moving parts (all already in the repo)
 
-- [x] Flesh out the post-submission "Submitted" page
-  - context: `screening/Submitted.vue` should clearly explain what happens next (the landlord reviews and
-    reaches out by email), restate the unit/property, show the reference id, and reassure them their
-    documents were received securely. Polished, on-brand, mobile-first — use `frontend-design`.
-  - done: an inertia assertion the page renders the next-steps copy + reference id; build clean.
-  - NOTE: Rebuilt `Submitted.vue` into three on-brand cards within the existing `PublicScreeningLayout`
-    (max-w-2xl, mobile-first): (1) a success header + a `MapPin` card restating the unit label and
-    address and the reference chip (now responsive: stacked on mobile, label/value split on `sm`) with a
-    "keep this to follow up" hint; (2) a "What happens next" numbered list — *Application received* and
-    *The landlord reviews it* (reaches out by email, replies come from the landlord not dwellow); (3) a
-    `ShieldCheck` reassurance note — documents uploaded securely, shared only with this landlord, no
-    credit/background check (reinforces ADR 0002). Swapped the inline SVG check for the `CircleCheckBig`
-    lucide icon used elsewhere. Props unchanged (`unit`, `reference`). Inertia tests assert props (no SSR),
-    so strengthened the existing "submitted page renders a confirmation" test to assert the page receives
-    `unit.address.line1`/`city` (needed to restate the property) and the `reference` prop; the
-    next-steps/security copy is static template, guarded by vue-tsc + build + ESLint (all clean). Static
-    copy can't be prop-asserted without a browser harness (none in this project — a dep change out of
-    scope), consistent with prior tasks. ApplicationSubmissionTest green (15), Pint clean.
+| Step | What | Where |
+| --- | --- | --- |
+| 1 · documents | md → PDF fixtures for 3 profiles | `tests/Fixtures/screening-samples/{strong,borderline,redflag}` + `generate.mjs` |
+| 2 · send | real submission path → real model call | `ApplicationScoringService::run()` (harness calls this; `screening:seed-samples --sync` is the manual equivalent) |
+| 3 · verify | **built in Phase A** | `screening:eval-prompt` → report in `storage/app/prompt-eval/round-NN.{json,md}` |
+| 4 · tune | the prompt under test | `app/Screening/ScorePrompt.php` (+ `ScoringFramework.php` guidance) |
 
-- [x] Polish the closed / unavailable link state
-  - context: when a link is revoked / expired / not accepting, `Apply.vue` shows a closed state — make it
-    genuinely helpful: explain the listing isn't accepting applications right now, with dwellow branding
-    and no dead end. Cover all three closed reasons with consistent copy.
-  - done: feature tests for revoked/expired/not-accepting each rendering the closed state; build clean.
-  - NOTE: Added `ApplicationLink::closedReason()` (null when open; `revoked` → `expired` → `not_accepting`,
-    revocation taking precedence) next to `isOpen()` so the classification has one source of truth.
-    `PublicScreeningController@show` passes `closedReason` (null when open). `Apply.vue` declares a
-    `ClosedReason` type + `closedReason` prop and a `closedCopy` computed mapping each reason to its own
-    title/body (revoked = "turned off", expired = "expired", not_accepting = "paused"), all ending in a
-    consistent "reach out to the landlord" CTA — no dead end. The closed card was redesigned on-brand
-    (centered `LockKeyhole` in a muted circle, card + shadow). Strengthened the three existing closed-state
-    tests to assert the exact `closedReason` and added an open-link `closedReason: null` test
-    (PublicScreeningControllerTest 9 green, 104 assertions). Pint + vue-tsc + ESLint + build clean.
+**Provider & model (resolved):** Ollama locally, model from `OLLAMA_MODEL` in `.env`. **Locked to
+`llama3.1:8b`** — an A/B via the harness disqualified `qwen3.5-9b-deepseek` (a reasoning distill: it
+emits `<think>` output and failed the JSON contract on **100%** of samples). Instruct-tuned models are
+the right class here; a future upgrade is `qwen2.5:14b-instruct` (needs a host `ollama pull`). Prod uses
+Anthropic, where the tight bands are realistic. Scoring runs at **temperature 0** (`#[Temperature(0)]` on
+`ScoreAgent`) so it is *near*-deterministic — still sample each profile ≥3× and judge on **medians**, but
+run-to-run drift is now small and a band failure means the **prompt**, not the sampler. If Ollama is
+unreachable (all samples fail, model shows `unknown`), mark the task `[blocked] — Ollama not reachable`.
 
-- [x] Client-side polish on the apply form
-  - context: required-field markers, inline per-field help, friendly file inputs (show chosen filename +
-    size, accept hints, clear/remove), disabled submit while uploading with a spinner, and graceful
-    display of server validation errors keyed by `answers.{key}`. Accessibility: labels tied to inputs,
-    error `aria-describedby`. Activate `inertia-vue-development` + `tailwindcss-development`.
-  - done: an inertia/component assertion of the markers/help; `vue-tsc` + build + ESLint clean.
-  - NOTE: Required markers, inline help, file guards, and `answers.{key}` server errors were already in
-    place — this task closed the remaining gaps. Added the accessibility wiring: each control now sets
-    `aria-invalid` when it has an error and `aria-describedby` pointing at its help (`field-{key}-help`)
-    and error (`field-{key}-error`) ids; `InputError` gained an optional `id` prop so the error `<p>` is
-    referenceable. Centralized error lookup in a `fieldError(key)` helper (`fileErrors[key] ?? error(key)`).
-    Made the file input friendly: a `FILE_ACCEPT_HINT` line ("PDF, image…, or Word — up to 10 MB"), a
-    chosen-file chip showing name + size with a "Remove" button (`clearFile` resets the model **and** the
-    native input via a registered `:ref`, since nulling the model alone doesn't clear the browser's picked
-    file). Submit button now shows the shared `Spinner` while `form.processing` (submit already disabled via
-    `canSubmit`). Added a PublicScreeningControllerTest assertion that fields carry `required` + non-null
-    `help` (the data the markers/help render from) — no browser harness exists for a DOM assertion, so the
-    rendered a11y attributes are guarded by vue-tsc/build/ESLint (all clean). PublicScreeningControllerTest
-    green (10), ApplicationSubmissionTest green (15), Pint clean. `Apply.vue`/`InputError.vue` pass Prettier
-    (the format:check warnings are all pre-existing untouched files). Follow-up: the radio/checkbox group
-    containers don't yet carry `aria-describedby`/`role=group` — left for a focused a11y pass if desired.
+## Ground truth — the target each profile should hit  ⟵ EDIT THIS to match your judgment
+
+Rent-to-income is only meaningful against a fixed rent, so each profile is scored against `rent` below.
+`must-flags` = concerns that MUST surface; `must-facts` = the **document-comprehension reward**, specific
+facts the summary should surface to prove it read the documents; `forbidden` = language that must NEVER
+appear (auto-fail). The `must-facts`/`must-flags`/`forbidden` regexes live in `expectations.php` — that
+file is the executable copy of this table; **keep the two in sync.**
+
+| Profile | monthly income | rent | rent/income | fit_score band | key rubric (allowed assessments) | must-flags | must-facts (comprehension) | forbidden |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **strong** (Jordan) | $8,062 | $1,900 | ~24% | **78–95** | affordability=strong · employment=strong · credit=strong/adequate · identity=strong · references=unverified | *(none required)* | credit 762 / "Very Good" · rent-to-income ~24% | any protected-class term or proxy |
+| **borderline** (Alex) | $3,791 | $1,550 | ~41% | **45–68** | affordability=weak · employment=weak/adequate · credit=adequate/weak · identity=strong · disclosures=adequate | rent-stretched / affordability concern | credit 658 / "Fair" · rent-to-income ~41% | protected-class; pet or short tenure framed as a protected trait |
+| **redflag** (Sam) | $2,050 | $1,500 | ~73% | **8–35** | affordability=weak · employment=weak · credit=weak · rental_history=weak · identity=**unverified** (ID is an image) | unaffordable rent-to-income · poor credit · disclosed 2023 eviction · unreadable/unverified ID | a derogatory credit detail (collections / 93% utilisation) | protected-class; source-of-income penalised beyond income *stability*; unverified claim stated as fact |
+
+Every response must also, for **every** profile: return valid JSON passing `ScoreResponseValidator`
+(no repair-retry), grade **all 8** rubric criteria in order, and contain **zero** protected-class language.
+
+## Exit criteria (when to stop)
+
+**Converged** when, for **2 consecutive rounds**, a fresh `screening:eval-prompt` run (each profile
+sampled ≥3×) shows ALL of:
+1. every profile's **median fit_score inside its band**, and
+2. every `must-flags` item, every `must-facts` document-comprehension fact, and every listed rubric
+   assessment holds in **≥⅔ of that profile's samples**, and
+3. **zero** `forbidden` / protected-class hits across all samples (any hit = automatic fail, outranks all else), and
+4. **100%** of samples pass the validator on the first try (no repair retries).
+
+**Budget:** stop after **12 tuning rounds** regardless. If not converged, check off Phase B anyway,
+and in the final Delta-log entry name the best round and the gaps that remain.
 
 ---
 
-## Milestone D — Other gaps worth filling
+## Phase A — build the verification harness (one-and-done)
 
-- [x] Paginate the per-unit applicants list
-  - context: `screening/applicants/Index.vue` + `ApplicationController@index` should paginate (newest
-    first) like the new global page, for units with many applicants.
-  - done: a feature test asserting pagination metadata is present; build clean.
-  - NOTE: `ApplicationController@index` now `->paginate(20)->withQueryString()` (newest first, same as the
-    global page) instead of `->get()`, so the payload shape becomes `applications.data` + top-level
-    pagination keys (`total`/`per_page`). `Index.vue` reads `applications.data` (added a `PaginatedApplications`
-    interface; empty-state + `v-for` updated). No page-link UI added — mirrors `All.vue`, which paginates
-    without rendering links. Updated the three existing per-unit `index` tests to the `.data` shape and added
-    `the per-unit applicants list is paginated` (25 → 20 per page, total 25). ApplicationControllerTest green
-    (19), Pint + vue-tsc + ESLint + build clean. Follow-up: neither `Index.vue` nor `All.vue` render
-    pagination page links yet — a shared Pagination component would let users reach page 2+ (worth a task).
+- [x] **A1 · Encode the ground truth as data.** Create `tests/Fixtures/screening-samples/expectations.php`
+  returning an array keyed by profile: `rent`, `fit_min`, `fit_max`, `rubric` (criterion ⇒ allowed
+  assessments), `must_flags` (list of case-insensitive substrings/regexes), `forbidden` (protected-class
+  regexes). This is the machine-readable copy of the table above — the single source of truth the harness reads.
+  - Done: `expectations.php` written for all 3 profiles; `must_flags`/`forbidden` are label⇒regex maps (self-describing for the report), protected-class set shared across profiles + `ScreeningExpectationsTest` locks the shape (5 assertions green). Note for A2: "unverified claim stated as fact" isn't a regex — enforce it via the `identity=>['unverified']` rubric + unreadable-ID must-flag.
+- [x] **A2 · Build `screening:eval-prompt`.** New artisan command, signature
+  `{--samples=3} {--profiles=strong,borderline,redflag} {--round=}`. For each profile it must:
+  pin a unit at the expectation `rent`; build the application through the **real** path (reuse
+  `SeedScreeningSamples::buildAnswers` + the fixture docs); run `ApplicationScoringService::run()`
+  **sync** `samples` times; then compute per-profile **median fit_score**, per-criterion assessment
+  distribution, flag hit-rate, validator first-pass rate, and any `forbidden` regex hits over
+  summary+rationale+flags+notes; diff against `expectations.php` → **PASS/FAIL with reasons**; print a
+  scorecard table and write the full result to `storage/app/prompt-eval/round-<NN>.{json,md}`. It must
+  leave the dev DB as it found it (transaction+rollback, or delete what it created). It is **not** a Pest
+  test and must never run inside `artisan test` (it hits the live model).
+  - Done: `app/Console/Commands/EvalScreeningPrompt.php` (command `screening:eval-prompt`) + pure grader
+    `app/Screening/PromptEvaluation.php` (median/band/⅔ hold-threshold/forbidden/first-pass → PASS/FAIL
+    reasons, guardrail-first) with `tests/Unit/PromptEvaluationTest.php` (8 green). Made
+    `SeedScreeningSamples::buildAnswers`/`profiles` public static so the harness reuses the real answer
+    build. Side-effects isolated per run: `Storage::fake('local')` + `Mail::fake` + `Notification::fake`
+    + `DB::beginTransaction/rollBack`. First-pass rate is observed via an anonymous `ScoreResponseValidator`
+    subclass bound in the container that records each `validate()` outcome (no change to the service).
+    Report writes go through the `File` facade to the **real** `storage/app/prompt-eval/` (bypassing the
+    faked disk); `--round` auto-increments from the highest `round-NN.json` when omitted.
+  - Note for A3: run `--round=00` needs Ollama reachable; if all samples fail with a connection error the
+    scorecard will show 0% first-pass across the board — that's the "Ollama unreachable" signal to block on.
+- [x] **A3 · Capture the baseline.** Run `screening:eval-prompt --samples=5 --round=00`, commit the
+  `round-00` report, and fill the **Round 00** row in the Delta log below. This is the "before" for step 3.
+  - Done: `round-00.{json,md}` written + committed (0/3 pass, as expected unmodified). Ollama reachable,
+    `llama3.1:8b`, 100% validator first-pass on strong/redflag (borderline 80%). Baseline reads **too
+    generous**: borderline median 80 (band 45–68) and redflag median 42 (band 8–35) both above band; strong
+    92 in-band. Biggest consistent gaps for B-round-1: (a) redflag `employment=weak` held 0/5 and its
+    unaffordable-rent must-flag only 60%; (b) both non-strong profiles score high; (c) `identity=strong`
+    over-graded (strong 1/5, and the redflag ID should read `unverified`). Zero forbidden hits — no
+    guardrail leak to prioritise. Start B-round-1 on the redflag over-scoring / employment mis-grade.
 
-- [x] Add a shared Pagination component and wire it into the applicants tables
-  - context: both `screening/applicants/Index.vue` and `All.vue` now paginate server-side but render no
-    page links, so a landlord can't reach page 2+. Build one small reusable Pagination component from the
-    paginator's top-level `links` (prev/next + numbered) and use it on both pages. Preserve active filters
-    on `All.vue` (the paginator already `->withQueryString()`).
-  - done: a component/inertia assertion the links render; navigating to page 2 returns the next rows;
-    build + `vue-tsc` clean.
-  - NOTE: Added `resources/js/components/Pagination.vue` — driven by the paginator's top-level `links`
-    array (first/last entries → prev/next chevron controls, middle → numbered links + `…` gaps), with a
-    "Showing from–to of total" line. Uses Inertia `<Link>` with `preserve-scroll`/`preserve-state`;
-    disabled controls and the active page render as `<span>` (via `:is`). Self-hides on a single page
-    (`pages.length <= 1`). Filters survive paging because the controllers already `->withQueryString()`,
-    so the link URLs carry the query string. Added shared `Paginated<T>` + `PaginationLink` types to
-    `types/ui.ts` (re-exported via `@/types`) and switched both pages' inline `PaginatedApplications`
-    interfaces to `Paginated<ApplicationRow>` / `Paginated<Application>`. Wired `<Pagination>` in after the
-    `DataTable` on both `All.vue` and `Index.vue`. No JS test harness exists (no vitest/jsdom), so the
-    "links render" + page-2 assertions are a feature test on the paginator payload: new
-    `the all-applications index exposes pagination links and a reachable second page` in
-    ApplicationControllerTest asserts `applications.links` is present, `from`/`to` = 1/20 on page 1, and
-    `?page=2` returns the remaining 5 rows (`from`/`to` = 21/25). Suite green (20), Pint + vue-tsc + ESLint
-    + build clean; new files are Prettier-clean (the two pre-existing All.vue/Index.vue Prettier warnings
-    predate this change — untouched lines).
+## Phase B — tuning round (repeat until converged)
 
-- [x] Export a landlord's applications to CSV
-  - context: an "Export CSV" action on the Applications page that streams the landlord's applications
-    (respecting active filters) — applicant contact, unit/property, status, submitted date. Streamed
-    download, owner-scoped. Documents are NOT included (files stay private).
-  - done: a feature test asserting the export streams a CSV scoped to the landlord with the expected
-    header row; Pint clean.
-  - NOTE: Extracted the landlord-scoped filtered query out of `indexAll` into a shared private
-    `landlordApplicationsQuery(Request)` (status / property / search + `latest('submitted_at')`), now used
-    by both the index and the export so they honour identical filters. Added `ApplicationController@exportAll`
-    streaming via `response()->streamDownload()` + `fputcsv` over a `->chunk(200)` (flat memory): header
-    `Applicant name, Email, Property, Unit, Status, Submitted at` then one row per application — contact,
-    property (name ?? line1), unit label, status label, `submitted_at->toDateTimeString()`. Documents are
-    deliberately excluded (files stay private). Route `GET /applications/export` name `applications.export`
-    in the auth+verified group. `All.vue` gained an "Export CSV" anchor (plain `<a>` for a real file
-    download, not Inertia) whose href is an `exportHref` computed that mirrors the active search/status/
-    property filters, so the export matches what's on screen. Wayfinder regenerated — note it sanitizes the
-    `export`-prefixed action to `exportMethod` (imported aliased as `applicationsExport`). Two new tests in
-    ApplicationControllerTest: header + scoped/own row present & another landlord's excluded (parsed with
-    `str_getcsv` since PHP 8.5's `fputcsv` quotes space-containing fields), and the status filter narrows the
-    export. Suite green (22), Pint + vue-tsc + ESLint + build clean.
+- [x] **B-round-1 · one hypothesis, one change.** Do exactly this, in order:
+  1. Read the latest `storage/app/prompt-eval/round-*.md`. Identify the **single biggest, most
+     consistent gap**, in priority order: protected-class leakage first if any; then validator
+     first-pass < 100%; then out-of-band fit; then a criterion mis-graded across most samples; then a
+     missing must-flag; then a missing **must-fact (comprehension)** — the `Comp` column.
+  2. Write a one-line **hypothesis**: "Sharpening _X_ in `ScorePrompt`/`ScoringFramework` fixes gap _Y_
+     without regressing _Z_."
+  3. Make **ONE minimal change** — wording/guidance only, in `ScorePrompt.php` and/or the criterion
+     `guidance` in `ScoringFramework.php`. Keep it tighter, not longer.
+  4. Update `tests/Unit/ScorePromptTest.php` for any wording it asserts; keep the fast suite green.
+  5. Re-run `screening:eval-prompt --round=1` and compare to the previous report.
+  6. If it **regressed** the overall pass set, `git checkout` the prompt files (revert) — a reverted
+     round still counts and still commits its log entry.
+  7. Record the result in the **Delta log**. Then check the **exit criteria**: if met for 2 rounds
+     running, check off this Phase B bullet (loop ends). Otherwise append `- [ ] B-round-2 · …` below.
+  - Done: gap = out-of-band fit on both non-strong profiles (borderline 80, redflag 42; strong 92 in
+    band). Hypothesis: anchor `fit_score` to the count of `weak` criteria (none→75-95, one/two→45-70,
+    three+→8-40) pulls them into band without regressing strong. ONE change: rewrote the fit_score line
+    in `ScorePrompt::instructions()` (no profile names — general, count-based). Result: borderline 80→70
+    (closer), strong 92→82 (still in band), redflag 42→52 (worse). Pass set unchanged 0/3→0/3 (not a
+    revert-triggering regression). Kept. Root cause of redflag miss: this round the model graded redflag
+    with fewer `weak` criteria (employment weak 3/5, identity unverified 3/5), so the "three+ weak" rung
+    under-fired. **B-round-2 target: firm up redflag `employment=weak` + `identity=unverified` grading**
+    (sharpen those two criterion `guidance` lines in `ScoringFramework.php`) so the fit anchor has the
+    weak-count to act on. Report: `storage/app/prompt-eval/round-01.md`.
+- [x] **B-round-2 · one hypothesis, one change.** Same procedure as B-round-1 (steps 1–7), reading the
+  latest `round-*.md`. Leading candidate from B-round-1's note: redflag's `employment` grades
+  adequate/unverified instead of `weak` and `identity` isn't consistently `unverified` — sharpen the
+  `employment` and/or `identity` `guidance` in `ScoringFramework.php` (pick the single more-consistent
+  miss; ONE change) so the weak-count anchor pulls redflag's fit into 8–35. Re-run `--round=2`, compare,
+  revert if the pass set regresses, log the row, then check exit criteria / append B-round-3.
+  - Done: gap = redflag `employment=weak` held only 3/5 (adequate×2), starving the weak-count anchor so
+    redflag fit stayed high (52). Chose `employment` over `identity` because `unverified` doesn't add to
+    the weak-count anchor (fixing identity would *raise* fit), so employment is the only fix that moves
+    both the criterion grade and the fit number the right way. Hypothesis: naming *recent employment
+    gaps* + *no steady employer* as `weak` triggers (grade stability, not source of income) firms
+    redflag `employment=weak` without regressing strong. ONE change: sharpened the `employment`
+    `guidance` line in `ScoringFramework.php`. Result: redflag employment weak 3/5→**4/5** ✓ (goal hit),
+    borderline employment hold 3/5→4/5, strong employment 5/5 — all improved, none regressed. Redflag
+    fit 52→**40** (nearer band ceiling 35); strong 82→85 (in band); borderline 70→75. Pass set
+    0/3→0/3 (no regression) → kept. Report: `storage/app/prompt-eval/round-02.md`.
+  - Note for B-round-3: redflag now reliably grades **3+ weak** (affordability/employment/credit all
+    ≥4/5) yet its median fit sits at 40 — the top of the anchor's wide "3+ weak → 8-40" rung, just over
+    band ceiling 35. Leading candidate: **tighten that rung's ceiling** (e.g. `3+ weak → 8-30`) in
+    `ScorePrompt::instructions()`. It isolates redflag cleanly — strong (0 weak) and borderline (1-2
+    weak) use other rungs — so it should pull redflag into band without regressing them.
+- [ ] **B-round-3 · re-baseline first, then one change.** The reward function and run conditions changed
+  after B-round-2: scoring is now **temperature 0** (near-deterministic), the model is **locked to
+  `llama3.1:8b`**, and a **document-comprehension reward (`must_facts`)** was added. So the round-01/02
+  deltas are no longer comparable — **`round-04` is the new baseline** (temp 0, comprehension-graded).
+  Read `round-04.md`, then run the normal procedure (B-round-1 steps 1–7, writing `--round=5` onward).
+  Known standing gaps at the new baseline to weigh against whatever `round-04` shows:
+  - **borderline stably over-scores** (~85 at temp 0, band 45–68) — the `1–2 weak → 45–70` anchor rung
+    doesn't pull it down; borderline grades few `weak` criteria. Candidate: sharpen `affordability`/
+    `credit` guidance so borderline's stretch (~41% rent-to-income, Fair credit) grades `weak` more often,
+    feeding the anchor — **without** regressing strong.
+  - **comprehension** — if the `Comp` column shows a fact missing (e.g. the summary never states the
+    rent-to-income % or the credit standing), sharpen the **CROSS-REFERENCE** / **summary** guidance in
+    `ScorePrompt::instructions()` to require quoting the figure it computed.
+  Re-run, compare to the previous report, revert if the pass set regresses, log the row, then check exit
+  criteria / append B-round-4.
 
-- [x] Add a property-level applicants view
-  - context: aggregate applicants across all units of one property (multi-unit landlords want a
-    per-property roll-up between the global list and a single unit). Link it from `properties/Show.vue`.
-    Reuse the table components.
-  - done: a feature test asserting the property view lists applicants from each of its units and excludes
-    other properties'; build clean.
-  - NOTE: Added `ApplicationController@indexForProperty(Property)` — `authorize('view', $property)` then
-    `whereHas('unit', property_id)` scope, `with('unit')` + `withCount('documents')`,
-    `latest('submitted_at')`, `paginate(20)->withQueryString()->through(...)` mapping each row to
-    {id, applicant_name, applicant_email, unit_label, submitted_at, status, documents_count, url}. Route
-    `GET /properties/{property}/applicants` name `properties.applicants.index` in the auth+verified group
-    (just before the per-unit `units.applicants.index`). New page `screening/applicants/Property.vue`
-    mirrors `applicants/Index.vue` (DataTable + clickable rows + Pagination + empty state) with a **Unit**
-    column since rows span the property's units; rows navigate via the controller-supplied `url`. Linked
-    it from `properties/Show.vue` via a new "Applicants" header-action `<Button>` (Wayfinder
-    `index as propertyApplicants` from `@/routes/properties/applicants`, `Users` icon) — available for both
-    multi-unit and whole rentals. Two new tests in ApplicationControllerTest: lists across both units of a
-    property + excludes another property of the same landlord (newest first, paginated), and a non-owner
-    gets 403. Suite green (24), Pint + vue-tsc + ESLint + build + Prettier clean. (Side note: the build's
-    Wayfinder regen added `.form` route definitions, which also cleared the pre-existing `.form` vue-tsc
-    errors across the auth/settings pages — vue-tsc is now fully clean.)
+### Round discipline (this is what makes it converge, not thrash)
 
-- [x] Empty / loading states audit across screening pages
-  - context: ensure every screening list and panel (`properties/Index`, `Show`, applicants Index/All,
-    `UnitScreeningPanel`) has a clear empty state and, where data is deferred, a pulsing skeleton (per the
-    Inertia v3 deferred-prop guidance in `CLAUDE.md`). Reuse a shared empty-state component if one exists;
-    otherwise create one small reusable component.
-  - done: inertia/component assertions for a couple of the empty states; build clean.
-  - NOTE: Every screening list/panel already had an empty state — the gap was that the full-page list
-    empty states were duplicated markup. Extracted a reusable `resources/js/components/EmptyState.vue`
-    (props: optional `icon` component + `tone: 'muted' | 'primary'`; default slot for the message, `action`
-    slot for a button) that reproduces the existing dashed-border card *exactly*, and wired it into the four
-    identical full-page list empty states: applicants `Index`/`All`/`Property` (muted icon) and
-    `properties/Index` (primary tone + Add-property action). Left the visually-distinct smaller variants in
-    `properties/Show.vue` (`bg-card/50 p-10`, no icon) and `UnitScreeningPanel.vue` as-is to avoid changing
-    their look. **Skeletons are N/A**: grep for `Inertia::defer`/`optional`/`WhenAvailable` across `app/` is
-    empty — no list arrives deferred, so every page has its data on first render and a skeleton would be dead
-    UI. No JS test harness exists (no vitest/jsdom), so the empty-state DOM can't be asserted client-side;
-    added a feature test (`...renders the empty state when the landlord has no applications`) asserting the
-    All page renders with `applications.data` empty + `total` 0 (exercises the empty-state data branch).
-    ApplicationControllerTest green (25), vue-tsc + ESLint + build + Prettier + Pint clean.
-  - FOLLOW-UP: `properties/Show.vue` and `UnitScreeningPanel.vue` still use bespoke empty-state markup; a
-    later pass could fold them into `EmptyState` with a `compact`/`size` variant if visual parity is kept.
+- **One hypothesis, one change per round.** No shotgun edits, no "while I'm here."
+- **Never weaken a fair-housing guardrail to move a number.** Protected-class leakage is an automatic
+  fail that outranks every other gap.
+- **Tune wording, not the contract.** The 8 rubric criteria (`ScoringFramework` keys), the schema, and
+  the validator are fixed. If the model can't satisfy the contract, that's a prompt-clarity fix.
+- **Prefer precision over length.** If an edit grows the prompt much without a clear win, find a tighter phrasing.
+- **One commit per round:** the prompt change (or its revert) + the updated Delta log + the round report.
+- **Definition of done (per round), on top of `PROMPT.md`:** fast suite green (`sail artisan test --compact`),
+  pint clean, no new TS/ESLint, and the round's `screening:eval-prompt` report written **and committed**.
 
-- [x] Show application source + timeline on the detail page
-  - context: on `screening/applicants/Show.vue` show which link (label) the application came through and
-    a simple timeline (submitted at, status last changed). Read-only, from existing columns where
-    possible; add a `status_changed_at` column only if needed (reversible migration).
-  - done: a feature assertion the detail payload includes the link label + submitted timestamp; build clean.
-  - NOTE: Added a reversible migration for a nullable `status_changed_at` timestamp on `applications`
-    (needed because `updated_at` also moves on note-only edits, so it can't represent "status last
-    changed"). `Application::booted()` now stamps `status_changed_at` in an `updating` hook when
-    `isDirty('status')`, and casts the column to `datetime`; the docblock + cast were updated. The new
-    column serializes with the whole `$application` payload automatically. `ApplicationController@show`
-    now eager-loads `applicationLink` and passes `source` => the link's `label` (nullable). `Show.vue`
-    gained a "Source & timeline" card (Applied through · Submitted · Status last changed — "Not yet
-    reviewed" until first stamped) between Contact and Application; `source` defaults to "Shared link"
-    when the link has no label; added `source` prop + `status_changed_at` to the `Application` TS type.
-    Two new tests in ApplicationControllerTest: detail payload exposes `source` label + `submitted_at`
-    (and null `status_changed_at`), and a status change stamps `status_changed_at` while a notes-only
-    edit does not re-stamp it. ApplicationControllerTest green (27), Pint + vue-tsc + ESLint + build
-    clean; migration rollback/re-apply verified.
+## Delta log (append one row per round — your cross-iteration memory)
 
-- [x] Flesh out `README.md`
-  - context: the README is a single line. Write a real project README: what dwellow is (small-landlord
-    tenant screening, documents-only, Canadian), the stack, local setup via Sail, how to run tests, and
-    how the Ralph loop (`ralph.sh` + `PROMPT.md` + `ralph.md`) works. Keep it accurate to the repo.
-  - done: README covers setup + test + Ralph; no fabricated commands (verify each runs).
-  - NOTE: Replaced the one-line README with a full one: what dwellow is (small-landlord tenant screening),
-    the **v1 scope** stated against the actual code — documents-only/Canadian (ADR 0002), link-only
-    no-accounts (ADR 0003), CRUD-only with AI scoring + reference outreach deferred (ADR 0001/0004) — so a
-    new contributor doesn't hunt for the aspirational features in `.docs/product/overview.md`. Stack pulled
-    from composer.json/package.json (PHP 8.5 / Laravel 13, Inertia v3 + Vue 3 + TS, Tailwind v4, Fortify,
-    Wayfinder, Pest/Pint/Larastan/ESLint/Prettier/vue-tsc, Sail w/ MariaDB+Redis+Mailpit). Setup is the
-    standard Sail flow; tests + quality commands match composer/package scripts. **Every command verified to
-    run**: `vendor/bin/sail artisan test --compact --filter=ApplicationSubmissionTest` (15 green), Mailpit
-    dashboard confirmed on :8025 in compose.yaml, `vendor/bin/phpstan` binary present, `sail open` present in
-    `vendor/bin/sail` help. Doc-only change (not under `resources/`), so no Pint/vue-tsc/Prettier/test run is
-    applicable. Linked the ADRs/glossary/data-model/roadmap docs. Milestone D is now complete.
+| Round | Gap targeted | Hypothesis / change | strong fit | borderline fit | redflag fit | Fails cleared → left | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 00 (baseline) | — | — (unmodified prompt) | 92 (in band) | 80 (high, band 45–68) | 42 (high, band 8–35) | 0/3 pass — strong/borderline/redflag all FAIL | baseline |
+| 01 | out-of-band fit (both non-strong high) | anchor fit_score to count of `weak` criteria (none→75-95, 1-2→45-70, 3+→8-40) | 82 (in band) | 70 (high, band 45–68) | 52 (high, band 8–35) | 0/3→0/3 (no change) — borderline/strong ↓ toward band, redflag ↑ | kept (pass set not regressed; redflag graded fewer `weak` this round so anchor under-fired) |
+| 02 | redflag `employment=weak` held only 3/5 (starved the weak-count anchor) | sharpen `employment` guidance: name recent gaps + no steady employer as `weak` triggers, grade stability not source | 85 (in band) | 75 (high, band 45–68) | 40 (near band, ceiling 35) | 0/3→0/3 (no change) — redflag employment weak 3/5→4/5, fit 52→40 toward band | kept (goal criterion firmed, all 3 employment holds improved, pass set not regressed) |
+| — | *reward-function change (not a tuning round)* | temperature→0, model locked `llama3.1:8b` (qwen disqualified: 0% valid JSON), added `must_facts` comprehension reward + report column | — | — | — | first-pass now 100% on all (was 80% on redflag); redflag rubric 3/5→5/5; failures now reproducible signals | infra |
+| 03 | *(temp-0 re-baseline, round-2 prompt, no comprehension yet)* | — | 85 (in band) | 85 (high, band 45–68) | 45 (high, band 8–35) | 0/3 — borderline over-scores stably; redflag over ceiling | baseline (temp 0) |
+| 04 | *(new baseline: temp 0 + comprehension-graded)* | — | 85 (in band) · Comp 2/2 | 85 (high) · Comp 1/2 | 45 (high) · Comp 0/1 | 0/3 — strong reads its docs well; borderline misses a credit fact; **redflag never surfaces its derogatory credit detail**; borderline/redflag still out of band | baseline (current) |
 
----
+## Manual knobs (outside the automated loop)
 
-## Milestone E — Refine / refactor / clean up / organize
-
-> These must not change behaviour. Definition of done for each: the **full existing test suite stays
-> green**, Pint is clean, and `vue-tsc`/ESLint are clean if JS was touched. Add a focused test only if
-> the refactor exposes a gap. If a "duplication" below isn't actually present, mark the task `[x]` with a
-> note saying so rather than inventing work.
-
-- [x] Extract a shared address formatter (frontend)
-  - context: `fullAddress()` and ad-hoc address joins appear in `properties/Show.vue`, `Apply.vue`,
-    `Submitted.vue`, and others. Extract one `formatAddress(parts)` util (e.g. `resources/js/lib/`) and
-    reuse it everywhere. One source of truth for the "line1, line2, city, region, postal" join.
-  - done: all address rendering goes through the util; build + `vue-tsc` clean; pages render identically.
-  - NOTE: Added `resources/js/lib/address.ts` exporting `formatAddressLines(parts)` (envelope lines:
-    line1, line2, then "City, Region, Postal" as one locality line, empties dropped) and `formatAddress`
-    (the same joined by ", "). `AddressParts` accepts **both** payload shapes — the screening pages'
-    `line1`/`line2` and the `Property` model's `address_line1`/`address_line2` (`line1 ?? address_line1`)
-    — so it's a true single source of truth with no per-call field mapping. Wired into `Apply.vue` and
-    `Submitted.vue` (replaced their identical inline `cityLine`/filter computeds) and `properties/Show.vue`
-    (deleted the `fullAddress` wrapper, template now calls `formatAddress(property)` directly). Left
-    `properties/Index.vue`'s `cityLine` as-is: it joins only city+region as a compact card summary — a
-    different, deliberately shorter rendering, not the full envelope join — so routing it through the util
-    would change what's shown. No JS test harness exists (no vitest/jsdom), and the refactor is
-    behaviour-preserving with an unchanged server contract, so it's guarded by vue-tsc + build + ESLint
-    (all clean); existing PublicScreeningController + PropertyController feature tests that render these
-    pages stay green (17). No PHP touched, so Pint N/A.
-
-- [x] Extract a currency formatter composable (frontend)
-  - context: the `Intl.NumberFormat('en-CA', { currency: 'CAD' })` logic in `properties/Show.vue` (and
-    anywhere rent is rendered) should be a single `useCurrency`/`formatCurrency` helper.
-  - done: rent rendering uses the shared helper; build clean.
-  - NOTE: Added `resources/js/lib/currency.ts` exporting `formatCurrency(value, fractionDigits = 0)` —
-    `en-CA` CAD formatter, whole dollars by default (matches the prior `maximumFractionDigits: 0`), with a
-    per-`fractionDigits` `Map` cache so formatters are built once (mirrors how Show.vue had hoisted its
-    formatter to module scope). Deleted the local `currency` formatter + `formatCurrency` wrapper from
-    `properties/Show.vue` and imported the shared one; the four call sites (`unitRent`, the two `rentRoll`
-    MetricCards) are unchanged, so rent renders identically. Left `Apply.vue`'s review-recap
-    `case 'currency': $${value}` (line ~313) as-is: it `$`-prefixes arbitrary applicant input (not rent,
-    no `Intl.NumberFormat`), so routing it through the helper would change output (thousands separators)
-    and risk NaN — Milestone E forbids behaviour change. (Same precedent as the address task leaving
-    `properties/Index.vue`'s `cityLine`.) No JS test harness exists (no vitest/jsdom); the refactor is
-    behaviour-preserving with an unchanged server contract, guarded by vue-tsc + ESLint + build + Prettier
-    (all clean). PropertyControllerTest (renders Show.vue) green (7). No PHP touched, so Pint N/A.
-
-- [x] Introduce Eloquent API Resources for screening payloads (backend)
-  - context: controllers hand-build Inertia payload arrays for Unit / Application / Property (e.g.
-    `unitPayload` in `PublicScreeningController`, the applicant rows in `ApplicationController`). Where the
-    same shape is built in more than one place, extract an API Resource (per `CLAUDE.md`'s APIs &
-    Eloquent Resources guidance) so the shape is defined once. Don't over-apply — only consolidate real
-    duplication.
-  - done: duplicated payload shapes flow through a Resource; all controller/feature tests green; Pint clean.
-  - NOTE: The only genuinely duplicated payload was the **applicant-row** array, built nearly identically in
-    `ApplicationController@indexAll` and `@indexForProperty` (id, applicant_name, applicant_email, unit_label,
-    submitted_at, status, documents_count, url — plus property_name only on the portfolio-wide page).
-    Extracted `app/Http/Resources/ApplicationRowResource.php`; both actions now map via
-    `ApplicationRowResource::make($application)->resolve()` inside `->through()`. Used `->resolve()` (not
-    `::collection()`) deliberately so the **paginator's top-level serialization is preserved** —
-    `applications.data` + top-level `total`/`per_page`/`links` — which the Vue pages + tests rely on;
-    `::collection()` would re-wrap pagination under `meta` and break them. `property_name` is emitted via
-    `mergeWhen($this->unit->relationLoaded('property'), …)`, so the per-property page (loads `with('unit')`
-    only) omits it while the portfolio page (`with('unit.property')`) includes it — no separate shapes.
-    **Did NOT** touch: `PublicScreeningController@unitPayload` (already a single shared private method, not
-    duplicated across places), nor the CSV `exportAll` row (a deliberately different shape — `status->label()`,
-    `toDateTimeString()`, no url/id — not the same payload). All 27 ApplicationControllerTest pass (252
-    assertions); Pint clean. No JS touched.
-
-- [x] Consolidate the `firstOrCreate` default-form logic
-  - context: `ApplicationFormController@edit` and `@update` both call
-    `firstOrCreate([], ['sections' => DefaultApplicationForm::sections()])`. Extract to a single method
-    (e.g. `Unit::applicationFormOrDefault()` or a small action) so the seed lives in one place.
-  - done: both call sites use the shared method; tests green; Pint clean.
-  - NOTE: Added `Unit::applicationFormOrDefault()` wrapping the
-    `applicationForm()->firstOrCreate([], ['sections' => DefaultApplicationForm::sections()])` seed, with
-    the `DefaultApplicationForm` import moved onto the model. Routed **all three** call sites through it —
-    `ApplicationFormController@edit`, `@update`, and `UnitObserver@created` (the observer had the same
-    duplicated seed, not just the two controller methods the task named) — so the default-form seed now
-    lives in exactly one place. `@update` keeps its own `DefaultApplicationForm` import (still used for
-    `withEnabledSections`); the observer dropped its now-unused import. Two new tests in UnitObserverTest:
-    `applicationFormOrDefault` seeds the default when the form is missing, and returns the existing form
-    without duplicating it. UnitObserver + ApplicationFormController + BackingUnitProvisioner +
-    BackfillWholeRentalUnits tests green (17), Pint clean. No JS touched.
-
-- [x] Audit & dedupe the screening TypeScript types
-  - context: consolidate the `Application`, `Unit`, `Property`, `ApplicationLink`, form-field/section
-    types in `resources/js/types/` so pages import one canonical definition instead of redeclaring shapes
-    inline (e.g. `FormField`/`SectionField` interfaces duplicated across pages).
-  - done: pages import shared types; no duplicated interfaces; `vue-tsc` clean.
-  - NOTE: Added canonical types to `resources/js/types/property.ts` and removed the inline redeclarations
-    across the screening pages. `Apply.vue`'s `FormField` and `forms/Edit.vue`'s `SectionField` were
-    byte-identical to the existing `FormSnapshotField` — collapsed to one `FormField`, with
-    `FormSnapshotField` kept as an alias (`export type FormSnapshotField = FormField`) so `Show.vue` is
-    untouched. Added `FormSection` (key/label/description/fields) used by `Apply.vue`, and
-    `EditableFormSection extends FormSection` (adds `locked`/`enabled`) for the builder — `Edit.vue` no
-    longer re-lists the base fields. Added `UnitAddress` + `PublicUnit` (the `{label, address}` shape that
-    `Apply.vue` and `Submitted.vue` both declared inline). `Apply.vue`'s `ReferenceValue` was identical to
-    the existing `ReferenceAnswer` — replaced (kept its local `AnswerValue` since that one includes `File`).
-    Added shared `ApplicationRow` (with `property_name?` optional — the portfolio-wide `All.vue` sets it,
-    per-property `Property.vue` doesn't), `StatusOption` (`value: ApplicationStatus`, used by `All.vue` +
-    `Show.vue`), and `PropertyOption` (`{id, name}`, used by `All.vue`'s prop and `Property.vue`'s inline
-    `property` shape). No JS test harness exists (no vitest/jsdom), and this is a behaviour-preserving
-    type-only refactor with an unchanged server contract, so it's guarded by vue-tsc + ESLint + build (all
-    clean). The 58 feature tests that render these pages stay green (ApplicationController /
-    PublicScreeningController / ApplicationFormController / ApplicationSubmission). Pre-existing Prettier
-    warnings on `Submitted.vue`/`Show.vue` predate this change (confirmed against the committed version);
-    `Edit.vue` is Prettier-clean. No PHP touched, so Pint is a no-op (passed).
-
-- [x] Centralize status → badge variant mapping
-  - context: ensure `ApplicationStatus` → badge variant (and any `OccupancyStatus` mapping) lives in one
-    place (`applicationStatus.ts`) and every page uses it — no inline `match`/ternary duplicates.
-  - done: one mapping, reused everywhere; build clean.
-  - NOTE: No actual duplication present — both mappings are already centralized and reused everywhere, so
-    this was a verify-only no-op (Milestone E's "mark [x] with a note rather than invent work"). The
-    `ApplicationStatus` → badge mapping lives once in `resources/js/lib/applicationStatus.ts`
-    (`applicationStatusBadge()`, a `Record<ApplicationStatus, {variant,label}>`), imported by **every**
-    application-status render: `applicants/Show.vue`, `Index.vue`, `All.vue`, `Property.vue`. The
-    `OccupancyStatus` → badge mapping lives once in `resources/js/lib/occupancy.ts` (`occupancyBadge()`),
-    consumed via `StatusBadge.vue` + `propertyOccupancy()` on `properties/Index.vue`/`Show.vue`. Kept it in
-    its own file rather than folding into `applicationStatus.ts` — they are distinct domains; merging would
-    be semantically wrong, not "one place". A full grep (`status ===` / `status ?` ternaries and
-    `variant: '<literal>'` assignments) found zero inline duplicates of either: the only other `variant:`
-    literals are `DocumentCheckRow.vue`'s document-verification state and `UnitScreeningPanel.vue`'s
-    `linkState` (ApplicationLink lifecycle) — different concepts, each already single-sourced in its sole
-    consumer — and the `properties/*` `status ===` checks are filter/count logic, not badge mapping. No
-    code change, so no test/Pint/vue-tsc needed (nothing touched).
-
-- [x] Dead-code sweep after the verification removal
-  - context: once Milestone A lands, grep for orphans — unused imports, routes, translations, cache keys,
-    factory states, or test helpers left behind by the removed verification flow — and delete them.
-  - done: `grep` for the removed symbols is empty; full suite green; Pint + ESLint clean.
-  - NOTE: Verify-only no-op — Milestone A's tasks each removed their own orphans as they landed, so the
-    sweep found nothing left to delete. Audited: `grep -rin` for the applicant-verification symbols
-    (`verification_code`, `EmailVerification`, `ApplicationVerificationCode`, `application-code`,
-    `VerifyApplicationEmail`, `screening.verify`, `sendCode`/`codeSent`) over `app resources routes tests`
-    returns only **Fortify landlord** email-verification + 2FA + document-check matches (all legitimate,
-    kept). No verification migration/table/model, no factory state, no orphan blade view
-    (`resources/views/emails/` has only `application-received`, `verify-email` [Fortify], `welcome`), no
-    lang entries. Wayfinder's generated `routes/screening/index.ts` + `actions/.../PublicScreeningController.ts`
-    carry no `verify`. Every `use` import in the Milestone-A-edited files (`PublicScreeningController`,
-    `StoreApplicationRequest`) resolves to a real usage; `Apply.vue` no longer imports `useHttp`/`watch`.
-    The honeypot fields (`contact_channel`/`rendered_at`) are deliberately retained (Milestone A spam
-    deterrent), not orphans. Full suite green (223), ESLint + Pint clean. No files changed.
-
-- [x] Run Larastan and fix what it flags
-  - context: run `vendor/bin/sail php artisan` is not it — run Larastan (`vendor/bin/sail php vendor/bin/phpstan analyse` per `phpstan.neon`). Fix legitimate issues (missing types, generics on relations/collections, array shapes). Do not silence with baseline unless a finding is a genuine false positive.
-  - done: Larastan passes at the configured level (or only documented, justified ignores remain); Pint clean.
-  - NOTE: Larastan (level 7, paths app/bootstrap/config/database/routes) reported 27 errors; all fixed at
-    the source — **no** baseline/ignore/@var added. (1) `ApplicationController`: typed
-    `landlordApplicationsQuery()` as `@return Builder<Application>` so the paginator/`chunk` callbacks
-    resolve to `Application` (cleared the `through()` arg-type + 6 undefined-property errors on the CSV
-    export rows in one go); guarded `fopen('php://output')` against `false` before `fputcsv`/`fclose`;
-    rewrote `$status?->value ?? ''` as `$status instanceof ApplicationStatus ? $status->value : ''`
-    (phpstan's `nullsafe.neverNull` rejects the `?->…??` pattern even though `dumpType` confirmed `$status`
-    is genuinely `ApplicationStatus|null`). (2) `ApplicationRowResource`: swapped the positional
-    `mergeWhen()` (which produced an int-keyed entry → `array<int|string,mixed>`) for a conditional spread,
-    so the shape is honestly `array<string,mixed>`. (3) `DefaultApplicationForm`: tightened `section()`'s
-    `@return` `fields` to the real field shape so `sections()` matches its declared list shape; dropped the
-    redundant `?? false` on the always-present `locked` offset. (4) `Property` model: added `@property-read
-    int|null` for the `units_count`/`occupied_units_count`/`available_units_count` withCount aliases; typed
-    `DashboardController`'s three `sum()` closures `(Property $property): int` (resolves the unresolved
-    `sum` template type + the undefined-property reads). (5) Filament: added the parent's `Model $record`
-    type to `PropertyResource`/`SentEmailResource` `canView`/`canEdit`; added a `userRecord(): User`
-    instanceof-narrowing helper to the `SyncsUserRoles` trait and used it in the trait + `EditUser` so
-    `syncRoles()`/`roleEnums()` resolve on `User` (was `Model|int|string`). (6) `ApplicationFactory`: cast
-    the FK to `(int)` so `findOrFail` returns a single model, not `Model|Collection`. Larastan now passes
-    (0 errors); Pint clean; full suite green (223) — all changes are behaviour-preserving type fixes covered
-    by existing controller/factory tests, no new code path to test. No JS touched.
-
-- [x] Tighten controller method docblocks & return types
-  - context: sweep the screening controllers for consistent PHPDoc + explicit return types + array-shape
-    annotations per the PHP rules in `CLAUDE.md`. No behaviour change.
-  - done: Pint + Larastan clean; suite green.
-  - NOTE: Mostly already done — the earlier "Run Larastan" task had already forced explicit return types and
-    array shapes across these controllers. Swept all six screening-touching controllers (Application,
-    ApplicationForm, ApplicationLink, PublicScreening, Document, Property, Unit, Dashboard): every public
-    method already has a PHPDoc summary + explicit return type, and the option-builders (`formOptions`,
-    `statusOptions`) already carry precise array shapes. The one genuinely loose annotation was
-    `PublicScreeningController::unitPayload`'s `@return array<string, mixed>` — tightened it to the precise
-    public-page contract `array{label: string, address: array{line1: string, line2: string|null, city,
-    region, postal_code, country: string}}` (verified against the `properties` schema: `address_line2`
-    nullable, rest non-null strings; `Unit::$label` is `@property string`). Did NOT add closure param type
-    hints to the `->when()`/`whereHas` callbacks — Larastan passes at level 7 without them and the PHP rule
-    targets method (not closure) params; that churn would be risk without benefit. Larastan 0 errors, Pint
-    clean, PublicScreeningControllerTest (10) + ApplicationSubmissionTest (15) green. No JS touched.
-
-- [x] Extract shared validation rules for application fields
-  - context: if field-rule construction or address/contact rules are duplicated across
-    `StoreApplicationRequest` / `UpdateApplicationFormRequest` / property & unit requests, pull the
-    common pieces into a Concern (see the existing `app/Concerns/` pattern).
-  - done: shared rules live in one Concern; request tests green; Pint clean.
-  - NOTE: Verify-only no-op — the hypothesized duplication isn't present (Milestone E's "mark [x] with a
-    note rather than invent work"). Audited every request's `rules()`: **property** rules
-    (`Store`/`UpdatePropertyRequest`) already share `app/Concerns/PropertyValidationRules::propertyRules()`;
-    **unit** rules (`Store`/`UpdateUnitRequest`) already share `UnitValidationRules::unitRules()`; profile
-    rules already share `ProfileValidationRules`/`PasswordValidationRules` — so the property/unit/address
-    rules this task names are *already* extracted into concerns (the exact pattern asked for).
-    `StoreApplicationRequest`'s dynamic field-rule construction (`rulesForField()` field-type→rules + the
-    Reference contact sub-fields name/email/phone/relationship) is **single-use** — a full grep
-    (`rulesForField`, `FieldType::` rule-building, `address_line1`, `'relationship'`, the reference
-    `email`/`name` sub-rules) found no second site building these; `PublicScreeningController`'s only
-    `FieldType::` use is a `File`-type check for storage, not rule construction.
-    `UpdateApplicationFormRequest` only validates `enabled_sections` keys — it builds no field/address/
-    contact rules at all, so there's nothing it shares with the others to extract. Extracting a single-use
-    block into a Concern would add indirection with zero reuse. No code change, so no test/Pint/vue-tsc
-    needed (nothing touched).
-
-- [x] Naming & glossary consistency pass
-  - context: align code/UI vocabulary with `.docs/domain/glossary.md` (Applicant vs Application vs
-    Application Link, etc.) — route names, variable names, page titles, button copy. Small, surgical
-    renames only; keep public URLs stable.
-  - done: terminology matches the glossary; suite green; build clean.
-  - NOTE: The glossary's rule is about the *person* — "Prefer Applicant over 'tenant' until approved;
-    they aren't a tenant yet." Audited user-facing copy (an Explore sweep over `resources/js` + `app` +
-    blade) for the screened person being mislabelled "tenant". Two genuine violations — both phrased
-    "screen **tenants**" (verb+object → the people being screened, who are applicants): `Welcome.vue:104`
-    ("Screen tenants with confidence…" → "Screen applicants…") and `resources/views/emails/welcome.blade.php:4`
-    ("screen tenants with confidence" → "screen applicants…"). **Deliberately left** the compound
-    product-category term "tenant screening" (`AuthSplitLayout.vue:74` "AI tenant screening…",
-    `Dashboard.vue:119` "Tenant screening tools") — that's dwellow's own established self-description
-    (README/product memory), the *activity* not the *person*; and `AuthSplitLayout.vue:77` "choose your
-    next tenant" is correct (post-approval, they *are* a tenant). `Register.vue`'s `tenant` value is a
-    user-account role (landlord vs tenant accounts), a different concept from a screening applicant —
-    left. All screening page `<Head title>`s already use glossary terms (Applications/Applicants/Apply/
-    Application form). Route names, variable names, models, columns already match the glossary
-    (Application/Applicant/ApplicationLink/Unit/Property) — no renames needed (and columns/URLs must stay
-    stable anyway). Programmatic coverage: strengthened `EmailBrandingTest`'s welcome-email test to assert
-    `screen applicants with confidence` is present and `screen tenants` is absent (EmailBrandingTest green,
-    2/10). The `Welcome.vue` copy has no JS test harness (no vitest/jsdom — consistent with prior tasks),
-    guarded by vue-tsc + ESLint + build (all clean). Pint clean. No backend logic touched.
-
-- [x] Add a screening smoke test (Pest browser / page render)
-  - context: a lightweight smoke test that visits the key landlord screening pages (properties show,
-    form builder, applicants index, applications index) and the public apply page asserting no JS/render
-    errors — per the `pest-testing` skill's smoke-testing guidance.
-  - done: the smoke test passes locally against the built assets.
-  - NOTE: Used a **page-render** smoke test (the task's allowed "/ page render" alternative), not Pest
-    browser: no `pestphp/pest-plugin-browser`/Playwright is installed and adding one is an out-of-scope
-    dependency change (consistent with every prior task that noted "no browser harness exists"). New
-    `tests/Feature/ScreeningSmokeTest.php`: a `screeningFixture()` helper builds a verified landlord +
-    property + unit (auto-provisioned form via UnitObserver) + link + submitted application, then a single
-    data-driven (`->with([...])`) test visits each key landlord page — `properties.show`,
-    `units.form.edit` (form builder), `units.applicants.index`, `properties.applicants.index`,
-    `applications.index`, `applicants.show` — asserting 200 + the expected Inertia component renders (a
-    render error would 500 or mismatch the component). A separate case covers the public `screening.show`
-    apply page. `withoutVite()` so it runs without built assets. 7 cases / 56 assertions green; Pint clean.
-    No JS touched. This is the last unchecked task — Milestone E (and the whole plan) is now complete.
-
-## Design & domain references
-
-Read the relevant doc before a task: `.docs/features/applicant-flow.md`,
-`application-form-builder.md`, `landlord-dashboard.md`, `.docs/domain/data-model.md`,
-`.docs/domain/glossary.md`, and the ADRs in `.docs/decisions/`.
-
-## Done — previous milestones (in git history)
-
-Screening CRUD (enums, default form, models/migrations/factories/policies, auto-provisioned per-unit
-form, form-builder + section toggles, links create/toggle/revoke, public apply + submission + snapshot +
-documents, applicants list/detail/status/notes/delete, secure document download, dashboard signal) and
-whole-rental parity (backing unit auto-provision + backfill + screening surface). The earlier email-code
-verification was added and is now being **removed** in Milestone A. See `git log`.
+- **Reshape a profile's story (step 1):** edit the `applicants` array in
+  `tests/Fixtures/screening-samples/generate.mjs`, regenerate with
+  `node tests/Fixtures/screening-samples/generate.mjs` (needs host Chrome — run on the **host**, not in
+  Sail), then update `expectations.php` to match. Adding a 4th profile (e.g. a clean applicant with an
+  unreadable ID, to isolate `identity=unverified`) is a valid expansion — add its row to the target table first.
+- **Model selection** (carried over, still open): once the harness exists it doubles as the A/B rig —
+  re-run `screening:eval-prompt` under a candidate `OLLAMA_MODEL` to compare validated-JSON quality.

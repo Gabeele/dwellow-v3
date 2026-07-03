@@ -126,10 +126,9 @@ function cellTone(cell: string): 'success' | 'warning' | 'muted' {
                         <Eyebrow>For landlords · 1–20 units</Eyebrow>
                     </div>
                     <h1
-                        class="mt-5 text-34 leading-[1.08] font-semibold tracking-tight text-balance lg:text-[2.75rem] lg:leading-[1.05]"
+                        class="mt-5 font-display text-34 leading-[1.12] font-semibold tracking-tight text-balance lg:text-[3rem] lg:leading-[1.08]"
                     >
-                        Screen tenants on evidence,
-                        <span class="text-muted-foreground">not instinct.</span>
+                        Know before you hand over the keys.
                     </h1>
                     <p
                         class="mt-6 max-w-md text-17 leading-relaxed text-muted-foreground"
@@ -190,19 +189,25 @@ function cellTone(cell: string): 'success' | 'warning' | 'muted' {
                                 </p>
                             </div>
                             <span
-                                class="inline-flex items-center gap-1.5 rounded-full bg-success px-3 py-1 text-xs font-medium text-success-foreground"
+                                class="hero-land inline-flex items-center gap-1.5 rounded-full bg-success px-3 py-1 text-xs font-medium text-success-foreground"
+                                style="--reveal-delay: 2.5s"
                             >
                                 <Check :size="13" />
-                                Recommended
+                                Score 86 · above your bar
                             </span>
                         </div>
 
                         <div class="flex items-center gap-6 px-6 py-6">
-                            <ScoreGauge :score="86" class="scale-[0.78]" />
+                            <ScoreGauge
+                                :score="86"
+                                animate
+                                :delay="1400"
+                                class="scale-[0.78]"
+                            />
                             <div class="min-w-0">
-                                <Eyebrow>Match score</Eyebrow>
+                                <Eyebrow>Score</Eyebrow>
                                 <p class="mt-1 text-sm font-medium">
-                                    Strong fit for a 12-month lease
+                                    Above your bar for a 12-month lease
                                 </p>
                                 <p
                                     class="mt-1 text-13 leading-relaxed text-muted-foreground"
@@ -215,9 +220,12 @@ function cellTone(cell: string): 'success' | 'warning' | 'muted' {
 
                         <div class="space-y-2 px-6">
                             <div
-                                v-for="row in evidenceRows"
+                                v-for="(row, i) in evidenceRows"
                                 :key="row.label"
-                                class="flex items-center justify-between rounded-lg border border-border bg-background/60 px-4 py-2.5"
+                                class="hero-reveal flex items-center justify-between rounded-lg border border-border bg-background/60 px-4 py-2.5"
+                                :style="{
+                                    '--reveal-delay': `${0.3 + i * 0.35}s`,
+                                }"
                             >
                                 <span
                                     class="flex items-center gap-2 text-13 text-muted-foreground"
@@ -233,7 +241,8 @@ function cellTone(cell: string): 'success' | 'warning' | 'muted' {
 
                         <div class="px-6 pt-4 pb-6">
                             <div
-                                class="flex items-start gap-2.5 rounded-lg bg-ai-tint px-4 py-3 text-13 leading-relaxed text-ai-tint-foreground"
+                                class="hero-reveal flex items-start gap-2.5 rounded-lg bg-ai-tint px-4 py-3 text-13 leading-relaxed text-ai-tint-foreground"
+                                style="--reveal-delay: 2.8s"
                             >
                                 <Sparkles :size="15" class="mt-0.5 shrink-0" />
                                 <span>
@@ -256,7 +265,7 @@ function cellTone(cell: string): 'success' | 'warning' | 'muted' {
                 <div class="max-w-xl">
                     <Eyebrow>The cost of guessing</Eyebrow>
                     <h2
-                        class="mt-3 text-22 leading-snug font-semibold tracking-tight"
+                        class="mt-3 font-display text-22 leading-snug font-semibold tracking-tight"
                     >
                         Picking the wrong tenant is the most expensive mistake a
                         landlord can make.
@@ -295,7 +304,7 @@ function cellTone(cell: string): 'success' | 'warning' | 'muted' {
             <div class="max-w-xl">
                 <Eyebrow>How it works</Eyebrow>
                 <h2
-                    class="mt-3 text-28 leading-tight font-semibold tracking-tight"
+                    class="mt-3 font-display text-28 leading-tight font-semibold tracking-tight"
                 >
                     From listing to lease in five steps
                 </h2>
@@ -339,7 +348,7 @@ function cellTone(cell: string): 'success' | 'warning' | 'muted' {
                 <div class="max-w-xl">
                     <Eyebrow>Dwellow vs. the alternatives</Eyebrow>
                     <h2
-                        class="mt-3 text-28 leading-tight font-semibold tracking-tight"
+                        class="mt-3 font-display text-28 leading-tight font-semibold tracking-tight"
                     >
                         Better than a spreadsheet. Simpler than a bureau.
                     </h2>
@@ -440,7 +449,7 @@ function cellTone(cell: string): 'success' | 'warning' | 'muted' {
             <div class="max-w-xl">
                 <Eyebrow>Why dwellow</Eyebrow>
                 <h2
-                    class="mt-3 text-28 leading-tight font-semibold tracking-tight"
+                    class="mt-3 font-display text-28 leading-tight font-semibold tracking-tight"
                 >
                     Built for the way small landlords actually work
                 </h2>
@@ -476,7 +485,7 @@ function cellTone(cell: string): 'success' | 'warning' | 'muted' {
                     <div class="max-w-xl">
                         <Eyebrow>Where we're headed</Eyebrow>
                         <h2
-                            class="mt-3 text-28 leading-tight font-semibold tracking-tight"
+                            class="mt-3 font-display text-28 leading-tight font-semibold tracking-tight"
                         >
                             Screening today, your whole rental business next
                         </h2>
@@ -539,3 +548,42 @@ function cellTone(cell: string): 'success' | 'warning' | 'muted' {
         <MarketingCta />
     </PublicLayout>
 </template>
+
+<style scoped>
+/* The hero Score card judges on load: evidence rows verify one by one,
+   the gauge sweeps to its verdict, then the badge and AI summary land.
+   Reduced-motion users get the card fully settled, no sequence. */
+@media (prefers-reduced-motion: no-preference) {
+    .hero-reveal {
+        animation: hero-reveal 0.5s ease-out backwards;
+        animation-delay: var(--reveal-delay, 0s);
+    }
+
+    .hero-land {
+        animation: hero-land 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+        animation-delay: var(--reveal-delay, 0s);
+    }
+}
+
+@keyframes hero-reveal {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes hero-land {
+    from {
+        opacity: 0;
+        transform: scale(0.88);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+</style>

@@ -435,6 +435,7 @@ let saveTimeout: ReturnType<typeof setTimeout> | undefined;
 const persistDraft = (): void => {
     // Files travel via their own endpoint; never put a File in the JSON body.
     const answers: Record<string, AnswerValue> = {};
+
     for (const [key, value] of Object.entries(form.answers)) {
         if (!(value instanceof File)) {
             answers[key] = value;

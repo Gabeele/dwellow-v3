@@ -52,7 +52,7 @@ const errored = ref(false);
                 <span
                     v-for="marker in markers"
                     :key="marker.n"
-                    class="absolute flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-ai text-xs font-semibold text-ai-foreground ring-2 ring-background shadow-card-md"
+                    class="absolute flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-ai text-xs font-semibold text-ai-foreground shadow-card-md ring-2 ring-background"
                     :style="{ left: `${marker.x}%`, top: `${marker.y}%` }"
                     aria-hidden="true"
                 >
@@ -80,7 +80,9 @@ const errored = ref(false);
             <p
                 v-if="caption"
                 class="text-13 text-muted-foreground"
-                :class="markers.length ? 'mt-4 border-t border-border pt-4' : ''"
+                :class="
+                    markers.length ? 'mt-4 border-t border-border pt-4' : ''
+                "
             >
                 {{ caption }}
             </p>

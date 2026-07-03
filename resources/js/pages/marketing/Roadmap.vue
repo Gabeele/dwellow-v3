@@ -66,7 +66,7 @@ const chipLabel: Record<Status, string> = {
         <section class="mx-auto w-full max-w-3xl px-6 pt-16 pb-10 lg:pt-24">
             <Eyebrow>Roadmap</Eyebrow>
             <h1
-                class="mt-4 text-balance text-34 leading-tight font-semibold tracking-tight lg:text-[2.5rem]"
+                class="mt-4 font-display text-34 leading-tight font-semibold tracking-tight text-balance lg:text-[2.5rem]"
             >
                 What's live, and what's coming next
             </h1>
@@ -92,7 +92,9 @@ const chipLabel: Record<Status, string> = {
                         >
                             {{ group.label }}
                         </h2>
-                        <p class="mt-1 text-13 leading-relaxed text-muted-foreground">
+                        <p
+                            class="mt-1 text-13 leading-relaxed text-muted-foreground"
+                        >
                             {{ group.caption }}
                         </p>
                     </li>
@@ -143,16 +145,16 @@ const chipLabel: Record<Status, string> = {
                                 {{ chipLabel[group.status] }}
                             </span>
                         </div>
-                        <p class="mt-1 text-13 leading-relaxed text-muted-foreground">
+                        <p
+                            class="mt-1 text-13 leading-relaxed text-muted-foreground"
+                        >
                             {{ item.description }}
                         </p>
                     </li>
                 </template>
             </ol>
 
-            <p
-                class="mt-6 ml-2 text-13 text-muted-foreground sm:ml-3"
-            >
+            <p class="mt-6 ml-2 text-13 text-muted-foreground sm:ml-3">
                 Want something that isn't here?
                 <a
                     href="mailto:hello@dwellow.app"

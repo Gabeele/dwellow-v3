@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ActivityType;
 use App\Enums\ApplicationStatus;
 use App\Http\Requests\ApproveApplicationRequest;
 use App\Http\Requests\RejectApplicationRequest;
@@ -9,6 +10,7 @@ use App\Http\Requests\UpdateApplicationRequest;
 use App\Http\Resources\ApplicationRowResource;
 use App\Mail\ApplicationApprovedMail;
 use App\Mail\ApplicationRejectedMail;
+use App\Models\Activity;
 use App\Models\Application;
 use App\Models\Property;
 use App\Models\Unit;
@@ -38,7 +40,7 @@ class ApplicationController extends Controller
         $filters = $this->filters($request);
 
         $applications = $this->landlordApplicationsQuery($request)
-            ->with('unit.property')
+            ->with(['unit.property', 'score'])
             ->withCount('documents')
             ->paginate(20)
             ->withQueryString()
@@ -164,7 +166,7 @@ class ApplicationController extends Controller
 
         $applications = Application::query()
             ->whereHas('unit', fn ($query) => $query->where('property_id', $property->id))
-            ->with('unit')
+            ->with(['unit', 'score'])
             ->withCount('documents')
             ->latest('submitted_at')
             ->paginate(20)
@@ -189,6 +191,7 @@ class ApplicationController extends Controller
         $this->authorize('view', $unit);
 
         $applications = $unit->applications()
+            ->with('score')
             ->withCount('documents')
             ->latest('submitted_at')
             ->paginate(20)
@@ -212,21 +215,96 @@ class ApplicationController extends Controller
     {
         $this->authorize('view', $application);
 
-        $application->load(['documents', 'unit.property']);
+        $application->load(['documents', 'unit.property', 'activities.causer']);
 
         return Inertia::render('screening/applicants/Show', [
             'property' => $application->unit->property,
             'unit' => $application->unit,
             'application' => $application,
             'documents' => $application->documents,
+            'activities' => $this->activityFeed($application),
             'statuses' => array_map(
                 fn (ApplicationStatus $status): array => ['value' => $status->value, 'label' => $status->label()],
                 ApplicationStatus::cases(),
             ),
+            // The AI Score and the status of the agent run that produces it. The
+            // status drives the processing/failed/ready states on the detail
+            // page; the score payload is only present once the run completes.
+            // Both are lazy closures (loading their own relations) so the
+            // frontend can poll just these props while an agent is processing,
+            // without re-running the rest of the page's queries.
+            'scoreStatus' => fn (): ?string => $application->loadMissing('scoreAgent')->scoreAgent?->status->value,
+            'score' => fn (): ?array => $this->scorePayload($application->loadMissing('score')),
             // How many other applicants for this unit are still awaiting a
             // decision — drives the "decline the others" option when approving.
             'otherActiveCount' => $this->applicationsAwaitingDecision($application)->count(),
         ]);
+    }
+
+    /**
+     * Shape the application's Score for the detail page, or null while no Score
+     * has been produced yet (still processing, or the agent run failed).
+     *
+     * @return array{fit_score: int|null, score_rationale: string|null, summary: string|null, rubric: array<int, array{criterion: string, assessment: string, note: string}>, red_flags: array<int, string>, strengths: array<int, string>}|null
+     */
+    private function scorePayload(Application $application): ?array
+    {
+        $score = $application->score;
+
+        if ($score === null) {
+            return null;
+        }
+
+        return [
+            'fit_score' => $score->fit_score,
+            'score_rationale' => $score->score_rationale,
+            'summary' => $score->summary,
+            'rubric' => $score->rubric ?? [],
+            'red_flags' => $score->red_flags ?? [],
+            'strengths' => $score->strengths ?? [],
+        ];
+    }
+
+    /**
+     * Shape the application's activity timeline for the detail page (newest first).
+     * `causer` is the user who triggered it (null for system/AI events, which the
+     * UI attributes to dwellow via `is_system`).
+     *
+     * @return array<int, array{id: int, type: string, description: string, is_system: bool, causer: string|null, created_at: string|null}>
+     */
+    private function activityFeed(Application $application): array
+    {
+        return $application->activities->map(fn (Activity $activity): array => [
+            'id' => $activity->id,
+            'type' => $activity->type->value,
+            'description' => $activity->description,
+            'is_system' => $activity->type->isSystem(),
+            'causer' => $activity->causer?->name,
+            'created_at' => $activity->created_at?->toIso8601String(),
+        ])->all();
+    }
+
+    /**
+     * Mark a freshly-opened application as read by advancing it from New to
+     * Reviewing. Idempotent: only New applications move, so a landlord re-opening
+     * a Reviewing/Approved/Rejected application never rewinds its status. The
+     * detail page calls this (debounced) so a glance or link prefetch doesn't
+     * prematurely clear the New badge.
+     */
+    public function markRead(Request $request, Application $application): RedirectResponse
+    {
+        $this->authorize('view', $application);
+
+        if ($application->status === ApplicationStatus::New) {
+            $application->update(['status' => ApplicationStatus::Reviewing]);
+            $application->recordActivity(
+                ActivityType::MarkedReviewing,
+                'Opened and marked as reviewing',
+                causer: $request->user(),
+            );
+        }
+
+        return back();
     }
 
     /**
@@ -237,7 +315,17 @@ class ApplicationController extends Controller
     {
         $this->authorize('update', $application);
 
+        $previousStatus = $application->status;
         $application->update($request->validated());
+
+        if ($application->status !== $previousStatus) {
+            $application->recordActivity(
+                ActivityType::StatusChanged,
+                'Status changed to '.$application->status->label(),
+                ['from' => $previousStatus->value, 'to' => $application->status->value],
+                $request->user(),
+            );
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Application updated.')]);
 
@@ -256,6 +344,7 @@ class ApplicationController extends Controller
 
         $application->load('unit.property');
         $application->update(['status' => ApplicationStatus::Approved]);
+        $application->recordActivity(ActivityType::Approved, 'Application approved', causer: $request->user());
 
         if ($request->boolean('notify_applicant')) {
             Mail::to($application->applicant_email)->send(new ApplicationApprovedMail($application));
@@ -268,6 +357,11 @@ class ApplicationController extends Controller
 
             foreach ($others as $other) {
                 $other->update(['status' => ApplicationStatus::Rejected]);
+                $other->recordActivity(
+                    ActivityType::Rejected,
+                    'Declined when another applicant was approved',
+                    causer: $request->user(),
+                );
 
                 if ($request->boolean('notify_declined')) {
                     Mail::to($other->applicant_email)->send(new ApplicationRejectedMail($other));
@@ -301,6 +395,7 @@ class ApplicationController extends Controller
 
         $application->load('unit.property');
         $application->update(['status' => ApplicationStatus::Rejected]);
+        $application->recordActivity(ActivityType::Rejected, 'Application declined', causer: $request->user());
 
         if ($request->boolean('notify_applicant')) {
             Mail::to($application->applicant_email)->send(new ApplicationRejectedMail($application));

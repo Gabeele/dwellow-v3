@@ -39,68 +39,74 @@
         @fonts
 
         @vite(['resources/css/app.css', 'resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])
+        {{-- SEO tags live OUTSIDE <x-inertia::head>: its slot is SSR *fallback*
+             content and is skipped whenever SSR is active (always, in Vite dev),
+             which silently dropped these tags. The client-side <Head> leaves
+             plain (non data-inertia) tags untouched. --}}
+        @php($seo = $page['props']['seo'] ?? null)
+        @if ($seo)
+        <meta name="description" content="{{ $seo['description'] }}">
+        <link rel="canonical" href="{{ $seo['url'] }}">
+
+        <meta property="og:type" content="website">
+        <meta property="og:site_name" content="Dwellow">
+        <meta property="og:title" content="{{ $seo['title'] }}">
+        <meta property="og:description" content="{{ $seo['description'] }}">
+        <meta property="og:url" content="{{ $seo['url'] }}">
+        <meta property="og:image" content="{{ $seo['image'] }}">
+
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ $seo['title'] }}">
+        <meta name="twitter:description" content="{{ $seo['description'] }}">
+        <meta name="twitter:image" content="{{ $seo['image'] }}">
+
+        <script type="application/ld+json">
+            {!! json_encode([
+                '@context' => 'https://schema.org',
+                '@type' => 'SoftwareApplication',
+                'name' => 'Dwellow',
+                'applicationCategory' => 'BusinessApplication',
+                'operatingSystem' => 'Web',
+                'description' => $seo['description'],
+                'url' => $seo['url'],
+                'image' => $seo['image'],
+                'offers' => [
+                    '@type' => 'Offer',
+                    'price' => '0',
+                    'priceCurrency' => 'USD',
+                ],
+                'publisher' => [
+                    '@type' => 'Organization',
+                    'name' => 'Dwellow',
+                    'url' => $seo['url'],
+                    'logo' => $seo['image'],
+                ],
+            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}
+        </script>
+        @endif
+
+        @php($faq = $page['props']['faq'] ?? null)
+        @if (! empty($faq))
+            {{-- FAQPage schema powers rich results and answer-engine (AEO) visibility. --}}
+            <script type="application/ld+json">
+                {!! json_encode([
+                    '@context' => 'https://schema.org',
+                    '@type' => 'FAQPage',
+                    'mainEntity' => collect($faq)->map(fn ($item) => [
+                        '@type' => 'Question',
+                        'name' => $item['question'],
+                        'acceptedAnswer' => [
+                            '@type' => 'Answer',
+                            'text' => $item['answer'],
+                        ],
+                    ])->all(),
+                ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}
+            </script>
+        @endif
+
         <x-inertia::head>
-            @php($seo = $page['props']['seo'] ?? null)
+            {{-- SSR fallback only: rendered when SSR is not active. --}}
             <title>{{ $seo['title'] ?? config('app.name', 'Dwellow') }}</title>
-            @if ($seo)
-                <meta name="description" content="{{ $seo['description'] }}">
-                <link rel="canonical" href="{{ $seo['url'] }}">
-
-                <meta property="og:type" content="website">
-                <meta property="og:site_name" content="Dwellow">
-                <meta property="og:title" content="{{ $seo['title'] }}">
-                <meta property="og:description" content="{{ $seo['description'] }}">
-                <meta property="og:url" content="{{ $seo['url'] }}">
-                <meta property="og:image" content="{{ $seo['image'] }}">
-
-                <meta name="twitter:card" content="summary_large_image">
-                <meta name="twitter:title" content="{{ $seo['title'] }}">
-                <meta name="twitter:description" content="{{ $seo['description'] }}">
-                <meta name="twitter:image" content="{{ $seo['image'] }}">
-
-                <script type="application/ld+json">
-                    {!! json_encode([
-                        '@context' => 'https://schema.org',
-                        '@type' => 'SoftwareApplication',
-                        'name' => 'Dwellow',
-                        'applicationCategory' => 'BusinessApplication',
-                        'operatingSystem' => 'Web',
-                        'description' => $seo['description'],
-                        'url' => $seo['url'],
-                        'image' => $seo['image'],
-                        'offers' => [
-                            '@type' => 'Offer',
-                            'price' => '0',
-                            'priceCurrency' => 'USD',
-                        ],
-                        'publisher' => [
-                            '@type' => 'Organization',
-                            'name' => 'Dwellow',
-                            'url' => $seo['url'],
-                            'logo' => $seo['image'],
-                        ],
-                    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}
-                </script>
-            @endif
-
-            @php($faq = $page['props']['faq'] ?? null)
-            @if (! empty($faq))
-                {{-- FAQPage schema powers rich results and answer-engine (AEO) visibility. --}}
-                <script type="application/ld+json">
-                    {!! json_encode([
-                        '@context' => 'https://schema.org',
-                        '@type' => 'FAQPage',
-                        'mainEntity' => collect($faq)->map(fn ($item) => [
-                            '@type' => 'Question',
-                            'name' => $item['question'],
-                            'acceptedAnswer' => [
-                                '@type' => 'Answer',
-                                'text' => $item['answer'],
-                            ],
-                        ])->all(),
-                    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}
-                </script>
-            @endif
         </x-inertia::head>
     </head>
     <body class="font-sans antialiased">

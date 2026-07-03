@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\ApplicationStatus;
+use App\Jobs\ScoreApplication;
 use App\Mail\ApplicationReceivedMail;
 use App\Models\Application;
 use App\Models\ApplicationLink;
@@ -13,6 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
@@ -301,6 +303,54 @@ test('the public submission endpoint is rate limited per IP', function () {
 
     $this->post(route('screening.store', $link->token), ['answers' => []])
         ->assertStatus(429);
+});
+
+test('a valid submission queues the AI Score for the new application', function () {
+    Storage::fake('local');
+    Queue::fake();
+
+    $link = openLink();
+
+    $this->post(route('screening.store', $link->token), [
+        'answers' => validSubmission(),
+    ])->assertRedirect(route('screening.submitted', $link->token));
+
+    $application = Application::query()->sole();
+
+    Queue::assertPushed(
+        ScoreApplication::class,
+        fn (ScoreApplication $job) => $job->application->is($application),
+    );
+});
+
+test('a rejected submission does not queue the AI Score', function () {
+    Storage::fake('local');
+    Queue::fake();
+
+    $link = openLink();
+
+    $answers = validSubmission();
+    unset($answers['gross_monthly_income']);
+
+    $this->post(route('screening.store', $link->token), ['answers' => $answers])
+        ->assertSessionHasErrors('answers.gross_monthly_income');
+
+    Queue::assertNotPushed(ScoreApplication::class);
+});
+
+test('a spam submission does not queue the AI Score', function () {
+    Storage::fake('local');
+    Queue::fake();
+
+    $link = openLink();
+
+    $this->post(route('screening.store', $link->token), [
+        'answers' => validSubmission(),
+        'contact_channel' => 'http://spam.example',
+        'rendered_at' => time() - 60,
+    ])->assertRedirect(route('screening.submitted', $link->token));
+
+    Queue::assertNotPushed(ScoreApplication::class);
 });
 
 test('a submission to a closed link is sent to the friendly closed page', function () {

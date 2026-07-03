@@ -1,12 +1,15 @@
 <?php
 
+use App\Enums\AgentStatus;
 use App\Enums\ApplicationStatus;
 use App\Mail\ApplicationApprovedMail;
 use App\Mail\ApplicationRejectedMail;
+use App\Models\Agent;
 use App\Models\Application;
 use App\Models\ApplicationLink;
 use App\Models\Document;
 use App\Models\Property;
+use App\Models\Score;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -467,6 +470,122 @@ test('the owning landlord sees an applications snapshot and documents', function
         );
 });
 
+test('the detail page reports no score before any agent has run', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create();
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applicants.show', $application))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('screening/applicants/Show')
+            ->where('scoreStatus', null)
+            ->where('score', null),
+        );
+});
+
+test('the detail page reports the processing status while the score agent runs', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create();
+
+    Agent::factory()->processing()->forApplication($application)->create();
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applicants.show', $application))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('screening/applicants/Show')
+            ->where('scoreStatus', AgentStatus::Processing->value)
+            ->where('score', null),
+        );
+});
+
+test('the detail page exposes the completed score payload', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create();
+
+    $agent = Agent::factory()->completed()->forApplication($application)->create();
+    Score::factory()->for($application)->forAgent($agent)->create([
+        'fit_score' => 82,
+        'score_rationale' => 'Strong income relative to rent.',
+        'summary' => 'A well-documented application.',
+        'rubric' => [
+            ['criterion' => 'affordability', 'assessment' => 'strong', 'note' => '~24% of gross'],
+            ['criterion' => 'identity', 'assessment' => 'strong', 'note' => 'ID matches'],
+        ],
+        'red_flags' => ['Move-in date is sooner than the unit is available.'],
+        'strengths' => ['Rent-to-income ratio is comfortable.'],
+    ]);
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applicants.show', $application))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('screening/applicants/Show')
+            ->where('scoreStatus', AgentStatus::Completed->value)
+            ->where('score.fit_score', 82)
+            ->where('score.score_rationale', 'Strong income relative to rent.')
+            ->where('score.summary', 'A well-documented application.')
+            ->has('score.rubric', 2)
+            ->where('score.rubric.0.criterion', 'affordability')
+            ->where('score.rubric.0.assessment', 'strong')
+            ->has('score.red_flags', 1)
+            ->has('score.strengths', 1),
+        );
+});
+
+test('the detail page reports the failed status with no score when the agent run fails', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create();
+
+    Agent::factory()->failed()->forApplication($application)->create();
+
+    $this->withoutVite();
+
+    $this->actingAs($landlord)
+        ->get(route('applicants.show', $application))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('screening/applicants/Show')
+            ->where('scoreStatus', AgentStatus::Failed->value)
+            ->where('score', null),
+        );
+});
+
+test('the detail page score props reload in isolation for polling', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $link = ApplicationLink::factory()->for($unit)->create();
+    $application = Application::factory()->for($link, 'applicationLink')->create();
+
+    Agent::factory()->processing()->forApplication($application)->create();
+
+    $this->withoutVite();
+
+    // The poll that runs while the score agent is processing asks only for the
+    // score props; the rest of the page (application, documents, …) must not be
+    // re-evaluated or returned. A partial reload responds with bare Inertia
+    // JSON, so assert on the payload directly.
+    $this->actingAs($landlord)
+        ->get(route('applicants.show', $application), partialReloadHeaders('screening/applicants/Show', 'scoreStatus,score'))
+        ->assertOk()
+        ->assertJsonPath('component', 'screening/applicants/Show')
+        ->assertJsonPath('props.scoreStatus', AgentStatus::Processing->value)
+        ->assertJsonPath('props.score', null)
+        ->assertJsonMissingPath('props.application')
+        ->assertJsonMissingPath('props.documents');
+});
+
 test('the detail page exposes the submitted timestamp', function () {
     $landlord = User::factory()->landlord()->create();
     $unit = applicantUnitOwnedBy($landlord);
@@ -820,4 +939,45 @@ test('a non-owner cannot approve or decline another landlords application', func
         ->assertForbidden();
 
     Mail::assertNothingOutgoing();
+});
+
+test('marking a New application as read advances it to Reviewing', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $application = Application::factory()
+        ->for(ApplicationLink::factory()->for($unit)->create(), 'applicationLink')
+        ->create(['status' => ApplicationStatus::New]);
+
+    $this->actingAs($landlord)
+        ->post(route('applicants.read', $application))
+        ->assertRedirect();
+
+    expect($application->refresh()->status)->toBe(ApplicationStatus::Reviewing);
+});
+
+test('marking read never rewinds an application that already moved past New', function () {
+    $landlord = User::factory()->landlord()->create();
+    $unit = applicantUnitOwnedBy($landlord);
+    $application = Application::factory()
+        ->for(ApplicationLink::factory()->for($unit)->create(), 'applicationLink')
+        ->create(['status' => ApplicationStatus::Approved]);
+
+    $this->actingAs($landlord)
+        ->post(route('applicants.read', $application))
+        ->assertRedirect();
+
+    expect($application->refresh()->status)->toBe(ApplicationStatus::Approved);
+});
+
+test('a landlord cannot mark another landlord\'s application as read', function () {
+    $owner = User::factory()->landlord()->create();
+    $application = Application::factory()
+        ->for(ApplicationLink::factory()->for(applicantUnitOwnedBy($owner))->create(), 'applicationLink')
+        ->create(['status' => ApplicationStatus::New]);
+
+    $this->actingAs(User::factory()->landlord()->create())
+        ->post(route('applicants.read', $application))
+        ->assertForbidden();
+
+    expect($application->refresh()->status)->toBe(ApplicationStatus::New);
 });

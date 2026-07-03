@@ -12,11 +12,12 @@ Use these terms consistently in code, UI, and docs. One word per concept.
 | **Applicant** | A prospective tenant who opens a link and submits an application. **No account** — identified by verified email/phone. |
 | **Application** | A single applicant's submission for a unit: their form answers, uploaded documents, references, and resulting score. |
 | **Reference** | A contact (prior landlord, employer, personal) listed by an applicant. dwellow emails them a form; their **Reference Response** attaches to the application. |
-| **Criterion** | A single screening rule (e.g. "income ≥ 3× rent"). Defaults shipped by dwellow, customizable per unit. |
-| **Scorecard** | The set of criteria applied to applications for a unit. |
-| **Score** | The AI-generated result of evaluating an application against the scorecard — an overall value plus per-criterion outcomes and rationale. |
-| **Flag** | A surfaced concern on an application (`needs review`, hard-fail, missing reference). |
-| **Scoring Job** | The background job (`ScoreApplication`) that parses a submission and produces its Score. |
+| **Criterion** | A single screening rule (e.g. "income ≥ 3× rent"). Defaults shipped by dwellow, customizable per unit. *(Deferred — v1 scoring is holistic; see [ADR 0006](../decisions/0006-score-via-agent-engine.md).)* |
+| **Scorecard** | The set of criteria applied to applications for a unit. *(Deferred alongside Criterion.)* |
+| **Agent** | The polymorphic AI engine that runs a workflow over a subject. `morphTo analyzable` so the same machinery powers future workflows (e.g. maintenance-request triage); `type` selects the workflow. **One Agent per subject per type.** Carries run state (status, provider, model, raw response, usage, timings). See [ADR 0006](../decisions/0006-score-via-agent-engine.md). |
+| **Score** | The AI-generated result of evaluating an application — **produced by an Agent** of type `score`. **1:1 with an Application.** A holistic **`fit_score` (0–100)** plus a one-sentence rationale, a neutral summary, **Flags**, and strengths. *(v1 is holistic; per-criterion outcomes are deferred — see [ADR 0006](../decisions/0006-score-via-agent-engine.md).)* |
+| **Flag** | A surfaced concern on an application (`needs review`, hard-fail, missing reference). On a Score, Flags are *permissible concerns only* (fair-housing safety). |
+| **Scoring Job** | The background job (`ScoreApplication`) that runs the Score Agent over a submission and produces its Score. |
 
 ## Naming guidance
 

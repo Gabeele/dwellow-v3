@@ -32,8 +32,8 @@ class MarketingController extends Controller
             'stats' => [
                 [
                     'value' => '$3,500+',
-                    'label' => 'Cost of one eviction',
-                    'detail' => 'Lost rent, legal fees and turnover from a single wrong call.',
+                    'label' => 'Typical cost of one eviction',
+                    'detail' => 'Industry estimates: lost rent, legal fees and turnover from a single wrong call.',
                 ],
                 [
                     'value' => '2–3 mo',
@@ -126,7 +126,7 @@ class MarketingController extends Controller
                 ],
                 [
                     'question' => 'Do applicants need to create an account?',
-                    'answer' => 'No. You share one link per unit. Applicants fill out the form and upload documents without signing up for anything, which dramatically increases completion rates compared to portals that force a login.',
+                    'answer' => 'No. You share one link per unit. Applicants fill out the form and upload documents without signing up for anything. No login wall means fewer applicants abandon the form halfway.',
                 ],
                 [
                     'question' => 'Is this only for small landlords?',
@@ -305,13 +305,13 @@ class MarketingController extends Controller
                     'imageAlt' => 'An applicant detail page with a fit score, evidence cards and an approve or decline panel',
                     'markers' => [
                         ['n' => 1, 'x' => 26, 'y' => 29, 'label' => 'Each applicant gets a fit score.'],
-                        ['n' => 2, 'x' => 34, 'y' => 66, 'label' => 'The evidence behind it: income, credit, employment, ID.'],
+                        ['n' => 2, 'x' => 34, 'y' => 66, 'label' => 'The evidence behind it: income, self-reported credit, employment, ID.'],
                         ['n' => 3, 'x' => 80, 'y' => 28, 'label' => 'Approve or decline — Dwellow emails them for you.'],
                     ],
                     'steps' => [
                         'Open a unit\'s applicants to see everyone who applied, side by side.',
                         'Open any applicant to see their fit score.',
-                        'Read the evidence behind it — income, credit, employment and ID.',
+                        'Read the evidence behind it — income, self-reported credit, employment and ID.',
                         'Approve or decline; Dwellow emails them automatically.',
                     ],
                 ],

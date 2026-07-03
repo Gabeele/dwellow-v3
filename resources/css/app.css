@@ -13,6 +13,12 @@
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
     --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* Display voice: same Geist as the body — titles differentiate through
+       weight and tight tracking rather than a second (serif) family. */
+    --font-display:
+        'Geist Sans', Geist, ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        'Noto Color Emoji';
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
@@ -163,10 +169,10 @@
     --warning-tint-foreground: hsl(31 91% 36%);
     --danger-tint: hsl(6 67% 95%); /* #FBEBE9 */
     --danger-tint-foreground: hsl(4 63% 46%); /* #C0362C */
-    --ai: hsl(217 91% 60%); /* #2563EB */
+    --ai: hsl(248 68% 62%); /* #6D5CE0 — agent/AI violet */
     --ai-foreground: hsl(0 0% 100%);
-    --ai-tint: hsl(222 83% 96%); /* #EAF0FE */
-    --ai-tint-foreground: hsl(221 83% 53%);
+    --ai-tint: hsl(250 60% 96%); /* #EEEBFB */
+    --ai-tint-foreground: hsl(248 58% 52%);
     --border: hsl(240 6% 93%);
     --input: hsl(240 5% 91%);
     --ring: hsl(142 73% 29%);
@@ -214,10 +220,10 @@
     --warning-tint-foreground: hsl(38 92% 72%);
     --danger-tint: hsl(6 45% 16%);
     --danger-tint-foreground: hsl(6 78% 74%);
-    --ai: hsl(217 91% 66%);
+    --ai: hsl(248 75% 70%);
     --ai-foreground: hsl(0 0% 4%);
-    --ai-tint: hsl(221 45% 18%);
-    --ai-tint-foreground: hsl(217 91% 78%);
+    --ai-tint: hsl(248 40% 20%);
+    --ai-tint-foreground: hsl(248 75% 80%);
     --border: hsl(0 0% 14.9%);
     --input: hsl(0 0% 14.9%);
     --ring: hsl(0 0% 83.1%);

@@ -43,7 +43,7 @@ const mainNavItems = computed<NavItem[]>(() => [
 
 <template>
     <aside
-        class="fixed inset-y-0 left-0 z-30 flex w-64 flex-col border-r border-border bg-sidebar text-sidebar-foreground"
+        class="fixed inset-y-0 left-0 z-30 flex w-64 flex-col border-r border-border bg-sidebar bg-linear-to-b from-sidebar to-background text-sidebar-foreground"
     >
         <div class="flex h-16 shrink-0 items-center px-4">
             <Link

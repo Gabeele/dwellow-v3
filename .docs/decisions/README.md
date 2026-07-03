@@ -13,3 +13,4 @@ Format: `NNNN-short-title.md`.
 | [0003](./0003-link-only-applicants.md) | Applicants apply via link, no account | Accepted |
 | [0004](./0004-ai-generated-score.md) | Scoring is an AI background job | Accepted |
 | [0005](./0005-landlord-subscription.md) | Monetize via landlord subscription | Proposed |
+| [0006](./0006-score-via-agent-engine.md) | Score via a polymorphic Agent engine | Accepted |

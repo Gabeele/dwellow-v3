@@ -50,7 +50,7 @@ function isExternal(href: string): boolean {
             <div class="mx-auto flex max-w-2xl flex-col items-center">
                 <Eyebrow>Pricing</Eyebrow>
                 <h1
-                    class="mt-4 text-34 leading-tight font-semibold tracking-tight text-balance lg:text-[2.5rem]"
+                    class="mt-4 font-display text-34 leading-tight font-semibold tracking-tight text-balance lg:text-[2.5rem]"
                 >
                     Honest pricing for honest screening
                 </h1>

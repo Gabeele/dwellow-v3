@@ -6,7 +6,10 @@ Turn a raw application (form answers + uploaded documents + reference responses)
 **comparable score and a set of flags** against the landlord's criteria — automatically,
 in the background — so the landlord can decide in minutes instead of hours.
 
-See [ADR 0004](../decisions/0004-ai-generated-score.md) for the why behind using AI.
+See [ADR 0004](../decisions/0004-ai-generated-score.md) for the why behind using AI,
+and [ADR 0006](../decisions/0006-score-via-agent-engine.md) for how it's built — the
+polymorphic **Agent** engine, holistic-v1 `fit_score`, provider config, and the
+deferral of the per-criterion scorecard.
 
 ## How it works
 

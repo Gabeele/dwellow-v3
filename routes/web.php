@@ -6,6 +6,7 @@ use App\Http\Controllers\ApplicationLinkController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\MarketingController;
+use App\Http\Controllers\OnboardingUnsubscribeController;
 use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\PublicScreeningController;
 use App\Http\Controllers\PublicScreeningDraftController;
@@ -17,6 +18,12 @@ Route::get('/', [MarketingController::class, 'home'])->name('home');
 Route::get('pricing', [MarketingController::class, 'pricing'])->name('pricing');
 Route::get('docs', [MarketingController::class, 'docs'])->name('docs');
 Route::get('roadmap', [MarketingController::class, 'roadmap'])->name('roadmap');
+
+// CASL unsubscribe link for promotional onboarding emails. Signed so it works
+// without authentication; the controller is idempotent.
+Route::middleware('signed')
+    ->get('onboarding/{user}/unsubscribe', OnboardingUnsubscribeController::class)
+    ->name('onboarding.unsubscribe');
 
 // Public applicant flow — no account; the link is resolved by its unguessable token.
 // These endpoints are account-free, so a per-IP throttle is the floor of abuse
@@ -58,6 +65,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('properties/{property}/applicants', [ApplicationController::class, 'indexForProperty'])->name('properties.applicants.index');
     Route::get('units/{unit}/applicants', [ApplicationController::class, 'index'])->name('units.applicants.index');
     Route::get('applicants/{application}', [ApplicationController::class, 'show'])->name('applicants.show');
+    Route::post('applicants/{application}/read', [ApplicationController::class, 'markRead'])->name('applicants.read');
     Route::put('applicants/{application}', [ApplicationController::class, 'update'])->name('applicants.update');
     Route::post('applicants/{application}/approve', [ApplicationController::class, 'approve'])->name('applicants.approve');
     Route::post('applicants/{application}/reject', [ApplicationController::class, 'reject'])->name('applicants.reject');

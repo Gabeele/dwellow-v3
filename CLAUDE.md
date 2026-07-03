@@ -221,6 +221,19 @@ Vue components must have a single root element.
 
 </laravel-boost-guidelines>
 
+## Start here
+
+- **`CONTEXT.md`** (repo root) is the orientation file — what dwellow is, the domain model, the
+  architecture (screening pipeline + the polymorphic `laravel/ai` Agent engine), conventions, and
+  product direction. Read it before working in an unfamiliar area.
+- **ADRs live in `.docs/decisions/`**; unresolved decisions in `.docs/open-questions.md`; product,
+  domain, and feature docs in `.docs/`.
+- **The autonomous loop:** `ralph.sh` runs `PROMPT.md` over the `ralph.md` backlog (tracks: coding,
+  context, prompt-tuning), delegating to the subagents in `.claude/agents/`. See the
+  `harness-orchestration` skill. Task-specific skills live in `.claude/skills/` — activate the
+  relevant one when you enter its domain (e.g. `agent-engine`, `screening-eval`,
+  `filament-development`, `pest-testing`, `laravel-best-practices`).
+
 ## Agent skills
 
 ### Issue tracker
@@ -233,4 +246,4 @@ Default canonical labels (`needs-triage`, `needs-info`, `ready-for-agent`, `read
 
 ### Domain docs
 
-Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context: `CONTEXT.md` at the repo root + ADRs in `.docs/decisions/`. See `docs/agents/domain.md`.
