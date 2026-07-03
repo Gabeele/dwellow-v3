@@ -40,7 +40,7 @@ const slots = useSlots();
             <div class="flex flex-col gap-1">
                 <Eyebrow v-if="eyebrow">{{ eyebrow }}</Eyebrow>
                 <h1
-                    class="text-28 font-semibold tracking-tight text-foreground"
+                    class="font-display text-28 font-semibold tracking-tight text-foreground"
                 >
                     {{ title }}
                 </h1>
@@ -49,5 +49,10 @@ const slots = useSlots();
                 <slot name="actions" />
             </div>
         </div>
+
+        <div
+            class="mt-2 h-px bg-linear-to-r from-border via-border/60 to-transparent"
+            aria-hidden="true"
+        />
     </div>
 </template>

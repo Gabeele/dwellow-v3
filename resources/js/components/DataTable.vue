@@ -24,7 +24,7 @@ const props = defineProps<{
         <table class="w-full border-collapse text-left">
             <thead>
                 <tr
-                    class="border-b border-border text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                    class="border-b border-border bg-muted/40 text-xs font-medium tracking-wide text-muted-foreground uppercase"
                 >
                     <slot name="head" />
                 </tr>

@@ -589,6 +589,7 @@ function formatSize(bytes: number | null): string {
                             >
                                 <ScoreGauge
                                     :score="score!.fit_score!"
+                                    animate
                                     class="cursor-help"
                                 />
                             </ScoreRubricHover>
@@ -620,7 +621,7 @@ function formatSize(bytes: number | null): string {
                         <div class="flex flex-1 flex-col gap-3">
                             <div class="flex flex-wrap items-center gap-3">
                                 <h2
-                                    class="text-xl font-semibold text-foreground"
+                                    class="text-22 font-semibold tracking-tight text-foreground"
                                 >
                                     {{ applicantName }}
                                 </h2>
@@ -679,7 +680,7 @@ function formatSize(bytes: number | null): string {
                 <!-- Dwellow AI Score — the screening aid. Three live states:
                      processing (agent running), scored (Score present), failed
                      (run failed, a retry will mutate the same agent). -->
-                <Card>
+                <Card class="bg-gradient-ai">
                     <CardHeader>
                         <CardTitle class="flex items-center gap-2">
                             <span

@@ -9,7 +9,10 @@ import { onScopeDispose, ref, watch } from 'vue';
  * reactivation the clock catches up to the real current time. Cleans up its
  * interval on scope dispose (component unmount or `effectScope` stop).
  */
-export function useNow(active: Ref<boolean>, intervalMs: number = 1000): Ref<number> {
+export function useNow(
+    active: Ref<boolean>,
+    intervalMs: number = 1000,
+): Ref<number> {
     const now = ref(Date.now());
     let handle: ReturnType<typeof setInterval> | null = null;
 

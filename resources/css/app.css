@@ -13,6 +13,12 @@
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
     --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* Display voice: same Geist as the body — titles differentiate through
+       weight and tight tracking rather than a second (serif) family. */
+    --font-display:
+        'Geist Sans', Geist, ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        'Noto Color Emoji';
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);

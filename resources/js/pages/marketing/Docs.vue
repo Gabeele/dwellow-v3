@@ -57,11 +57,13 @@ const nav = computed(() =>
             <div class="mx-auto w-full max-w-6xl px-6 pt-16 pb-12 lg:pt-20">
                 <Eyebrow>Documentation</Eyebrow>
                 <h1
-                    class="mt-4 max-w-2xl text-balance text-34 leading-tight font-semibold tracking-tight"
+                    class="mt-4 max-w-2xl font-display text-34 leading-tight font-semibold tracking-tight text-balance"
                 >
                     From empty account to scored shortlist
                 </h1>
-                <p class="mt-5 max-w-xl text-17 leading-relaxed text-muted-foreground">
+                <p
+                    class="mt-5 max-w-xl text-17 leading-relaxed text-muted-foreground"
+                >
                     {{ intro }}
                 </p>
             </div>
@@ -83,7 +85,9 @@ const nav = computed(() =>
                             :href="`#${item.id}`"
                             class="flex items-baseline gap-2.5 rounded-md px-3 py-1.5 text-13 text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
                         >
-                            <span class="font-mono text-[11px] text-muted-foreground/70">
+                            <span
+                                class="font-mono text-[11px] text-muted-foreground/70"
+                            >
                                 {{ String(i + 1).padStart(2, '0') }}
                             </span>
                             {{ item.title }}
@@ -98,15 +102,21 @@ const nav = computed(() =>
                         :id="guide.id"
                         :key="guide.id"
                         class="scroll-mt-24"
-                        :class="index > 0 ? 'mt-16 border-t border-border pt-16' : ''"
+                        :class="
+                            index > 0
+                                ? 'mt-16 border-t border-border pt-16'
+                                : ''
+                        "
                     >
                         <Eyebrow>{{ guide.eyebrow }}</Eyebrow>
                         <h2
-                            class="mt-3 text-22 leading-snug font-semibold tracking-tight"
+                            class="mt-3 font-display text-22 leading-snug font-semibold tracking-tight"
                         >
                             {{ guide.title }}
                         </h2>
-                        <p class="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                        <p
+                            class="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground"
+                        >
                             {{ guide.intro }}
                         </p>
 
@@ -141,7 +151,9 @@ const nav = computed(() =>
                         class="mt-16 flex flex-col items-start gap-4 rounded-xl border border-border bg-card p-6 shadow-card sm:flex-row sm:items-center sm:justify-between"
                     >
                         <div>
-                            <p class="text-sm font-semibold">Ready to try it yourself?</p>
+                            <p class="text-sm font-semibold">
+                                Ready to try it yourself?
+                            </p>
                             <p class="mt-1 text-13 text-muted-foreground">
                                 Set up your first property in minutes — free
                                 while we're in beta.

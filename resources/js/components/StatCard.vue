@@ -46,7 +46,7 @@ const dotColor = props.dotClass ?? (props.tone ? TONE_TEXT[props.tone] : '');
                 {{ label }}
             </span>
         </div>
-        <p class="mt-2 text-28 font-semibold text-foreground">
+        <p class="mt-2 text-28 font-semibold text-foreground tabular-nums">
             {{ value }}
         </p>
         <p v-if="context" class="mt-1 text-sm text-muted-foreground">

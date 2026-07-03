@@ -22,28 +22,19 @@ describe('formatAgentElapsed', () => {
 
     it('formats sub-minute completed runs in seconds', () => {
         expect(
-            formatAgentElapsed(
-                '2026-06-30T10:00:00Z',
-                '2026-06-30T10:00:42Z',
-            ),
+            formatAgentElapsed('2026-06-30T10:00:00Z', '2026-06-30T10:00:42Z'),
         ).toBe('42s');
     });
 
     it('formats whole-minute completed runs without a seconds remainder', () => {
         expect(
-            formatAgentElapsed(
-                '2026-06-30T10:00:00Z',
-                '2026-06-30T10:02:00Z',
-            ),
+            formatAgentElapsed('2026-06-30T10:00:00Z', '2026-06-30T10:02:00Z'),
         ).toBe('2m');
     });
 
     it('formats minutes with a seconds remainder', () => {
         expect(
-            formatAgentElapsed(
-                '2026-06-30T10:00:00Z',
-                '2026-06-30T10:01:30Z',
-            ),
+            formatAgentElapsed('2026-06-30T10:00:00Z', '2026-06-30T10:01:30Z'),
         ).toBe('1m 30s');
     });
 

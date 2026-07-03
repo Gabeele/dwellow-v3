@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage, usePoll } from '@inertiajs/vue3';
 import { computed, watch } from 'vue';
-import IconRobot from '@/components/icons/IconRobot.vue';
 import DataTable from '@/components/DataTable.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import Eyebrow from '@/components/Eyebrow.vue';
+import IconRobot from '@/components/icons/IconRobot.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import Pagination from '@/components/Pagination.vue';
 import StatCard from '@/components/StatCard.vue';
@@ -135,7 +135,7 @@ const welcomeTitle = computed(() =>
                     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         <Link
                             :href="propertiesIndex()"
-                            class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                            class="block rounded-lg transition hover:shadow-card-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                         >
                             <StatCard
                                 label="Properties"
@@ -144,7 +144,7 @@ const welcomeTitle = computed(() =>
                         </Link>
                         <Link
                             :href="propertiesIndex()"
-                            class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                            class="block rounded-lg transition hover:shadow-card-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                         >
                             <StatCard label="Units" :value="stats.units" />
                         </Link>
@@ -154,7 +154,7 @@ const welcomeTitle = computed(() =>
                                     query: { status: 'occupied' },
                                 })
                             "
-                            class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                            class="block rounded-lg transition hover:shadow-card-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                         >
                             <StatCard
                                 label="Occupied"
@@ -168,7 +168,7 @@ const welcomeTitle = computed(() =>
                                     query: { status: 'available' },
                                 })
                             "
-                            class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                            class="block rounded-lg transition hover:shadow-card-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                         >
                             <StatCard
                                 label="Available"
@@ -186,7 +186,7 @@ const welcomeTitle = computed(() =>
                             :href="
                                 applicationsIndex({ query: { status: 'new' } })
                             "
-                            class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                            class="block rounded-lg transition hover:shadow-card-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                         >
                             <StatCard
                                 label="New applications"
@@ -194,12 +194,17 @@ const welcomeTitle = computed(() =>
                                 :tone="
                                     stats.new_applications > 0 ? 'ai' : 'muted'
                                 "
+                                :class="
+                                    stats.new_applications > 0
+                                        ? 'bg-gradient-ai'
+                                        : ''
+                                "
                                 context="Awaiting your review"
                             />
                         </Link>
                         <Link
                             :href="applicationsIndex()"
-                            class="rounded-lg transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                            class="block rounded-lg transition hover:shadow-card-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                         >
                             <StatCard
                                 label="Total applications"
@@ -332,7 +337,9 @@ const welcomeTitle = computed(() =>
                 v-else
                 class="rounded-lg border border-border bg-card p-8 shadow-card"
             >
-                <h2 class="text-lg font-semibold text-foreground">
+                <h2
+                    class="text-17 font-semibold tracking-tight text-foreground"
+                >
                     Welcome to Dwellow
                 </h2>
                 <p class="mt-2 max-w-prose text-sm text-muted-foreground">
@@ -343,7 +350,7 @@ const welcomeTitle = computed(() =>
 
             <div
                 v-if="stats?.busiest_unit"
-                class="flex flex-col gap-4 rounded-lg border border-border bg-card p-8 shadow-card sm:flex-row sm:items-center sm:justify-between"
+                class="bg-gradient-success flex flex-col gap-4 rounded-lg border border-border p-8 shadow-card sm:flex-row sm:items-center sm:justify-between"
             >
                 <div>
                     <h2 class="text-base font-semibold text-foreground">

@@ -2,10 +2,10 @@
 // Generates test screening documents (markdown -> PDF) for three applicant
 // profiles, plus one image-based photo ID to exercise the UNREADABLE path.
 // Edit the `applicants` data below to change the financial story each tells.
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { execFileSync } from 'node:child_process';
 import { mdToHtml, htmlDoc } from './lib.mjs';
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -51,6 +51,7 @@ function payStub(a) {
   const fed = a.grossBiweekly * 0.14, state = a.grossBiweekly * 0.037;
   const ss = a.grossBiweekly * 0.062, med = a.grossBiweekly * 0.0145;
   const ded = a.grossBiweekly - a.netBiweekly;
+
   return `# Earnings Statement
 
 **${a.employer}**
@@ -200,11 +201,13 @@ function toPdf(html, outPath) {
 for (const a of applicants) {
   const dir = join(ROOT, a.key);
   mkdirSync(dir, { recursive: true });
+
   for (const [slug, fn] of docs) {
     const md = fn(a);
     writeFileSync(join(dir, `${slug}.md`), md);
     toPdf(htmlDoc(mdToHtml(md)), join(dir, `${slug}.pdf`));
   }
+
   console.log(`${a.name.padEnd(16)} -> ${a.key}/ (4 PDFs)`);
 }
 

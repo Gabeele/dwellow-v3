@@ -23,7 +23,7 @@ withDefaults(
             class="bg-gradient-brand flex flex-col items-center gap-6 rounded-2xl border border-border px-6 py-16 text-center shadow-card"
         >
             <h2
-                class="max-w-xl text-28 leading-tight font-semibold tracking-tight"
+                class="max-w-xl font-display text-28 leading-tight font-semibold tracking-tight"
             >
                 {{ heading }}
             </h2>

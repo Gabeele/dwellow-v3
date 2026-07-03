@@ -13,32 +13,51 @@ export function mdToHtml(md) {
   const out = [];
   let i = 0;
   const flushList = (buf, tag) => {
-    if (!buf.length) return;
+    if (!buf.length) {
+return;
+}
+
     out.push(`<${tag}>` + buf.map((li) => `<li>${inline(li)}</li>`).join('') + `</${tag}>`);
     buf.length = 0;
   };
+
   while (i < lines.length) {
     const line = lines[i];
+
     if (line.includes('|') && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i + 1]) && lines[i + 1].includes('-')) {
       const cells = (l) => l.split('|').map((c) => c.trim()).filter((c, idx, a) => !(c === '' && (idx === 0 || idx === a.length - 1)));
       const header = cells(line);
       i += 2;
       const rows = [];
-      while (i < lines.length && lines[i].includes('|')) { rows.push(cells(lines[i])); i++; }
+
+      while (i < lines.length && lines[i].includes('|')) {
+ rows.push(cells(lines[i])); i++; 
+}
+
       out.push('<table><thead><tr>' + header.map((h) => `<th>${inline(h)}</th>`).join('') + '</tr></thead><tbody>' +
         rows.map((r) => '<tr>' + r.map((c) => `<td>${inline(c)}</td>`).join('') + '</tr>').join('') + '</tbody></table>');
       continue;
     }
+
     let m;
+
     if ((m = line.match(/^(#{1,6})\s+(.*)$/))) {
       out.push(`<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`); i++;
     } else if (/^\s*([-*])\s+/.test(line)) {
       const buf = [];
-      while (i < lines.length && /^\s*([-*])\s+/.test(lines[i])) { buf.push(lines[i].replace(/^\s*[-*]\s+/, '')); i++; }
+
+      while (i < lines.length && /^\s*([-*])\s+/.test(lines[i])) {
+ buf.push(lines[i].replace(/^\s*[-*]\s+/, '')); i++; 
+}
+
       flushList(buf, 'ul');
     } else if (/^\s*\d+\.\s+/.test(line)) {
       const buf = [];
-      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) { buf.push(lines[i].replace(/^\s*\d+\.\s+/, '')); i++; }
+
+      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
+ buf.push(lines[i].replace(/^\s*\d+\.\s+/, '')); i++; 
+}
+
       flushList(buf, 'ol');
     } else if (/^\s*---\s*$/.test(line)) {
       out.push('<hr/>'); i++;
@@ -46,12 +65,15 @@ export function mdToHtml(md) {
       i++;
     } else {
       const buf = [line]; i++;
+
       while (i < lines.length && lines[i].trim() !== '' && !/^(#{1,6}\s|\s*[-*]\s|\s*\d+\.\s|---\s*$)/.test(lines[i]) && !lines[i].includes('|')) {
         buf.push(lines[i]); i++;
       }
+
       out.push(`<p>${buf.map(inline).join('<br/>')}</p>`);
     }
   }
+
   return out.join('\n');
 }
 const STYLE = `
