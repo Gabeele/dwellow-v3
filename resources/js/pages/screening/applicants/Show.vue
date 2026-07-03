@@ -1,15 +1,11 @@
 <script setup lang="ts">
 import { Head, router, useForm, usePoll } from '@inertiajs/vue3';
 import {
-    ArrowRight,
     Ban,
     CircleCheck,
     CreditCard,
-    Eye,
     FileText,
-    Inbox,
     Info,
-    ScanSearch,
     ScrollText,
     ShieldAlert,
     ShieldCheck,
@@ -18,7 +14,6 @@ import {
     Trash2,
     TrendingDown,
     TrendingUp,
-    TriangleAlert,
 } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import ApplicationController from '@/actions/App/Http/Controllers/ApplicationController';
@@ -48,7 +43,6 @@ import { formatCurrency } from '@/lib/currency';
 import { index } from '@/routes/properties';
 import { index as applicantsIndex } from '@/routes/units/applicants';
 import type {
-    Activity,
     AnswerValue,
     Application,
     Document,
@@ -68,8 +62,6 @@ const props = defineProps<{
     documents: Document[];
     statuses: StatusOption[];
     otherActiveCount: number;
-    // The application's activity timeline, newest first.
-    activities: Activity[];
     // The score agent's run status (null until an agent has run) and the Score
     // payload (null until the run completes) drive the three-state Score panel.
     scoreStatus: ScoreStatus | null;
@@ -108,80 +100,6 @@ onMounted(() => {
 });
 
 onUnmounted(() => clearTimeout(markReadTimer));
-
-// Icon + tint for each activity type on the timeline.
-const activityIconMeta: Record<
-    string,
-    { icon: typeof CircleCheck; tone: string }
-> = {
-    submitted: { icon: Inbox, tone: 'bg-muted text-muted-foreground' },
-    analysis_started: { icon: ScanSearch, tone: 'bg-ai-tint text-ai' },
-    analysis_completed: {
-        icon: CircleCheck,
-        tone: 'bg-success/10 text-success',
-    },
-    analysis_failed: {
-        icon: TriangleAlert,
-        tone: 'bg-warning/10 text-warning',
-    },
-    marked_reviewing: { icon: Eye, tone: 'bg-ai-tint text-ai' },
-    status_changed: {
-        icon: ArrowRight,
-        tone: 'bg-muted text-muted-foreground',
-    },
-    approved: { icon: CircleCheck, tone: 'bg-success/10 text-success' },
-    rejected: { icon: Ban, tone: 'bg-destructive/10 text-destructive' },
-};
-
-function activityMeta(type: string): {
-    icon: typeof CircleCheck;
-    tone: string;
-} {
-    return (
-        activityIconMeta[type] ?? {
-            icon: Info,
-            tone: 'bg-muted text-muted-foreground',
-        }
-    );
-}
-
-/** Who performed the activity: the named user, or dwellow / the applicant. */
-function activityActor(activity: Activity): string {
-    if (activity.causer) {
-        return activity.causer;
-    }
-
-    return activity.is_system ? 'Dwellow AI' : 'Applicant';
-}
-
-/** A coarse "5m ago" relative time, falling back to a date past 30 days. */
-function relativeTime(iso: string | null): string {
-    if (!iso) {
-        return '';
-    }
-
-    const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-
-    if (seconds < 45) {
-        return 'just now';
-    }
-
-    const minutes = Math.round(seconds / 60);
-
-    if (minutes < 60) {
-        return `${minutes}m ago`;
-    }
-
-    const hours = Math.round(minutes / 60);
-
-    if (hours < 24) {
-        return `${hours}h ago`;
-    }
-
-    const days = Math.round(hours / 24);
-
-    return days < 30 ? `${days}d ago` : dateFormatter.format(new Date(iso));
-}
 
 // Decision dialogs — approve / decline / delete each confirm before acting.
 const showApprove = ref(false);
@@ -960,49 +878,6 @@ function formatSize(bytes: number | null): string {
                         </CardContent>
                     </Card>
                 </div>
-
-                <!-- Activity timeline — the application's history, newest first.
-                     Everything that happens (submission, AI analysis, status
-                     changes, decisions) lands here, attributed to who did it. -->
-                <Card v-if="activities.length">
-                    <CardHeader>
-                        <CardTitle>Activity</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <ol class="flex flex-col">
-                            <li
-                                v-for="(activity, idx) in activities"
-                                :key="activity.id"
-                                class="relative flex gap-3 pb-5 last:pb-0"
-                            >
-                                <span
-                                    v-if="idx < activities.length - 1"
-                                    class="absolute top-7 left-3.5 -z-10 h-full w-px -translate-x-1/2 bg-border"
-                                />
-                                <span
-                                    :class="[
-                                        'flex size-7 shrink-0 items-center justify-center rounded-full',
-                                        activityMeta(activity.type).tone,
-                                    ]"
-                                >
-                                    <component
-                                        :is="activityMeta(activity.type).icon"
-                                        class="size-3.5"
-                                    />
-                                </span>
-                                <div class="flex flex-col gap-0.5 pt-0.5">
-                                    <span class="text-sm text-foreground">
-                                        {{ activity.description }}
-                                    </span>
-                                    <span class="text-13 text-muted-foreground">
-                                        {{ activityActor(activity) }} ·
-                                        {{ relativeTime(activity.created_at) }}
-                                    </span>
-                                </div>
-                            </li>
-                        </ol>
-                    </CardContent>
-                </Card>
 
                 <!-- Full submitted application (the snapshot taken at submit time). -->
                 <Card>
