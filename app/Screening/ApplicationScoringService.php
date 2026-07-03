@@ -5,6 +5,7 @@ namespace App\Screening;
 use App\Enums\ActivityType;
 use App\Enums\AgentStatus;
 use App\Enums\AgentType;
+use App\Events\ApplicationScored;
 use App\Models\Agent;
 use App\Models\Application;
 use App\Models\Score;
@@ -130,6 +131,8 @@ class ApplicationScoringService implements AgentHandler
             "AI analysis completed — fit score {$score->fit_score}",
             ['fit_score' => $score->fit_score],
         );
+
+        ApplicationScored::dispatch($application);
 
         return $agent;
     }
